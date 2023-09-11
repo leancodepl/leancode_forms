@@ -40,6 +40,12 @@ class SimpleForm extends StatelessWidget {
             labelText: 'Last Name',
             hintText: 'Enter your last name',
           ),
+          FormTextField(
+            field: context.read<SimpleFormCubit>().email,
+            translateError: validatorTranslator,
+            labelText: 'Email',
+            hintText: 'Enter your email',
+          ),
           ElevatedButton(
             onPressed: context.read<SimpleFormCubit>().submit,
             child: const Text('Submit'),
@@ -55,6 +61,7 @@ class SimpleFormCubit extends FormGroupCubit {
     registerFields([
       firstName,
       lastName,
+      email,
     ]);
   }
 
@@ -65,6 +72,25 @@ class SimpleFormCubit extends FormGroupCubit {
   final lastName = TextFieldCubit(
     validator: filled(ValidationError.empty),
   );
+
+  //A field with async validation
+  late final email = TextFieldCubit(
+    validator: filled(ValidationError.empty),
+    asyncValidator: validateEmail,
+  );
+
+  Future<ValidationError?> validateEmail(String value) {
+    final takenEmail = ['john@email.com', 'jack@email.com'];
+    return Future<ValidationError?>.delayed(
+      const Duration(milliseconds: 500),
+      () {
+        if (takenEmail.contains(value)) {
+          return ValidationError.emailTaken;
+        }
+        return null;
+      },
+    );
+  }
 
   void submit() {
     //Change to true to enable autovalidation of each field after pressing submit.

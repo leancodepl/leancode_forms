@@ -26,6 +26,7 @@ enum ValidationError {
 
   //email related
   invalidEmail,
+  emailTaken,
 }
 
 /// Would be replaced by mapping an error to a string in a translation file
@@ -42,6 +43,7 @@ String validatorTranslator(ValidationError error) {
     ValidationError.noLowerCase => 'This value must contain a lowercase letter',
     ValidationError.doesNotMatch => 'Passwords must match',
     ValidationError.invalidEmail => 'Invalid email',
+    ValidationError.emailTaken => 'Email already taken',
   };
 }
 

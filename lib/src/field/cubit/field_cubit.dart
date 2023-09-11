@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// A validate function receiving the current value and returning an error code.
 /// If null is returned, the value is considered valid.
 typedef Validator<T, E extends Object> = E? Function(T);
+
+/// A async function receiving the current value and returning an error code.
+/// If null is returned, the value is considered valid.
+/// The function is debounced by asyncValidatorsDebounceTime.
+typedef AsyncValidator<T, E extends Object> = Future<E?> Function(T);
 
 /// A single form field which can be validated.
 /// Stores the current value, error text, and whether autovalidate is on.
@@ -17,7 +24,10 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
   FieldCubit({
     required T initialValue,
     Validator<T, E>? validator,
+    AsyncValidator<T, E>? asyncValidator,
+    this.asyncValidatorsDebounceTime = const Duration(milliseconds: 300),
   })  : _validator = validator ?? ((_) => null),
+        _asyncValidator = asyncValidator,
         super(
           FieldState<T, E>(
             value: initialValue,
@@ -30,6 +40,14 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
 
   final Validator<T, E> _validator;
 
+  final AsyncValidator<T, E>? _asyncValidator;
+
+  /// Async validator debounce time.
+  final Duration asyncValidatorsDebounceTime;
+
+  /// Async validator debounce timer.
+  Timer? _debounceTimer;
+
   /// Set a new [value]. When [force] is true, [state] is always updated to a new [value],
   /// otherwise if [state] is readonly, [setValue] is a noop
   Future<void> setValue(T value, {bool force = false}) async {
@@ -37,7 +55,13 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
       return;
     }
 
-    final error = state.autovalidate ? _validator(value) : state.error;
+    E? error;
+
+    if (_asyncValidator != null) {
+      unawaited(_runAsyncValidator(value));
+    }
+
+    error = state.autovalidate ? _validator(value) : state.error;
     emit(
       FieldState<T, E>(
         value: value,
@@ -74,8 +98,38 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
     );
   }
 
+  Future<void> _runAsyncValidator(T value) async {
+    // Cancel the previous debounce timer if it exists.
+    _debounceTimer?.cancel();
+
+    // Create a new Completer to handle the async validation result.
+    final completer = Completer<E?>();
+
+    // Start a new debounce timer.
+    _debounceTimer = Timer(asyncValidatorsDebounceTime, () async {
+      // Run the async validator and complete the Completer with the result.
+      final error = await _asyncValidator!(value);
+      completer.complete(error);
+    });
+
+    // Wait for the async validation to complete.
+    final error = await completer.future;
+
+    // Update the field state with the async validation result.
+    emit(
+      FieldState<T, E>(
+        value: state.value,
+        error: error,
+        autovalidate: state.autovalidate,
+        readOnly: state.readOnly,
+        editedManually: state.editedManually,
+      ),
+    );
+  }
+
   /// Returns true if there are no errors.
   /// If validator returns some error, it is emitted instead.
+  /// Only runs sync validator,
   bool validate() {
     final error = _validator(state.value);
 
