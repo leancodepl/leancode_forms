@@ -32,15 +32,12 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
 
   /// Set a new [value]. When [force] is true, [state] is always updated to a new [value],
   /// otherwise if [state] is readonly, [setValue] is a noop
-  void setValue(T value, {bool force = false}) {
+  Future<void> setValue(T value, {bool force = false}) async {
     if (state.readOnly && !force) {
       return;
     }
 
-    E? error;
-    if (state.autovalidate) {
-      error = _validator(value);
-    }
+    final error = state.autovalidate ? _validator(value) : state.error;
     emit(
       FieldState<T, E>(
         value: value,

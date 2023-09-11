@@ -1,4 +1,5 @@
-import 'package:leancode_forms/src/field/field_cubit.dart';
+import 'package:leancode_forms/leancode_forms.dart';
+import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
 
 /// Creates a new validator.
 ///
@@ -178,6 +179,18 @@ Validator<String?, E> notLongerThan<E extends Object>(
         return message;
       }
 
+      return null;
+    };
+
+/// Rejects strings shorter than [minLength].
+Validator<String?, E> atLeastLength<E extends Object>(
+  int minLength,
+  E message,
+) =>
+    (value) {
+      if (value == null || value.length < minLength) {
+        return message;
+      }
       return null;
     };
 

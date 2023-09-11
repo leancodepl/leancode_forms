@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:leancode_forms/src/field/field_cubit.dart';
+import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
 
 /// Listens to the given [field] and rerenders the child using [builder].
 class FieldBuilder<T, E extends Object> extends StatelessWidget {

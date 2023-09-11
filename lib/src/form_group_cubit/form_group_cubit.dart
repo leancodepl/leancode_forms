@@ -4,7 +4,7 @@ import 'package:bloc_dispose_scope/bloc_dispose_scope.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:leancode_forms/src/field/field_cubit.dart';
+import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
 import 'package:leancode_forms/src/utils/extensions/stream_extensions';
 import 'package:rxdart/rxdart.dart';
 
@@ -236,10 +236,10 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 
     emit(
       FormGroupState(
-        wasModified: state.wasModified,
+        wasModified: subformsWereModified || fieldsWereModified,
         fields: state.fields,
         subforms: state.subforms,
-        validationEnabled: subformsWereModified || fieldsWereModified,
+        validationEnabled: state.validationEnabled,
       ),
     );
   }
