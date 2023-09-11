@@ -10,6 +10,7 @@ typedef Validator<T, E extends Object> = E? Function(T);
 /// A async function receiving the current value and returning an error code.
 /// If null is returned, the value is considered valid.
 /// The function is debounced by asyncValidatorsDebounceTime.
+/// Is called regardless of autovalidate.
 typedef AsyncValidator<T, E extends Object> = Future<E?> Function(T);
 
 /// A single form field which can be validated.
