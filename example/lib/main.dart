@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/cubits/password_field_cubit.dart';
+import 'package:leancode_forms_example/screens/home_page.dart';
+import 'package:leancode_forms_example/screens/password_form.dart';
 import 'package:leancode_forms_example/screens/simple_form.dart';
 
 void main() {
@@ -8,7 +10,9 @@ void main() {
 }
 
 class Routes {
-  static const simple = '/';
+  static const home = '/';
+  static const simple = '/simple';
+  static const password = '/password';
 }
 
 enum ValidationError {
@@ -54,7 +58,9 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       routes: <String, WidgetBuilder>{
+        Routes.home: (_) => const HomePage(),
         Routes.simple: (_) => const SimpleFormScreen(),
+        Routes.password: (_) => const PasswordFormScreen(),
       },
     );
   }

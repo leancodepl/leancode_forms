@@ -129,12 +129,12 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
   }
 
   /// Returns true if there are no errors.
-  /// If validator returns some error, it is emitted instead.
-  /// Only runs sync validator,
+  /// If validator return different error than the current one, the state is updated.
+  /// Does not validate the field using async validator.
   bool validate() {
     final error = _validator(state.value);
 
-    if (error != null) {
+    if (error != state.error) {
       emit(
         FieldState<T, E>(
           value: state.value,
