@@ -89,24 +89,34 @@ class ConsumerSubform extends StatelessWidget {
         const SizedBox(height: 16),
         FieldBuilder(
           field: form.country,
-          builder: (context, state) => DropdownButtonFormField<Country?>(
-            value: state.value,
-            onChanged: form.country.selectValue,
-            items: Country.values
-                .map(
-                  (e) => DropdownMenuItem(
-                    value: e,
-                    child: Text(e.name),
+          builder: (context, state) => Row(
+            children: [
+              Flexible(
+                child: DropdownButtonFormField<Country?>(
+                  value: state.value,
+                  onChanged: form.country.selectValue,
+                  items: Country.values
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(e.name),
+                        ),
+                      )
+                      .toList(),
+                  decoration: InputDecoration(
+                    labelText: 'Country',
+                    hintText: 'Select your country',
+                    errorText: state.error != null
+                        ? validatorTranslator(state.error!)
+                        : null,
                   ),
-                )
-                .toList(),
-            decoration: InputDecoration(
-              labelText: 'Country',
-              hintText: 'Select your country',
-              errorText: state.error != null
-                  ? validatorTranslator(state.error!)
-                  : null,
-            ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => form.country.setValue(null),
+                child: const Text('Clear choice'),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
