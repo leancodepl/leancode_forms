@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
@@ -19,7 +20,7 @@ class QuizFormScreen extends StatelessWidget {
   }
 }
 
-class QuizForm extends StatelessWidget {
+class QuizForm extends HookWidget {
   const QuizForm({super.key});
 
   @override
@@ -35,6 +36,7 @@ class QuizForm extends StatelessWidget {
           const Text('What is the longest river in the world?'),
           FormTextField(
             field: context.read<QuizCubit>().formCubit.riverQuestion,
+            trimOnUnfocus: true,
             translateError: validatorTranslator,
             hintText: 'Answer here',
           ),
@@ -42,6 +44,7 @@ class QuizForm extends StatelessWidget {
           const Text('What is the highest mountain in the world?'),
           FormTextField(
             field: context.read<QuizCubit>().formCubit.mountQuestion,
+            trimOnUnfocus: true,
             translateError: validatorTranslator,
             hintText: 'Answer here',
           ),

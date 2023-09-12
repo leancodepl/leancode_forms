@@ -11,6 +11,8 @@ class AppTextField extends HookWidget {
     this.initialValue,
     this.onChanged,
     this.onUnfocus,
+    required this.setValue,
+    this.trimOnUnfocus = false,
     this.labelText,
     this.hintText,
     this.errorText,
@@ -20,12 +22,16 @@ class AppTextField extends HookWidget {
   final String? initialValue;
   final ValueChanged<String>? onChanged;
   final VoidCallback? onUnfocus;
+  final ValueChanged<String> setValue;
+  final bool trimOnUnfocus;
   final String? labelText;
   final String? hintText;
   final String? errorText;
 
   @override
   Widget build(BuildContext context) {
+    final textEditingController =
+        controller ?? useTextEditingController(text: initialValue);
     final focusNode = useFocusNode();
 
     useEffect(
@@ -33,6 +39,11 @@ class AppTextField extends HookWidget {
         void listener() {
           if (!focusNode.hasFocus) {
             onUnfocus?.call();
+            if (trimOnUnfocus) {
+              final trimmedValue = textEditingController.text.trim();
+              textEditingController.text = trimmedValue;
+              setValue(trimmedValue);
+            }
           }
         }
 
@@ -44,9 +55,9 @@ class AppTextField extends HookWidget {
 
     return TextFormField(
       focusNode: focusNode,
-      controller: controller,
-      initialValue: initialValue,
+      controller: textEditingController,
       onChanged: onChanged,
+      onTapOutside: (_) => focusNode.unfocus(),
       decoration: InputDecoration(
         labelText: labelText,
         hintText: hintText,

@@ -15,6 +15,7 @@ class FormPasswordField extends FieldBuilder<String, List<ValidationError>> {
   }) : super(
           builder: (context, state) => AppTextField(
             onChanged: field.getValueSetter(),
+            setValue: field.setValue,
             errorText: (state.error?.isNotEmpty ?? false)
                 ? translateError(state.error!)
                 : null,
