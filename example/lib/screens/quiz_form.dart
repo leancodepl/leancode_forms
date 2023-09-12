@@ -5,6 +5,8 @@ import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 
+/// This is an example of a form which is asynchronously validated after pressing the submit button.
+/// Errors on the fields are set/cleared manually after the validation is complete.
 class QuizFormScreen extends StatelessWidget {
   const QuizFormScreen({super.key});
 

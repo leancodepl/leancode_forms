@@ -30,8 +30,12 @@ class PasswordForm extends StatelessWidget {
       title: 'Password Form',
       child: Column(
         children: [
+          //This field starts to be validated as soon as it loses focus for the first time
           FormTextField(
             field: context.read<PasswordFormCubit>().username,
+            onUnfocus: () => context.read<PasswordFormCubit>().username
+              ..setAutovalidate(true)
+              ..validate(),
             translateError: validatorTranslator,
             labelText: 'Username',
             hintText: 'Enter your username',
@@ -106,11 +110,14 @@ class PasswordSubformCubit extends FormGroupCubit {
   );
 
   late final repeatPassword = TextFieldCubit<ValidationError>(
-    validator: (value) {
-      if (value != password.state.value) {
-        return ValidationError.doesNotMatch;
-      }
-      return null;
-    },
+    validator: conditionalValidator(
+      (value) {
+        if (value != password.state.value) {
+          return ValidationError.doesNotMatch;
+        }
+        return null;
+      },
+      () => password.state.value.isNotEmpty,
+    ),
   );
 }

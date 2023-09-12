@@ -73,31 +73,3 @@ class MainApp extends StatelessWidget {
     );
   }
 }
-
-/* FieldBuilder(
-                        field: context.read<ExampleFormCubit>().languages,
-                        builder: (context, state) => ListView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: context
-                              .read<ExampleFormCubit>()
-                              .languages
-                              .options
-                              .length,
-                          shrinkWrap: true,
-                          itemBuilder: (context, index) {
-                            final item = context
-                                .read<ExampleFormCubit>()
-                                .languages
-                                .options[index];
-                            return CheckboxListTile(
-                              value: state.value.contains(item),
-                              onChanged: (_) => context
-                                  .read<ExampleFormCubit>()
-                                  .languages
-                                  .toggleElement(item),
-                              title: Text(item.name),
-                            );
-                          },
-                        ),
-                      ), 
-                      */

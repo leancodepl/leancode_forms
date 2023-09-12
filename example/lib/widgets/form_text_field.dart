@@ -8,11 +8,13 @@ class FormTextField<E extends Object> extends FieldBuilder<String, E> {
     required TextFieldCubit<E> super.field,
     required ErrorTranslator<E> translateError,
     TextEditingController? controller,
+    VoidCallback? onUnfocus,
     String? labelText,
     String? hintText,
   }) : super(
           builder: (context, state) => AppTextField(
             onChanged: field.getValueSetter(),
+            onUnfocus: onUnfocus,
             errorText:
                 state.error != null ? translateError(state.error!) : null,
             initialValue: state.value,
