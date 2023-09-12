@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
+import 'package:leancode_forms_example/widgets/form_dropdown_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 
 /// This is an example of a form with dynamically added subforms.
@@ -29,10 +30,10 @@ class DeliveryListForm extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ...context.watch<DeliveryListFormCubit>().deliveryList.entries.map(
+            ...context.watch<DeliveryListFormCubit>().deliveryList.map(
                   (e) => ConsumerSubform(
-                    form: e.value,
-                    index: e.key,
+                    key: ValueKey(e.hashCode),
+                    form: e,
                     onRemove:
                         context.watch<DeliveryListFormCubit>().removeConsumer,
                   ),
@@ -57,13 +58,11 @@ class ConsumerSubform extends StatelessWidget {
   const ConsumerSubform({
     super.key,
     required this.form,
-    required this.index,
     required this.onRemove,
   });
 
   final ConsumerSubformCubit form;
-  final int index;
-  final ValueChanged<int> onRemove;
+  final ValueChanged<ConsumerSubformCubit> onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -72,9 +71,9 @@ class ConsumerSubform extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Consumer $index'),
+            const Text('Consumer'),
             IconButton(
-              onPressed: () => onRemove(index),
+              onPressed: () => onRemove(form),
               icon: const Icon(Icons.delete),
             ),
           ],
@@ -87,37 +86,12 @@ class ConsumerSubform extends StatelessWidget {
           hintText: 'Enter consumer email',
         ),
         const SizedBox(height: 16),
-        FieldBuilder(
+        FormDropdownField(
           field: form.country,
-          builder: (context, state) => Row(
-            children: [
-              Flexible(
-                child: DropdownButtonFormField<Country?>(
-                  value: state.value,
-                  onChanged: form.country.selectValue,
-                  items: Country.values
-                      .map(
-                        (e) => DropdownMenuItem(
-                          value: e,
-                          child: Text(e.name),
-                        ),
-                      )
-                      .toList(),
-                  decoration: InputDecoration(
-                    labelText: 'Country',
-                    hintText: 'Select your country',
-                    errorText: state.error != null
-                        ? validatorTranslator(state.error!)
-                        : null,
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => form.country.setValue(null),
-                child: const Text('Clear choice'),
-              ),
-            ],
-          ),
+          labelBuilder: (country) => country!.name,
+          translateError: validatorTranslator,
+          labelText: 'Country',
+          hintText: 'Select consumer country',
         ),
         const SizedBox(height: 16),
       ],
@@ -128,21 +102,25 @@ class ConsumerSubform extends StatelessWidget {
 class DeliveryListFormCubit extends FormGroupCubit {
   DeliveryListFormCubit();
 
-  final deliveryList = <int, ConsumerSubformCubit>{};
+  final deliveryList = <ConsumerSubformCubit>{};
 
   void addConsumer() {
     final consumerForm = ConsumerSubformCubit();
     addSubform(consumerForm);
-    deliveryList[deliveryList.length] = consumerForm;
+    deliveryList.add(consumerForm);
   }
 
-  void removeConsumer(int index) {
-    removeSubform(deliveryList[index]!);
-    deliveryList.remove(index);
+  void removeConsumer(ConsumerSubformCubit form) {
+    removeSubform(form);
+    deliveryList.remove(form);
   }
 
   void submit() {
     if (validate()) {
+      for (final consumer in deliveryList) {
+        debugPrint('Consumer email: ${consumer.email.state.value}');
+        debugPrint('Consumer country: ${consumer.country.state.value}');
+      }
       debugPrint('Form is valid');
     } else {
       debugPrint('Form is invalid');
