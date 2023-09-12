@@ -21,6 +21,10 @@ class HomePage extends StatelessWidget {
             onPressed: () => Navigator.of(context).pushNamed(Routes.password),
             child: const Text('Password Form'),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pushNamed(Routes.delivery),
+            child: const Text('Delivery List Form'),
+          ),
         ],
       ),
     );

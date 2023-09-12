@@ -27,7 +27,7 @@ class PasswordForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FormPage(
-      title: 'Simple Form',
+      title: 'Password Form',
       child: Column(
         children: [
           FormTextField(

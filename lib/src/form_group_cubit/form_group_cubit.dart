@@ -236,10 +236,10 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 
     emit(
       FormGroupState(
-        wasModified: subformsWereModified || fieldsWereModified,
+        wasModified: state.wasModified,
         fields: state.fields,
         subforms: state.subforms,
-        validationEnabled: state.validationEnabled,
+        validationEnabled: subformsWereModified || fieldsWereModified,
       ),
     );
   }
