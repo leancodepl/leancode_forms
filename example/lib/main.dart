@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:leancode_forms/leancode_forms.dart';
-import 'package:leancode_forms_example/cubits/password_field_cubit.dart';
 import 'package:leancode_forms_example/screens/delivery_form.dart';
 import 'package:leancode_forms_example/screens/home_page.dart';
 import 'package:leancode_forms_example/screens/password_form.dart';
+import 'package:leancode_forms_example/screens/quiz_form.dart';
 import 'package:leancode_forms_example/screens/simple_form.dart';
 
 void main() {
@@ -15,6 +14,7 @@ class Routes {
   static const simple = '/simple';
   static const password = '/password';
   static const delivery = '/delivery';
+  static const quiz = '/quiz';
 }
 
 enum ValidationError {
@@ -33,6 +33,9 @@ enum ValidationError {
   //email related
   invalidEmail,
   emailTaken,
+
+  //quiz related
+  invalidAnswer,
 }
 
 /// Would be replaced by mapping an error to a string in a translation file
@@ -50,6 +53,7 @@ String validatorTranslator(ValidationError error) {
     ValidationError.doesNotMatch => 'Passwords must match',
     ValidationError.invalidEmail => 'Invalid email',
     ValidationError.emailTaken => 'Email already taken',
+    ValidationError.invalidAnswer => 'Invalid answer',
   };
 }
 
@@ -64,6 +68,7 @@ class MainApp extends StatelessWidget {
         Routes.simple: (_) => const SimpleFormScreen(),
         Routes.password: (_) => const PasswordFormScreen(),
         Routes.delivery: (_) => const DeliveryListFormScreen(),
+        Routes.quiz: (_) => const QuizFormScreen(),
       },
     );
   }

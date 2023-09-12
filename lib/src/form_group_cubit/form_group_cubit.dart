@@ -139,6 +139,16 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     }
   }
 
+  /// Unmarks all leaf fields as readonly.
+  void unmarkReadOnly() {
+    for (final field in state.fields) {
+      field.unmarkReadOnly();
+    }
+    for (final subform in state.subforms) {
+      subform.unmarkReadOnly();
+    }
+  }
+
   /// Sets autovalidate on all leaf fields.
   // ignore: avoid_positional_boolean_parameters
   void setAutovalidate(bool autovalidate) {
@@ -236,10 +246,10 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 
     emit(
       FormGroupState(
-        wasModified: state.wasModified,
+        wasModified: subformsWereModified || fieldsWereModified,
         fields: state.fields,
         subforms: state.subforms,
-        validationEnabled: subformsWereModified || fieldsWereModified,
+        validationEnabled: state.validationEnabled,
       ),
     );
   }
