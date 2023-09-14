@@ -6,8 +6,6 @@ class SingleSelectFieldCubit<V, E extends Object> extends FieldCubit<V?, E> {
   SingleSelectFieldCubit({
     required super.initialValue,
     super.validator,
-    super.asyncValidator,
-    super.asyncValidatorsDebounceTime,
     required this.options,
   });
 

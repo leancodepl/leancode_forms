@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:leancode_forms_example/screens/complex_form.dart';
 import 'package:leancode_forms_example/screens/delivery_form.dart';
 import 'package:leancode_forms_example/screens/home_page.dart';
 import 'package:leancode_forms_example/screens/password_form.dart';
@@ -15,6 +16,7 @@ class Routes {
   static const password = '/password';
   static const delivery = '/delivery';
   static const quiz = '/quiz';
+  static const complex = '/complex';
 }
 
 enum ValidationError {
@@ -69,6 +71,7 @@ class MainApp extends StatelessWidget {
         Routes.password: (_) => const PasswordFormScreen(),
         Routes.delivery: (_) => const DeliveryListFormScreen(),
         Routes.quiz: (_) => const QuizFormScreen(),
+        Routes.complex: (_) => const ComplexFormScreen(),
       },
     );
   }

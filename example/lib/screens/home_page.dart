@@ -29,6 +29,10 @@ class HomePage extends StatelessWidget {
             onPressed: () => Navigator.of(context).pushNamed(Routes.quiz),
             child: const Text('Quiz Form'),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pushNamed(Routes.complex),
+            child: const Text('Complex Form'),
+          ),
         ],
       ),
     );

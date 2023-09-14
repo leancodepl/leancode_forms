@@ -4,6 +4,7 @@ import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// This is an example of a simple form with two fields.
 /// The form is validated ONLY when the submit button is pressed.
@@ -26,31 +27,33 @@ class SimpleForm extends StatelessWidget {
   Widget build(BuildContext context) {
     return FormPage(
       title: 'Simple Form',
-      child: Column(
-        children: [
-          FormTextField(
-            field: context.read<SimpleFormCubit>().firstName,
-            translateError: validatorTranslator,
-            labelText: 'First Name',
-            hintText: 'Enter your first name',
-          ),
-          FormTextField(
-            field: context.read<SimpleFormCubit>().lastName,
-            translateError: validatorTranslator,
-            labelText: 'Last Name',
-            hintText: 'Enter your last name',
-          ),
-          FormTextField(
-            field: context.read<SimpleFormCubit>().email,
-            translateError: validatorTranslator,
-            labelText: 'Email',
-            hintText: 'Enter your email',
-          ),
-          ElevatedButton(
-            onPressed: context.read<SimpleFormCubit>().submit,
-            child: const Text('Submit'),
-          ),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            FormTextField(
+              field: context.read<SimpleFormCubit>().firstName,
+              translateError: validatorTranslator,
+              labelText: 'First Name',
+              hintText: 'Enter your first name',
+            ),
+            FormTextField(
+              field: context.read<SimpleFormCubit>().lastName,
+              translateError: validatorTranslator,
+              labelText: 'Last Name',
+              hintText: 'Enter your last name',
+            ),
+            FormTextField(
+              field: context.read<SimpleFormCubit>().email,
+              translateError: validatorTranslator,
+              labelText: 'Email',
+              hintText: 'Enter your email',
+            ),
+            ElevatedButton(
+              onPressed: context.read<SimpleFormCubit>().submit,
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -63,6 +66,15 @@ class SimpleFormCubit extends FormGroupCubit {
       lastName,
       email,
     ]);
+
+    addDisposable(
+      email.stream
+          .map((event) => event.value)
+          .distinct()
+          .debounceTime(const Duration(milliseconds: 500))
+          .listen(_onEmailChanged)
+          .cancel,
+    );
   }
 
   final firstName = TextFieldCubit(
@@ -76,20 +88,19 @@ class SimpleFormCubit extends FormGroupCubit {
   //A field with async validation
   late final email = TextFieldCubit(
     validator: filled(ValidationError.empty),
-    asyncValidator: validateEmail,
   );
 
-  Future<ValidationError?> validateEmail(String value) {
+  Future<void> _onEmailChanged(String value) async {
+    if (value.isEmpty) {
+      return;
+    }
     final takenEmail = ['john@email.com', 'jack@email.com'];
-    return Future<ValidationError?>.delayed(
-      const Duration(milliseconds: 500),
-      () {
-        if (takenEmail.contains(value)) {
-          return ValidationError.emailTaken;
-        }
-        return null;
-      },
-    );
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (takenEmail.contains(value)) {
+      email.setError(ValidationError.emailTaken);
+    } else {
+      email.validate();
+    }
   }
 
   void submit() {

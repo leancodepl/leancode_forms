@@ -8,9 +8,7 @@ environment:
   flutter: '>=3.10.0'
 
 dependencies:
-  bloc_dispose_scope: ^3.0.0
   collection: ^1.17.1
-  dispose_scope: ^2.1.0
   flutter:
     sdk: flutter
   flutter_bloc: ^8.1.3

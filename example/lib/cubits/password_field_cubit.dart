@@ -11,8 +11,6 @@ class PasswordFieldCubit extends FieldCubit<String, List<ValidationError>> {
     this.specialCharRequired = false,
     this.upperCaseRequired = false,
     this.lowerCaseRequired = false,
-    super.asyncValidator,
-    super.asyncValidatorsDebounceTime,
   }) : super(
           validator: (value) {
             final errors = <ValidationError>[];

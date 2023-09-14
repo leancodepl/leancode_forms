@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:bloc_dispose_scope/bloc_dispose_scope.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
+import 'package:leancode_forms/src/utils/disposable.dart';
 import 'package:leancode_forms/src/utils/extensions/stream_extensions';
 import 'package:rxdart/rxdart.dart';
 
@@ -25,27 +25,25 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     this.debugName = '',
     this.validateAll = false,
   }) : super(const FormGroupState()) {
-    _fieldsController.disposedBy(_disposeScope);
-    _onFieldsChangeSubscription?.disposedBy(_disposeScope);
-    stream
-        .map(
-          (event) => (
-            fields: event.fields,
-            subforms: event.subforms,
-          ),
-        )
-        .distinct()
-        .listen(_onFieldsChanged)
-        .disposedBy(_disposeScope);
-
-    onValuesChangedStream
-        .listen((_) => _onFieldsStateChanged())
-        .disposedBy(_disposeScope);
-
-    state.subforms.map((e) => e.disposedBy(_disposeScope));
+    addDisposable(_fieldsController.close);
+    addDisposable(() => _onFieldsChangeSubscription?.cancel());
+    addDisposable(
+      stream
+          .map(
+            (event) => (
+              fields: event.fields,
+              subforms: event.subforms,
+            ),
+          )
+          .distinct()
+          .listen(_onFieldsChanged)
+          .cancel,
+    );
+    addDisposable(
+      onValuesChangedStream.listen((_) => _onFieldsStateChanged()).cancel,
+    );
+    addDisposable(() => Future.wait(state.subforms.map((e) => e.close())));
   }
-
-  final _disposeScope = DisposeScope();
 
   /// A debug label for this form. Not significant to the form.
   final String debugName;
@@ -96,7 +94,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
       ),
     );
 
-    fields.map((e) => e.disposedBy(_disposeScope));
+    addDisposable(() => Future.wait(fields.map((e) => e.close())));
 
     _initialFieldsState = getFieldValues();
     // inform that the fields have changed
@@ -185,7 +183,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 
   /// Removes and disposes an owned subform.
   /// If [form] was not a subform this is a noop.
-  Future<void> removeSubform(FormGroupCubit form) async {
+  Future<void> removeSubform(FormGroupCubit form, {bool close = true}) async {
     if (state.subforms.contains(form)) {
       emit(
         FormGroupState(
@@ -195,7 +193,9 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
           validationEnabled: state.validationEnabled,
         ),
       );
-      await form.close();
+      if (close) {
+        await form.close();
+      }
     }
   }
 
@@ -258,11 +258,6 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
   Future<void> close() async {
     await dispose();
     return super.close();
-  }
-
-  @override
-  Future<void> dispose() async {
-    await _fieldsController.close();
   }
 }
 

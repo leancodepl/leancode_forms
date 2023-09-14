@@ -6,8 +6,6 @@ class MultiSelectFieldCubit<V, E extends Object> extends FieldCubit<Set<V>, E> {
   MultiSelectFieldCubit({
     required super.initialValue,
     super.validator,
-    super.asyncValidator,
-    super.asyncValidatorsDebounceTime,
     required this.options,
   });
 
