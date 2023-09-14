@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -34,7 +32,7 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
 
   /// Set a new [value]. When [force] is true, [state] is always updated to a new [value],
   /// otherwise if [state] is readonly, [setValue] is a noop
-  Future<void> setValue(T value, {bool force = false}) async {
+  void setValue(T value, {bool force = false}) {
     if (state.readOnly && !force) {
       return;
     }
