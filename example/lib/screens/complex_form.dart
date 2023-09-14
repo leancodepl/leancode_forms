@@ -26,8 +26,6 @@ class ComplexForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subformType = context.watch<ComplexFormCubit>().type.state.value;
-
     return FormPage(
       title: 'Complex Form',
       child: SingleChildScrollView(
@@ -40,8 +38,14 @@ class ComplexForm extends StatelessWidget {
               labelText: 'Subform Type',
               hintText: 'Select subform type',
             ),
-            if (subformType == SubformType.human) const HumanSubform(),
-            if (subformType == SubformType.dog) const DogSubform(),
+            if (context.watch<ComplexFormCubit>().humanSubform != null)
+              HumanSubform(
+                cubit: context.read<ComplexFormCubit>().humanSubform!,
+              ),
+            if (context.watch<ComplexFormCubit>().dogSubform != null)
+              DogSubform(
+                cubit: context.read<ComplexFormCubit>().dogSubform!,
+              ),
             ElevatedButton(
               onPressed: context.read<ComplexFormCubit>().submit,
               child: const Text('Submit'),
@@ -54,14 +58,16 @@ class ComplexForm extends StatelessWidget {
 }
 
 class HumanSubform extends StatelessWidget {
-  const HumanSubform({super.key});
+  const HumanSubform({super.key, required this.cubit});
+
+  final HumanSubformCubit cubit;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         FormDropdownField(
-          field: context.read<ComplexFormCubit>().humanSubform.gender,
+          field: cubit.gender,
           labelBuilder: (value) => value.name,
           translateError: validatorTranslator,
           labelText: 'Gender',
@@ -69,7 +75,7 @@ class HumanSubform extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         FormTextField(
-          field: context.read<ComplexFormCubit>().humanSubform.age,
+          field: cubit.age,
           translateError: validatorTranslator,
           labelText: 'Age',
           hintText: 'Enter human age',
@@ -80,14 +86,16 @@ class HumanSubform extends StatelessWidget {
 }
 
 class DogSubform extends StatelessWidget {
-  const DogSubform({super.key});
+  const DogSubform({super.key, required this.cubit});
+
+  final DogSubformCubit cubit;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         FormDropdownField(
-          field: context.read<ComplexFormCubit>().dogSubform.breed,
+          field: cubit.breed,
           labelBuilder: (value) => value.name,
           translateError: validatorTranslator,
           labelText: 'Breed',
@@ -95,7 +103,7 @@ class DogSubform extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         FormTextField(
-          field: context.read<ComplexFormCubit>().dogSubform.age,
+          field: cubit.age,
           translateError: validatorTranslator,
           labelText: 'Age',
           hintText: 'Enter dog age',
@@ -125,21 +133,25 @@ class ComplexFormCubit extends FormGroupCubit {
     initialValue: null,
   );
 
-  final dogSubform = DogSubformCubit();
+  DogSubformCubit? dogSubform;
 
-  final humanSubform = HumanSubformCubit();
+  HumanSubformCubit? humanSubform;
 
   Future<void> _onTypeUpdated(SubformType? type) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     if (type == SubformType.human) {
-      addSubform(humanSubform);
-    } else {
-      await removeSubform(humanSubform, close: false);
+      humanSubform ??= HumanSubformCubit();
+      addSubform(humanSubform!);
+    } else if (humanSubform != null) {
+      await removeSubform(humanSubform!);
+      humanSubform = null;
     }
     if (type == SubformType.dog) {
-      addSubform(dogSubform);
-    } else {
-      await removeSubform(dogSubform, close: false);
+      dogSubform ??= DogSubformCubit();
+      addSubform(dogSubform!);
+    } else if (dogSubform != null) {
+      await removeSubform(dogSubform!);
+      dogSubform = null;
     }
   }
 

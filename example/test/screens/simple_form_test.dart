@@ -8,19 +8,40 @@ void main() {
   blocTest<SimpleFormCubit, FormGroupState>(
     'sets email when setValue is called',
     build: SimpleFormCubit.new,
-    act: (bloc) => bloc.email.setValue('john@email.com'),
-    verify: (bloc) {
-      expect(bloc.email.state.value, 'john@email.com');
+    act: (cubit) => cubit.email.setValue('john@email.com'),
+    verify: (cubit) {
+      expect(cubit.email.state.value, 'john@email.com');
     },
   );
 
   blocTest<SimpleFormCubit, FormGroupState>(
-    'sets 1',
+    'sets ValidationErrors.emailTaken when email is taken',
     build: SimpleFormCubit.new,
-    act: (bloc) => bloc.email.setValue('john@email.com'),
-    verify: (bloc) async {
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-      expect(bloc.email.state.error, ValidationError.invalidEmail);
+    act: (cubit) => cubit.email.setValue('john@email.com'),
+    wait: const Duration(seconds: 2),
+    verify: (cubit) async {
+      expect(cubit.email.state.error, ValidationError.emailTaken);
+    },
+  );
+
+  blocTest<SimpleFormCubit, FormGroupState>(
+    'should not have any errors before submit method invoked',
+    build: SimpleFormCubit.new,
+    verify: (cubit) {
+      expect(cubit.email.state.error, null);
+      expect(cubit.firstName.state.error, null);
+      expect(cubit.lastName.state.error, null);
+    },
+  );
+
+  blocTest<SimpleFormCubit, FormGroupState>(
+    'validates fields and sets errors after submit method invoked',
+    build: SimpleFormCubit.new,
+    act: (cubit) => cubit.validate(),
+    verify: (cubit) {
+      expect(cubit.email.state.error, ValidationError.empty);
+      expect(cubit.firstName.state.error, ValidationError.empty);
+      expect(cubit.lastName.state.error, ValidationError.empty);
     },
   );
 }
