@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:leancode_forms/src/utils/extensions/stream_extensions';
+import 'package:leancode_forms/src/utils/extensions/stream_extensions.dart';
 
 void main() {
   test(

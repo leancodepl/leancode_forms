@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
 import 'package:leancode_forms/src/utils/disposable.dart';
-import 'package:leancode_forms/src/utils/extensions/stream_extensions';
+import 'package:leancode_forms/src/utils/extensions/stream_extensions.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// A parent of multiple [FieldCubit]s. Manages group validation and tracks changes
