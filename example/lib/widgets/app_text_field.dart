@@ -16,6 +16,7 @@ class AppTextField extends HookWidget {
     this.labelText,
     this.hintText,
     this.errorText,
+    this.suffix,
   });
 
   final TextEditingController? controller;
@@ -27,6 +28,7 @@ class AppTextField extends HookWidget {
   final String? labelText;
   final String? hintText;
   final String? errorText;
+  final Widget? suffix;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +64,7 @@ class AppTextField extends HookWidget {
         labelText: labelText,
         hintText: hintText,
         errorText: errorText,
+        suffix: suffix,
       ),
     );
   }

@@ -24,6 +24,12 @@ class FormTextField<E extends Object> extends FieldBuilder<String, E> {
             controller: controller,
             labelText: labelText,
             hintText: hintText,
+            suffix: state.isPending
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(),
+                  )
+                : null,
           ),
         );
 }

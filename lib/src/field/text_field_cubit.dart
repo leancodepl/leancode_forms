@@ -6,6 +6,8 @@ class TextFieldCubit<E extends Object> extends FieldCubit<String, E> {
   TextFieldCubit({
     super.initialValue = '',
     super.validator,
+    super.asyncValidator,
+    super.asyncValidationDebounce,
   });
 
   /// Clears the value of the field.

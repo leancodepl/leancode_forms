@@ -4,7 +4,6 @@ import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
-import 'package:rxdart/rxdart.dart';
 
 /// This is an example of a simple form with two fields.
 /// The form is validated ONLY when the submit button is pressed.
@@ -66,15 +65,6 @@ class SimpleFormCubit extends FormGroupCubit {
       lastName,
       email,
     ]);
-
-    addDisposable(
-      email.stream
-          .map((event) => event.value)
-          .distinct()
-          .debounceTime(const Duration(milliseconds: 500))
-          .listen(_onEmailChanged)
-          .cancel,
-    );
   }
 
   final firstName = TextFieldCubit(
@@ -88,21 +78,14 @@ class SimpleFormCubit extends FormGroupCubit {
   //A field with async validation
   late final email = TextFieldCubit(
     validator: filled(ValidationError.empty),
+    asyncValidator: _onEmailChanged,
+    asyncValidationDebounce: const Duration(milliseconds: 500),
   );
 
-  //The asynchronous validator does not affect the outcome of the validate() function called on the form in any way.
-  //Should be fixed in the future.
-  Future<void> _onEmailChanged(String value) async {
-    if (value.isEmpty) {
-      return;
-    }
+  Future<ValidationError?> _onEmailChanged(String value) async {
     final takenEmail = ['john@email.com', 'jack@email.com'];
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    if (takenEmail.contains(value)) {
-      email.setError(ValidationError.emailTaken);
-    } else {
-      email.validate();
-    }
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    return takenEmail.contains(value) ? ValidationError.emailTaken : null;
   }
 
   void submit() {
@@ -110,6 +93,7 @@ class SimpleFormCubit extends FormGroupCubit {
     if (validate(enableAutovalidate: false)) {
       debugPrint('First name: ${firstName.state.value}');
       debugPrint('Last name: ${lastName.state.value}');
+      debugPrint('Email: ${email.state.value}');
     } else {
       debugPrint('Form is invalid');
     }

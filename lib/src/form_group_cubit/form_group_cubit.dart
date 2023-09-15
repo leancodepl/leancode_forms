@@ -26,7 +26,9 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     this.validateAll = false,
   }) : super(const FormGroupState()) {
     addDisposable(_fieldsController.close);
+    addDisposable(_fieldsStatusController.close);
     addDisposable(() => _onFieldsChangeSubscription?.cancel());
+    addDisposable(() => _onFieldsStatusChangeSubscription?.cancel());
     addDisposable(
       stream
           .map(
@@ -41,6 +43,9 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     );
     addDisposable(
       onValuesChangedStream.listen((_) => _onFieldsStateChanged()).cancel,
+    );
+    addDisposable(
+      onStatusChangedStream.listen((_) => _onFieldsStatusChanged()).cancel,
     );
     addDisposable(() => Future.wait(state.subforms.map((e) => e.close())));
   }
@@ -60,6 +65,13 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
   /// Emits when any of the leaf fields have their value changed.
   Stream<void> get onValuesChangedStream => _fieldsController.stream;
 
+  StreamSubscription<FieldStatus>? _onFieldsStatusChangeSubscription;
+  final _fieldsStatusController = StreamController<FieldStatus>.broadcast();
+
+  /// Emits when any of the leaf fields have their status changed.
+  Stream<FieldStatus> get onStatusChangedStream =>
+      _fieldsStatusController.stream;
+
   Future<void> _onFieldsChanged(
     ({
       List<FieldCubit<dynamic, dynamic>> fields,
@@ -67,6 +79,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     }) data,
   ) async {
     await _onFieldsChangeSubscription?.cancel();
+    await _onFieldsStatusChangeSubscription?.cancel();
     final (:fields, :subforms) = data;
 
     _onFieldsChangeSubscription = Rx.merge<dynamic>(
@@ -80,6 +93,18 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
         subforms.map((e) => e.onValuesChangedStream),
       ),
     ).listen(_fieldsController.add);
+
+    _onFieldsStatusChangeSubscription = Rx.merge<FieldStatus>(
+      fields.map(
+        (field) {
+          return field.stream
+              .map<FieldStatus>((state) => state.status)
+              .distinctWithFirst(field.state.status);
+        },
+      ).followedBy(
+        subforms.map((e) => e.onStatusChangedStream),
+      ),
+    ).listen(_fieldsStatusController.add);
   }
 
   /// Takes ownership of registered fields. Will dispose all cubits.
@@ -254,6 +279,25 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     );
   }
 
+  void _onFieldsStatusChanged() {
+    final subformsIsValidating = state.subforms.any(
+      (subform) => subform.state.validating,
+    );
+
+    final fieldsAreValidating = state.fields.any(
+      (field) => field.state.isPending,
+    );
+
+    emit(
+      FormGroupState(
+        wasModified: subformsIsValidating || fieldsAreValidating,
+        fields: state.fields,
+        subforms: state.subforms,
+        validationEnabled: state.validationEnabled,
+      ),
+    );
+  }
+
   @override
   Future<void> close() async {
     await dispose();
@@ -269,6 +313,7 @@ class FormGroupState {
     this.fields = const [],
     this.subforms = const {},
     this.validationEnabled = true,
+    this.validating = false,
   });
 
   /// wasModified is true when any of the field values differ since the
@@ -283,4 +328,7 @@ class FormGroupState {
 
   /// If false, validators are not ran and `validate` always returns true.
   final bool validationEnabled;
+
+  /// Returns true if fields are currently being validated.
+  final bool validating;
 }
