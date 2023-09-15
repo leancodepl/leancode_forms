@@ -24,7 +24,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
             error: null,
             autovalidate: false,
             readOnly: false,
-            editedManually: false,
           ),
         );
 
@@ -46,7 +45,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         error: error,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
-        editedManually: state.editedManually,
       ),
     );
   }
@@ -71,7 +69,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         error: error,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
-        editedManually: state.editedManually,
       ),
     );
   }
@@ -89,7 +86,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
           error: error,
           autovalidate: state.autovalidate,
           readOnly: state.readOnly,
-          editedManually: state.editedManually,
         ),
       );
     }
@@ -105,7 +101,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         error: state.error,
         autovalidate: autovalidate,
         readOnly: state.readOnly,
-        editedManually: state.editedManually,
       ),
     );
   }
@@ -118,7 +113,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         error: state.error,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
-        editedManually: editedManually,
       ),
     );
   }
@@ -131,7 +125,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         error: state.error,
         autovalidate: state.autovalidate,
         readOnly: true,
-        editedManually: state.editedManually,
       ),
     );
   }
@@ -144,7 +137,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         error: state.error,
         autovalidate: state.autovalidate,
         readOnly: false,
-        editedManually: state.editedManually,
       ),
     );
   }
@@ -157,7 +149,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         error: null,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
-        editedManually: state.editedManually,
       ),
     );
   }
@@ -171,7 +162,6 @@ class FieldState<T, E extends Object> {
     required this.error,
     required this.autovalidate,
     required this.readOnly,
-    required this.editedManually,
   });
 
   /// Returns true if there are no errors.
@@ -198,8 +188,4 @@ class FieldState<T, E extends Object> {
   /// If true, the value cannot be changed.
   /// Can be changed by calling [FieldCubit.markReadOnly] and [FieldCubit.unmarkReadOnly].
   final bool readOnly;
-
-  /// Whether the field was edited manually.
-  /// Can be changed by calling [FieldCubit.setEditedManually].
-  final bool editedManually;
 }

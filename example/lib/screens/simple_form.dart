@@ -90,6 +90,8 @@ class SimpleFormCubit extends FormGroupCubit {
     validator: filled(ValidationError.empty),
   );
 
+  //The asynchronous validator does not affect the outcome of the validate() function called on the form in any way.
+  //Should be fixed in the future.
   Future<void> _onEmailChanged(String value) async {
     if (value.isEmpty) {
       return;
