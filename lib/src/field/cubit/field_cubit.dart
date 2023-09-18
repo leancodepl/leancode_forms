@@ -86,17 +86,28 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
     // Create a new Completer to handle the async validation result.
     final completer = Completer<E?>();
 
+    emit(
+      FieldState<T, E>(
+        value: value,
+        validationError: state.validationError,
+        asyncError: state.asyncError,
+        autovalidate: state.autovalidate,
+        readOnly: state.readOnly,
+        status: FieldStatus.pending,
+      ),
+    );
+
     // Start a new debounce timer.
     _debounceTimer = Timer(_asyncValidationDebounce, () async {
       /// Update the field state with the async validation pending status.
       emit(
         FieldState<T, E>(
-          value: state.value,
+          value: value,
           validationError: state.validationError,
           asyncError: state.asyncError,
           autovalidate: state.autovalidate,
           readOnly: state.readOnly,
-          status: FieldStatus.pending,
+          status: FieldStatus.validating,
         ),
       );
 
@@ -111,7 +122,7 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
     // Update the field state with the async validation result.
     emit(
       FieldState<T, E>(
-        value: state.value,
+        value: value,
         validationError: state.validationError,
         asyncError: error,
         autovalidate: state.autovalidate,
@@ -150,7 +161,7 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
   /// Returns true if there are no errors.
   /// If validator return different error than the current one, the state is updated.
   bool validate() {
-    if (state.asyncError != null || state.isPending) {
+    if (state.asyncError != null || state.isInProgress) {
       return false;
     }
 
@@ -253,6 +264,9 @@ enum FieldStatus {
 
   /// The field is pending validation.
   pending,
+
+  /// The field is being async validated.
+  validating,
 }
 
 /// The state of a [FieldCubit].
@@ -270,8 +284,14 @@ class FieldState<T, E extends Object> {
   /// Returns true if there are no errors.
   bool get isValid => status == FieldStatus.valid;
 
+  /// Returns true if field status is being validated.
+  bool get isValidating => status == FieldStatus.validating;
+
   /// Returns true if field status is pending.
   bool get isPending => status == FieldStatus.pending;
+
+  /// Returns true if field status is pending or validating.
+  bool get isInProgress => isPending || isValidating;
 
   /// The current value.
   /// Can be set manually by calling [FieldCubit.setValue].
