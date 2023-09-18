@@ -16,5 +16,5 @@ class SingleSelectFieldCubit<V, E extends Object> extends FieldCubit<V?, E> {
   void select(V? option) => setValue(option);
 
   /// Clears the value of the field.
-  void clear() => setValue(null);
+  void clear() => reset();
 }

@@ -32,5 +32,5 @@ class MultiSelectFieldCubit<V, E extends Object> extends FieldCubit<Set<V>, E> {
   }
 
   /// Deselects all values.
-  void clear() => setValue({});
+  void clear() => reset();
 }

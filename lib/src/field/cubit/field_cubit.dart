@@ -24,7 +24,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
     Validator<T, E>? validator,
     AsyncValidator<T, E>? asyncValidator,
     Duration asyncValidationDebounce = const Duration(milliseconds: 300),
-  })  : _validator = validator ?? ((_) => null),
+  })  : _initialValue = initialValue,
+        _validator = validator ?? ((_) => null),
         _asyncValidator = asyncValidator,
         _asyncValidationDebounce = asyncValidationDebounce,
         super(
@@ -37,6 +38,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
             status: FieldStatus.valid,
           ),
         );
+
+  final T _initialValue;
 
   final Validator<T, E> _validator;
 
@@ -220,6 +223,20 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         asyncError: null,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
+        status: FieldStatus.valid,
+      ),
+    );
+  }
+
+  /// Resets the field to its initial value.
+  void reset() {
+    emit(
+      FieldState(
+        value: _initialValue,
+        validationError: null,
+        asyncError: null,
+        autovalidate: false,
+        readOnly: false,
         status: FieldStatus.valid,
       ),
     );

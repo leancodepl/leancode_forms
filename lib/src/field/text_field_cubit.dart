@@ -11,5 +11,5 @@ class TextFieldCubit<E extends Object> extends FieldCubit<String, E> {
   });
 
   /// Clears the value of the field.
-  void clear() => setValue('');
+  void clear() => reset();
 }

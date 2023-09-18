@@ -38,14 +38,22 @@ class ComplexForm extends StatelessWidget {
               labelText: 'Subform Type',
               hintText: 'Select subform type',
             ),
-            if (context.watch<ComplexFormCubit>().humanSubform != null)
-              HumanSubform(
-                cubit: context.read<ComplexFormCubit>().humanSubform!,
-              ),
-            if (context.watch<ComplexFormCubit>().dogSubform != null)
-              DogSubform(
-                cubit: context.read<ComplexFormCubit>().dogSubform!,
-              ),
+            Builder(
+              builder: (context) {
+                final type = context.select<ComplexFormCubit, SubformType?>(
+                  (cubit) => cubit.subformType,
+                );
+                return switch (type) {
+                  SubformType.human => HumanSubform(
+                      cubit: context.read<ComplexFormCubit>().humanSubform,
+                    ),
+                  SubformType.dog => DogSubform(
+                      cubit: context.read<ComplexFormCubit>().dogSubform,
+                    ),
+                  _ => const SizedBox(),
+                };
+              },
+            ),
             ElevatedButton(
               onPressed: context.read<ComplexFormCubit>().submit,
               child: const Text('Submit'),
@@ -133,25 +141,27 @@ class ComplexFormCubit extends FormGroupCubit {
     initialValue: null,
   );
 
-  DogSubformCubit? dogSubform;
+  SubformType? subformType;
 
-  HumanSubformCubit? humanSubform;
+  final dogSubform = DogSubformCubit();
+
+  final humanSubform = HumanSubformCubit();
 
   Future<void> _onTypeUpdated(SubformType? type) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
+    subformType = type;
+
     if (type == SubformType.human) {
-      humanSubform ??= HumanSubformCubit();
-      addSubform(humanSubform!);
-    } else if (humanSubform != null) {
-      await removeSubform(humanSubform!);
-      humanSubform = null;
+      addSubform(humanSubform);
+    } else {
+      humanSubform.resetAll();
+      await removeSubform(humanSubform, close: false);
     }
     if (type == SubformType.dog) {
-      dogSubform ??= DogSubformCubit();
-      addSubform(dogSubform!);
-    } else if (dogSubform != null) {
-      await removeSubform(dogSubform!);
-      dogSubform = null;
+      addSubform(dogSubform);
+    } else {
+      dogSubform.resetAll();
+      await removeSubform(dogSubform, close: false);
     }
   }
 
