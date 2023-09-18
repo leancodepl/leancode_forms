@@ -295,15 +295,16 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     );
 
     final fieldsAreValidating = state.fields.any(
-      (field) => field.state.isPending,
+      (field) => field.state.isInProgress,
     );
 
     emit(
       FormGroupState(
-        wasModified: subformsIsValidating || fieldsAreValidating,
+        wasModified: state.wasModified,
         fields: state.fields,
         subforms: state.subforms,
         validationEnabled: state.validationEnabled,
+        validating: fieldsAreValidating || subformsIsValidating,
       ),
     );
   }
