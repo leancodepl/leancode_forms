@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// A validate function receiving the current value and returning an error code.
 /// If null is returned, the value is considered valid.
@@ -48,6 +49,23 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
   final Duration _asyncValidationDebounce;
 
   Timer? _debounceTimer;
+
+  StreamSubscription<void>? _fieldsSubscription;
+
+  /// Subscribes to the [fields] and revalidate the field when any of the fields change.
+  void subscribeToFields(List<FieldCubit<dynamic, dynamic>> fields) {
+    _fieldsSubscription?.cancel();
+
+    _fieldsSubscription = Rx.combineLatest(
+      fields.map((field) => field.stream.map((s) => s.value).distinct()),
+      (_) => <dynamic>{},
+    ).listen((_) {
+      if (state.autovalidate) {
+        // Setting the same value will trigger a validation.
+        setValue(state.value);
+      }
+    });
+  }
 
   /// Set a new [value]. When [force] is true, [state] is always updated to a new [value],
   /// otherwise if [state] is readonly, [setValue] is a noop
@@ -123,7 +141,7 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
     emit(
       FieldState<T, E>(
         value: value,
-        validationError: state.validationError,
+        validationError: null,
         asyncError: error,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
@@ -251,6 +269,12 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         status: FieldStatus.valid,
       ),
     );
+  }
+
+  @override
+  Future<void> close() {
+    _fieldsSubscription?.cancel();
+    return super.close();
   }
 }
 

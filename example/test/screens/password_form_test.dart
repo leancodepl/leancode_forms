@@ -5,9 +5,9 @@ import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/password_form.dart';
 
 void main() {
-  blocTest<PasswordSubformCubit, FormGroupState>(
+  blocTest<PasswordFormCubit, FormGroupState>(
     'sets error in repeatPassword field when passwords do not match',
-    build: PasswordSubformCubit.new,
+    build: PasswordFormCubit.new,
     act: (cubit) {
       cubit.password.setValue('Password!1');
       cubit.repeatPassword.setValue('1234567');

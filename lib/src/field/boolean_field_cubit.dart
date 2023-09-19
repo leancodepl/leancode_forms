@@ -6,12 +6,5 @@ class BooleanFieldCubit<E extends Object> extends FieldCubit<bool, E> {
   BooleanFieldCubit({
     super.initialValue = false,
     super.validator,
-    this.requiredTrue = false,
   });
-
-  /// Toggles the value of the field.
-  void toggle() => setValue(!state.value);
-
-  /// Whether the field is required to be true to be valid.
-  final bool requiredTrue;
 }

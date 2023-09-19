@@ -5,6 +5,7 @@ import 'package:leancode_forms_example/cubits/password_field_cubit.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_password_field.dart';
+import 'package:leancode_forms_example/widgets/form_switch_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 
 /// This is an example of a form with a password/repeat password fields.
@@ -41,18 +42,20 @@ class PasswordForm extends StatelessWidget {
             hintText: 'Enter your username',
           ),
           const SizedBox(height: 16),
+          FormSwitchField(
+            field: context.read<PasswordFormCubit>().switchField,
+            labelText: 'Repeat password should be 10 characters long',
+          ),
+          const SizedBox(height: 16),
           FormPasswordField(
-            field: context.read<PasswordFormCubit>().passwordSubform.password,
+            field: context.read<PasswordFormCubit>().password,
             translateError: (error) => validatorTranslator(error.first),
             labelText: 'Password',
             hintText: 'Enter your password',
           ),
           const SizedBox(height: 16),
           FormTextField(
-            field: context
-                .read<PasswordFormCubit>()
-                .passwordSubform
-                .repeatPassword,
+            field: context.read<PasswordFormCubit>().repeatPassword,
             translateError: validatorTranslator,
             labelText: 'Repeat Password',
             hintText: 'Repeat your password',
@@ -69,9 +72,13 @@ class PasswordForm extends StatelessWidget {
 }
 
 class PasswordFormCubit extends FormGroupCubit {
-  PasswordFormCubit() : passwordSubform = PasswordSubformCubit() {
-    registerFields([username]);
-    addSubform(passwordSubform);
+  PasswordFormCubit() {
+    registerFields([
+      username,
+      switchField,
+      password,
+      repeatPassword,
+    ]);
   }
 
   final username = TextFieldCubit(
@@ -79,30 +86,9 @@ class PasswordFormCubit extends FormGroupCubit {
         atLeastLength(5, ValidationError.toShort),
   );
 
-  final PasswordSubformCubit passwordSubform;
+  final switchField = BooleanFieldCubit();
 
-  void submit() {
-    if (validate()) {
-      debugPrint('Username: ${username.state.value}');
-      debugPrint('Password: ${passwordSubform.password.state.value}');
-      debugPrint(
-        'Repeated password: ${passwordSubform.repeatPassword.state.value}',
-      );
-    } else {
-      debugPrint('Form is invalid');
-    }
-  }
-}
-
-class PasswordSubformCubit extends FormGroupCubit {
-  PasswordSubformCubit() : super(validateAll: true) {
-    registerFields([
-      password,
-      repeatPassword,
-    ]);
-  }
-
-  final password = PasswordFieldCubit(
+  late final password = PasswordFieldCubit(
     numberRequired: true,
     specialCharRequired: true,
     upperCaseRequired: true,
@@ -112,6 +98,9 @@ class PasswordSubformCubit extends FormGroupCubit {
   late final repeatPassword = TextFieldCubit<ValidationError>(
     validator: conditionalValidator(
       (value) {
+        if (switchField.state.value == true && value.length < 10) {
+          return ValidationError.toShort;
+        }
         if (value != password.state.value) {
           return ValidationError.doesNotMatch;
         }
@@ -119,5 +108,16 @@ class PasswordSubformCubit extends FormGroupCubit {
       },
       () => password.state.value.isNotEmpty,
     ),
-  );
+  )..subscribeToFields([switchField, password]);
+
+  void submit() {
+    if (validate()) {
+      debugPrint('Username: ${username.state.value}');
+      debugPrint('Switch field: ${switchField.state.value}');
+      debugPrint('Password: ${password.state.value}');
+      debugPrint('Repeated password: ${repeatPassword.state.value}');
+    } else {
+      debugPrint('Form is invalid');
+    }
+  }
 }
