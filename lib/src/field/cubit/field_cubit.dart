@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:leancode_forms/src/utils/cancelable_future.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// A validate function receiving the current value and returning an error code.
@@ -30,14 +32,7 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         _asyncValidator = asyncValidator,
         _asyncValidationDebounce = asyncValidationDebounce,
         super(
-          FieldState<T, E>(
-            value: initialValue,
-            validationError: null,
-            asyncError: null,
-            autovalidate: false,
-            readOnly: false,
-            status: FieldStatus.valid,
-          ),
+          FieldState<T, E>(value: initialValue),
         );
 
   final T _initialValue;
@@ -49,6 +44,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
   final Duration _asyncValidationDebounce;
 
   Timer? _debounceTimer;
+
+  CancelableFuture<E?>? _asyncValidationFuture;
 
   StreamSubscription<void>? _fieldsSubscription;
 
@@ -100,10 +97,12 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
   Future<void> _runAsyncValidator(T value) async {
     // Cancel the previous debounce timer if it exists.
     _debounceTimer?.cancel();
+    _asyncValidationFuture?.cancel();
 
     // Create a new Completer to handle the async validation result.
     final completer = Completer<E?>();
 
+    /// Update the field state with the pending status.
     emit(
       FieldState<T, E>(
         value: value,
@@ -117,7 +116,7 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
 
     // Start a new debounce timer.
     _debounceTimer = Timer(_asyncValidationDebounce, () async {
-      /// Update the field state with the async validation pending status.
+      /// Update the field state with the validating status.
       emit(
         FieldState<T, E>(
           value: value,
@@ -130,8 +129,10 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
       );
 
       // Run the async validator and complete the Completer with the result.
-      final error = await _asyncValidator!(value);
-      completer.complete(error);
+      _asyncValidationFuture = CancelableFuture(
+        future: _asyncValidator!(value),
+        onComplete: completer.complete,
+      );
     });
 
     // Wait for the async validation to complete.
@@ -141,7 +142,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
     emit(
       FieldState<T, E>(
         value: value,
-        validationError: null,
         asyncError: error,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
@@ -168,7 +168,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
       FieldState<T, E>(
         value: state.value,
         validationError: error,
-        asyncError: null,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
         status: FieldStatus.invalid,
@@ -237,7 +236,6 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         validationError: state.validationError,
         asyncError: state.asyncError,
         autovalidate: state.autovalidate,
-        readOnly: false,
         status: state.status,
       ),
     );
@@ -248,27 +246,15 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
     emit(
       FieldState<T, E>(
         value: state.value,
-        validationError: null,
-        asyncError: null,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
-        status: FieldStatus.valid,
       ),
     );
   }
 
   /// Resets the field to its initial value.
   void reset() {
-    emit(
-      FieldState(
-        value: _initialValue,
-        validationError: null,
-        asyncError: null,
-        autovalidate: false,
-        readOnly: false,
-        status: FieldStatus.valid,
-      ),
-    );
+    emit(FieldState(value: _initialValue));
   }
 
   @override
@@ -294,15 +280,15 @@ enum FieldStatus {
 }
 
 /// The state of a [FieldCubit].
-class FieldState<T, E extends Object> {
+class FieldState<T, E extends Object> with EquatableMixin {
   /// Creates a new [FieldState].
   const FieldState({
     required this.value,
-    required this.validationError,
-    required this.asyncError,
-    required this.autovalidate,
-    required this.readOnly,
-    required this.status,
+    this.validationError,
+    this.asyncError,
+    this.autovalidate = false,
+    this.readOnly = false,
+    this.status = FieldStatus.valid,
   });
 
   /// Returns true if there are no errors.
@@ -347,4 +333,14 @@ class FieldState<T, E extends Object> {
 
   /// The current status of the field.
   final FieldStatus status;
+
+  @override
+  List<Object?> get props => [
+        value,
+        validationError,
+        asyncError,
+        autovalidate,
+        readOnly,
+        status,
+      ];
 }
