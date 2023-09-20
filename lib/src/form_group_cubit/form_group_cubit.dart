@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
@@ -317,7 +318,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 }
 
 /// The state of a [FormGroupCubit].
-class FormGroupState {
+class FormGroupState with EquatableMixin {
   /// Creates a new [FormGroupState].
   const FormGroupState({
     this.wasModified = false,
@@ -342,4 +343,13 @@ class FormGroupState {
 
   /// Returns true if fields are currently being validated.
   final bool validating;
+
+  @override
+  List<Object?> get props => [
+        wasModified,
+        fields,
+        subforms,
+        validationEnabled,
+        validating,
+      ];
 }
