@@ -276,6 +276,53 @@ void main() {
 
         expect(field1.state.autovalidate, true);
       });
+
+      test('is not valid when any of the fields is pending async validation',
+          () {
+        validator1.validationResult = null;
+        final field = TextFieldCubit<_Error1>(
+          initialValue: _initialValue1,
+          asyncValidator: (_) async => validator1.validationResult,
+        );
+        form.registerFields([field]);
+
+        field.setValue('value');
+        final isValid = form.validate();
+
+        expect(isValid, false);
+      });
+
+      test('is not valid when async validation of the field fails', () async {
+        validator1.validationResult = _Error1.valueRequired;
+        final field = TextFieldCubit<_Error1>(
+          initialValue: _initialValue1,
+          asyncValidator: (_) async => validator1.validationResult,
+        );
+        form.registerFields([field]);
+
+        field.setValue('value');
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        final isValid = form.validate();
+
+        expect(isValid, false);
+      });
+
+      test(
+          'is not valid when any of the fields in subform is pending async validation',
+          () {
+        validator2.validationResult = null;
+        subformField = FieldCubit(
+          initialValue: 0,
+          asyncValidator: (_) async => validator2.validationResult,
+        );
+        subform = FormGroupCubit()..registerFields([subformField]);
+        form.addSubform(subform);
+
+        subformField.setValue(10);
+        final isValid = form.validate();
+
+        expect(isValid, false);
+      });
     });
 
     group('onValuesChangedStream', () {
@@ -590,6 +637,23 @@ void main() {
       );
 
       blocTest<FormGroupCubit, FormGroupState>(
+        'removes a previously added subform but does not disposes it when close is false',
+        build: () => form,
+        setUp: () {
+          form.addSubform(subform);
+        },
+        act: (cubit) async {
+          await cubit.removeSubform(subform, close: false);
+        },
+        expect: () => <dynamic>[
+          const FormGroupState(),
+        ],
+        verify: (cubit) {
+          expect(subform.isClosed, false);
+        },
+      );
+
+      blocTest<FormGroupCubit, FormGroupState>(
         'is noop if form was not added',
         build: () => form,
         act: (cubit) {
@@ -617,6 +681,47 @@ void main() {
       expect(subform.isClosed, true);
       expect(subform.isDisposed, true);
       expect(subformField.isClosed, true);
+    });
+
+    group('resetAll', () {
+      test('resets all fields state to initial', () {
+        subform.registerFields([subformField]);
+        form
+          ..registerFields([field1, field2])
+          ..addSubform(subform);
+
+        field1.setValue('value');
+        field2.setValue(42);
+        subformField.setValue(42);
+
+        form.resetAll();
+
+        expect(field1.state.value, _initialValue1);
+        expect(field2.state.value, _initialValue2);
+        expect(subformField.state.value, _initialValue2);
+      });
+    });
+
+    group('validateWithAutovalidate', () {
+      test('validates only the fields which have set autovalidate to true', () {
+        subform.registerFields([subformField]);
+        form
+          ..registerFields([field1, field2])
+          ..addSubform(subform);
+
+        field1.setAutovalidate(true);
+        field2.setAutovalidate(false);
+        subformField.setAutovalidate(true);
+
+        validator1.validationResult = _Error1.valueRequired;
+        validator2.validationResult = _Error2.malformed;
+
+        form.validateWithAutovalidate();
+
+        expect(field1.state.error, _Error1.valueRequired);
+        expect(field2.state.error, null);
+        expect(subformField.state.error, _Error2.malformed);
+      });
     });
   });
 }

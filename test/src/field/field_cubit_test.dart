@@ -1,5 +1,6 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
 
 enum _Error {
@@ -319,6 +320,36 @@ void main() {
           ),
         ],
       );
+    });
+
+    group('subscribeToFields', () {
+      test('should run validation when subscribed field changes', () async {
+        validator.validationResult = _Error.malformed;
+        final field2 = FieldCubit(initialValue: 0);
+        final field1 = FieldCubit(initialValue: 0, validator: validator)
+          ..setAutovalidate(true)
+          ..subscribeToFields([field2]);
+
+        field2.setValue(10);
+        await Future<void>.delayed(Duration.zero);
+        expect(field1.state.error, _Error.malformed);
+      });
+
+      test('should run async validation when subscribed field changes',
+          () async {
+        validator.validationResult = _Error.malformed;
+        final field2 = FieldCubit(initialValue: 0);
+        final field1 = FieldCubit(
+          initialValue: 0,
+          asyncValidator: (_) async => validator.validationResult,
+        )
+          ..setAutovalidate(true)
+          ..subscribeToFields([field2]);
+
+        field2.setValue(10);
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+        expect(field1.state.error, _Error.malformed);
+      });
     });
   });
 }
