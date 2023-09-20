@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/src/utils/cancelable_future.dart';
 import 'package:rxdart/rxdart.dart';
@@ -302,6 +302,9 @@ class FieldState<T, E extends Object> with EquatableMixin {
 
   /// Returns true if field status is pending or validating.
   bool get isInProgress => isPending || isValidating;
+
+  /// Returns true if field status is invalid.
+  bool get isInvalid => status == FieldStatus.invalid;
 
   /// The current value.
   /// Can be set manually by calling [FieldCubit.setValue].

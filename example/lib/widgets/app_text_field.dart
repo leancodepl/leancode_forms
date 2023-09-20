@@ -8,9 +8,11 @@ class AppTextField extends HookWidget {
   const AppTextField({
     super.key,
     this.controller,
+    this.focusNode,
     this.initialValue,
     this.onChanged,
     this.onUnfocus,
+    this.onFieldSubmitted,
     required this.setValue,
     this.trimOnUnfocus = false,
     this.labelText,
@@ -20,9 +22,11 @@ class AppTextField extends HookWidget {
   });
 
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final String? initialValue;
   final ValueChanged<String>? onChanged;
   final VoidCallback? onUnfocus;
+  final ValueChanged<String>? onFieldSubmitted;
   final ValueChanged<String> setValue;
   final bool trimOnUnfocus;
   final String? labelText;
@@ -34,7 +38,7 @@ class AppTextField extends HookWidget {
   Widget build(BuildContext context) {
     final textEditingController =
         controller ?? useTextEditingController(text: initialValue);
-    final focusNode = useFocusNode();
+    final focusNode = this.focusNode ?? useFocusNode();
 
     useEffect(
       () {
@@ -60,6 +64,7 @@ class AppTextField extends HookWidget {
       controller: textEditingController,
       onChanged: onChanged,
       onTapOutside: (_) => focusNode.unfocus(),
+      onFieldSubmitted: onFieldSubmitted,
       decoration: InputDecoration(
         labelText: labelText,
         hintText: hintText,
