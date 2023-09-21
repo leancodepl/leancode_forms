@@ -1,7 +1,7 @@
 name: leancode_forms
-description: A new Flutter package project.
+description: A package for managing form state based on BLoC.
 version: 0.0.1
-homepage:
+homepage: https://github.com/leancodepl/leancode_forms.git
 
 environment:
   sdk: ">=3.1.0 <4.0.0"
