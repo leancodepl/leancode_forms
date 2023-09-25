@@ -96,18 +96,7 @@ class PasswordFormCubit extends FormGroupCubit {
   );
 
   late final repeatPassword = TextFieldCubit<ValidationError>(
-    validator: conditionalValidator(
-      (value) {
-        if (switchField.state.value == true && value.length < 10) {
-          return ValidationError.toShort;
-        }
-        if (value != password.state.value) {
-          return ValidationError.doesNotMatch;
-        }
-        return null;
-      },
-      () => password.state.value.isNotEmpty,
-    ),
+    validator: exactly(password.state.value, ValidationError.doesNotMatch),
   )..subscribeToFields([switchField, password]);
 
   void submit() {

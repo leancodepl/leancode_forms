@@ -31,6 +31,6 @@ class MultiSelectFieldCubit<V, E extends Object> extends FieldCubit<Set<V>, E> {
     setValue(Set<V>.from(state.value)..remove(value));
   }
 
-  /// Deselects all values.
+  /// Resets selected values to the initial value.
   void clear() => reset();
 }

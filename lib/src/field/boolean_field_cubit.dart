@@ -6,5 +6,7 @@ class BooleanFieldCubit<E extends Object> extends FieldCubit<bool, E> {
   BooleanFieldCubit({
     super.initialValue = false,
     super.validator,
+    super.asyncValidator,
+    super.asyncValidationDebounce,
   });
 }

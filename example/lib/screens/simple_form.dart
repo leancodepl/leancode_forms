@@ -5,7 +5,7 @@ import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 
-/// This is an example of a simple form with two fields.
+/// This is an example of a simple form with two basic fields and one field with async validation.
 /// The form is validated ONLY when the submit button is pressed.
 class SimpleFormScreen extends StatelessWidget {
   const SimpleFormScreen({super.key});

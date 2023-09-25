@@ -1,6 +1,6 @@
 import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
 
-/// A specialization of [FieldCubit] for a single choice of [V] value.
+/// A specialization of [FieldCubit] for a single choice of [V] value from List of [options].
 class SingleSelectFieldCubit<V, E extends Object> extends FieldCubit<V?, E> {
   /// Creates a new [SingleSelectFieldCubit].
   SingleSelectFieldCubit({
@@ -15,6 +15,6 @@ class SingleSelectFieldCubit<V, E extends Object> extends FieldCubit<V?, E> {
   /// Sets the value of the field to the [option].
   void select(V? option) => setValue(option);
 
-  /// Clears the value of the field.
+  /// Resets selected value to the initial one.
   void clear() => reset();
 }
