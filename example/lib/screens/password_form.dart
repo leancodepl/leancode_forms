@@ -71,6 +71,17 @@ class PasswordForm extends StatelessWidget {
   }
 }
 
+Validator<String?, E> passwordMatch<E extends Object>(
+  PasswordFieldCubit passwordCubit,
+  E message,
+) =>
+    (value) {
+      if (value != passwordCubit.state.value) {
+        return message;
+      }
+      return null;
+    };
+
 class PasswordFormCubit extends FormGroupCubit {
   PasswordFormCubit() {
     registerFields([
@@ -88,7 +99,7 @@ class PasswordFormCubit extends FormGroupCubit {
 
   final switchField = BooleanFieldCubit();
 
-  late final password = PasswordFieldCubit(
+  final password = PasswordFieldCubit(
     numberRequired: true,
     specialCharRequired: true,
     upperCaseRequired: true,
@@ -96,7 +107,7 @@ class PasswordFormCubit extends FormGroupCubit {
   );
 
   late final repeatPassword = TextFieldCubit<ValidationError>(
-    validator: exactly(password.state.value, ValidationError.doesNotMatch),
+    validator: passwordMatch(password, ValidationError.doesNotMatch),
   )..subscribeToFields([switchField, password]);
 
   void submit() {
@@ -107,6 +118,10 @@ class PasswordFormCubit extends FormGroupCubit {
       debugPrint('Repeated password: ${repeatPassword.state.value}');
     } else {
       debugPrint('Form is invalid');
+      debugPrint('Username: ${username.state.value}');
+      debugPrint('Switch field: ${switchField.state.value}');
+      debugPrint('Password: ${password.state.value}');
+      debugPrint('Repeated password: ${repeatPassword.state.value}');
     }
   }
 }

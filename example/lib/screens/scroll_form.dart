@@ -36,7 +36,7 @@ class ScrollForm extends StatelessWidget {
     }
 
     return FormPage(
-      title: 'Simple Form',
+      title: 'Scroll Form',
       child: BlocPresentationListener<ScrollFormCubit, ScrollFormCubitEvent>(
         listener: (context, event) {
           if (event is SubmitFailedWithErrors) {
@@ -54,7 +54,7 @@ class ScrollForm extends StatelessWidget {
                 onFieldSubmitted: (_) =>
                     context.read<ScrollFormCubit>().secondField.focus(),
               ),
-              const SizedBox(height: 160),
+              const SizedBox(height: 260),
               FocusableFormTextField(
                 field: context.read<ScrollFormCubit>().secondField,
                 translateError: validatorTranslator,
@@ -63,14 +63,14 @@ class ScrollForm extends StatelessWidget {
                 onFieldSubmitted: (_) =>
                     context.read<ScrollFormCubit>().thirdField.focus(),
               ),
-              const SizedBox(height: 160),
+              const SizedBox(height: 260),
               FocusableFormTextField(
                 field: context.read<ScrollFormCubit>().thirdField,
                 translateError: validatorTranslator,
                 labelText: 'Third field',
                 hintText: 'Write here...',
               ),
-              const SizedBox(height: 160),
+              const SizedBox(height: 260),
               ElevatedButton(
                 onPressed: context.read<ScrollFormCubit>().submit,
                 child: const Text('Submit'),

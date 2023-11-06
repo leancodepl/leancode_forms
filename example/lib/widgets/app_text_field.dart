@@ -60,6 +60,7 @@ class AppTextField extends HookWidget {
     );
 
     return TextFormField(
+      autocorrect: false,
       focusNode: focusNode,
       controller: textEditingController,
       onChanged: onChanged,
