@@ -278,7 +278,7 @@ void main() {
       });
 
       test('is not valid when any of the fields is pending async validation',
-          () {
+          () async {
         validator1.validationResult = null;
         final field = TextFieldCubit<_Error1>(
           initialValue: _initialValue1,
@@ -287,9 +287,10 @@ void main() {
         form.registerFields([field]);
 
         field.setValue('value');
-        final isValid = form.validate();
 
+        final isValid = form.validate();
         expect(isValid, false);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
       });
 
       test('is not valid when async validation of the field fails', () async {
