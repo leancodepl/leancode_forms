@@ -2,7 +2,7 @@ name: publish
 
 on:
   push:
-    tags: ['leancode_forms-v*']
+    tags: ['v*']
 
 jobs:
   publish:
