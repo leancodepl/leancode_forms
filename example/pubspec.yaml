@@ -1,14 +1,13 @@
 name: leancode_forms_example
 description: A new Flutter project.
-publish_to: 'none'
+publish_to: "none"
 version: 0.1.0
 
 environment:
-  sdk: '>=3.1.0 <4.0.0'
+  sdk: ">=3.1.0 <4.0.0"
 
 dependencies:
   bloc_presentation: ^0.4.0
-  bloc_test: ^9.1.4
   flutter:
     sdk: flutter
   flutter_bloc: ^8.1.3
@@ -18,6 +17,7 @@ dependencies:
   rxdart: ^0.27.7
 
 dev_dependencies:
+  bloc_test: ^9.1.4
   flutter_test:
     sdk: flutter
   leancode_lint: ^6.0.0
