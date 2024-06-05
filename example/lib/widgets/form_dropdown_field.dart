@@ -17,7 +17,8 @@ class FormDropdownField<T, E extends Object> extends FieldBuilder<T?, E> {
             labelBuilder: labelBuilder,
             label: labelText,
             hint: hintText,
-            onClear: () => field.select(null),
+            onSetToInitial: field.clear,
+            onEmpty: () => field.select(null),
             errorText:
                 state.error != null ? translateError(state.error!) : null,
           ),
