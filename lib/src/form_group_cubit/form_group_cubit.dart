@@ -345,12 +345,8 @@ class FormGroupState with EquatableMixin {
   final bool validating;
 
   /// List of this form's fields including subforms' fields.
-  Iterable<FieldCubit<dynamic, dynamic>> get allFields {
-    return [
-      ...fields,
-      for (final subform in subforms) ...subform.state.allFields,
-    ];
-  }
+  Iterable<FieldCubit<dynamic, dynamic>> get allFields =>
+      fields.followedBy(subforms.expand((e) => e.state.allFields));
 
   /// Map of all validation errors (including subfroms') grouped by fields
   Map<FieldCubit<dynamic, dynamic>, dynamic> get validationErrors => {
