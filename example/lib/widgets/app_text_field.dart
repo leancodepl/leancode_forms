@@ -19,6 +19,8 @@ class AppTextField extends HookWidget {
     this.hintText,
     this.errorText,
     this.suffix,
+    this.onSetToInitial,
+    this.onEmpty,
   });
 
   final TextEditingController? controller;
@@ -33,6 +35,8 @@ class AppTextField extends HookWidget {
   final String? hintText;
   final String? errorText;
   final Widget? suffix;
+  final VoidCallback? onSetToInitial;
+  final VoidCallback? onEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -59,19 +63,45 @@ class AppTextField extends HookWidget {
       [],
     );
 
-    return TextFormField(
-      autocorrect: false,
-      focusNode: focusNode,
-      controller: textEditingController,
-      onChanged: onChanged,
-      onTapOutside: (_) => focusNode.unfocus(),
-      onFieldSubmitted: onFieldSubmitted,
-      decoration: InputDecoration(
-        labelText: labelText,
-        hintText: hintText,
-        errorText: errorText,
-        suffix: suffix,
-      ),
+    return Row(
+      children: [
+        Flexible(
+          child: TextFormField(
+            autocorrect: false,
+            focusNode: focusNode,
+            controller: textEditingController,
+            onChanged: onChanged,
+            onTapOutside: (_) => focusNode.unfocus(),
+            onFieldSubmitted: onFieldSubmitted,
+            decoration: InputDecoration(
+              labelText: labelText,
+              hintText: hintText,
+              errorText: errorText,
+              suffix: suffix,
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        ElevatedButton(
+          onPressed: () {
+            if (onEmpty case final onEmpty?) {
+              onEmpty();
+              textEditingController.clear();
+            }
+          },
+          child: const Text('Empty'),
+        ),
+        const SizedBox(width: 16),
+        ElevatedButton(
+          onPressed: () {
+            if (onSetToInitial case final onSetToInitial?) {
+              onSetToInitial();
+              textEditingController.text = initialValue ?? '';
+            }
+          },
+          child: const Text('Set to initial'),
+        ),
+      ],
     );
   }
 }

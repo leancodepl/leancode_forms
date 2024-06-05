@@ -34,6 +34,8 @@ class FormTextField<E extends Object> extends FieldBuilder<String, E> {
                     child: CircularProgressIndicator(),
                   )
                 : null,
+            onSetToInitial: field.clear,
+            onEmpty: () => field.setValue(''),
           ),
         );
 }
