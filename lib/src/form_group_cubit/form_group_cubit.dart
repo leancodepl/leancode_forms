@@ -344,6 +344,20 @@ class FormGroupState with EquatableMixin {
   /// Returns true if fields are currently being validated.
   final bool validating;
 
+  /// List of this form's fields including subforms' fields.
+  List<FieldCubit<dynamic, dynamic>> get allFields {
+    return [
+      ...fields,
+      for (final subform in subforms) ...subform.state.allFields,
+    ];
+  }
+
+  /// Map of all validation errors (including subfroms') grouped by fields
+  Map<FieldCubit<dynamic, dynamic>, dynamic> get validationErrors => {
+        for (final field in allFields)
+          if (field.state.validationError case final error?) field: error,
+      };
+
   @override
   List<Object?> get props => [
         wasModified,
