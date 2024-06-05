@@ -68,10 +68,12 @@ class SimpleFormCubit extends FormGroupCubit {
   }
 
   final firstName = TextFieldCubit(
+    initialValue: 'Example first name',
     validator: filled(ValidationError.empty),
   );
 
   final lastName = TextFieldCubit(
+    initialValue: 'Example last name',
     validator: filled(ValidationError.empty),
   );
 
