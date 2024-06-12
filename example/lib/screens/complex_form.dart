@@ -80,6 +80,7 @@ class HumanSubform extends StatelessWidget {
           translateError: validatorTranslator,
           labelText: 'Gender',
           hintText: 'Select gender',
+          canSetToInitial: true,
         ),
         const SizedBox(height: 16),
         FormTextField(

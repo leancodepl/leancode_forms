@@ -9,9 +9,9 @@ class AppDropdownField<T> extends StatelessWidget {
     required this.onChanged,
     this.label,
     this.hint,
+    this.errorText,
     this.onSetToInitial,
     this.onEmpty,
-    this.errorText,
   });
 
   final List<T> options;
@@ -20,9 +20,9 @@ class AppDropdownField<T> extends StatelessWidget {
   final ValueChanged<T?> onChanged;
   final String? label;
   final String? hint;
+  final String? errorText;
   final VoidCallback? onSetToInitial;
   final VoidCallback? onEmpty;
-  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
@@ -47,16 +47,20 @@ class AppDropdownField<T> extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 16),
-        ElevatedButton(
-          onPressed: onSetToInitial,
-          child: const Text('Set to initial'),
-        ),
-        const SizedBox(width: 16),
-        ElevatedButton(
-          onPressed: onEmpty,
-          child: const Text('Empty'),
-        ),
+        if (onEmpty case final onEmpty?) ...[
+          const SizedBox(width: 16),
+          ElevatedButton(
+            onPressed: onEmpty,
+            child: const Text('Empty'),
+          ),
+        ],
+        if (onSetToInitial case final onSetToInitial?) ...[
+          const SizedBox(width: 16),
+          ElevatedButton(
+            onPressed: onSetToInitial,
+            child: const Text('Set to initial'),
+          ),
+        ],
       ],
     );
   }
