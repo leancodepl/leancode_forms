@@ -20,7 +20,6 @@ class AppTextField extends HookWidget {
     this.errorText,
     this.suffix,
     this.onSetToInitial,
-    this.onEmpty,
   });
 
   final TextEditingController? controller;
@@ -35,8 +34,7 @@ class AppTextField extends HookWidget {
   final String? hintText;
   final String? errorText;
   final Widget? suffix;
-  final VoidCallback? onSetToInitial;
-  final VoidCallback? onEmpty;
+  final String Function()? onSetToInitial;
 
   @override
   Widget build(BuildContext context) {
@@ -84,23 +82,20 @@ class AppTextField extends HookWidget {
         const SizedBox(width: 16),
         ElevatedButton(
           onPressed: () {
-            if (onEmpty case final onEmpty?) {
-              onEmpty();
+            {
               textEditingController.clear();
+              setValue('');
             }
           },
           child: const Text('Empty'),
         ),
-        const SizedBox(width: 16),
-        ElevatedButton(
-          onPressed: () {
-            if (onSetToInitial case final onSetToInitial?) {
-              onSetToInitial();
-              textEditingController.text = initialValue ?? '';
-            }
-          },
-          child: const Text('Set to initial'),
-        ),
+        if (onSetToInitial case final onSetToInitial?) ...[
+          const SizedBox(width: 16),
+          ElevatedButton(
+            onPressed: () => textEditingController.text = onSetToInitial(),
+            child: const Text('Set to initial'),
+          ),
+        ],
       ],
     );
   }
