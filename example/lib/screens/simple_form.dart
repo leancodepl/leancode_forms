@@ -34,12 +34,14 @@ class SimpleForm extends StatelessWidget {
               translateError: validatorTranslator,
               labelText: 'First Name',
               hintText: 'Enter your first name',
+              canSetToInitial: true,
             ),
             FormTextField(
               field: context.read<SimpleFormCubit>().lastName,
               translateError: validatorTranslator,
               labelText: 'Last Name',
               hintText: 'Enter your last name',
+              canSetToInitial: true,
             ),
             FormTextField(
               field: context.read<SimpleFormCubit>().email,
@@ -68,10 +70,12 @@ class SimpleFormCubit extends FormGroupCubit {
   }
 
   final firstName = TextFieldCubit(
+    initialValue: 'John',
     validator: filled(ValidationError.empty),
   );
 
   final lastName = TextFieldCubit(
+    initialValue: 'Foo',
     validator: filled(ValidationError.empty),
   );
 

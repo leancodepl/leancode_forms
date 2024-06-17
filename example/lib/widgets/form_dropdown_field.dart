@@ -9,6 +9,7 @@ class FormDropdownField<T, E extends Object> extends FieldBuilder<T?, E> {
     required ErrorTranslator<E> translateError,
     String? labelText,
     String? hintText,
+    bool canSetToInitial = false,
   }) : super(
           builder: (context, state) => AppDropdownField(
             value: state.value,
@@ -17,9 +18,10 @@ class FormDropdownField<T, E extends Object> extends FieldBuilder<T?, E> {
             labelBuilder: labelBuilder,
             label: labelText,
             hint: hintText,
-            onClear: () => field.select(null),
             errorText:
                 state.error != null ? translateError(state.error!) : null,
+            onSetToInitial: canSetToInitial ? field.clear : null,
+            onEmpty: () => field.select(null),
           ),
         );
 }

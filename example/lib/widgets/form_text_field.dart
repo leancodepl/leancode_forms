@@ -14,6 +14,7 @@ class FormTextField<E extends Object> extends FieldBuilder<String, E> {
     bool? trimOnUnfocus,
     String? labelText,
     String? hintText,
+    bool canSetToInitial = false,
   }) : super(
           builder: (context, state) => AppTextField(
             key: key,
@@ -33,6 +34,12 @@ class FormTextField<E extends Object> extends FieldBuilder<String, E> {
                     dimension: 16,
                     child: CircularProgressIndicator(),
                   )
+                : null,
+            onSetToInitial: canSetToInitial
+                ? () {
+                    field.clear();
+                    return field.state.value;
+                  }
                 : null,
           ),
         );

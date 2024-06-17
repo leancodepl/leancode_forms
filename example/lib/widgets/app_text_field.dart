@@ -19,6 +19,7 @@ class AppTextField extends HookWidget {
     this.hintText,
     this.errorText,
     this.suffix,
+    this.onSetToInitial,
   });
 
   final TextEditingController? controller;
@@ -33,6 +34,7 @@ class AppTextField extends HookWidget {
   final String? hintText;
   final String? errorText;
   final Widget? suffix;
+  final String Function()? onSetToInitial;
 
   @override
   Widget build(BuildContext context) {
@@ -59,19 +61,40 @@ class AppTextField extends HookWidget {
       [],
     );
 
-    return TextFormField(
-      autocorrect: false,
-      focusNode: focusNode,
-      controller: textEditingController,
-      onChanged: onChanged,
-      onTapOutside: (_) => focusNode.unfocus(),
-      onFieldSubmitted: onFieldSubmitted,
-      decoration: InputDecoration(
-        labelText: labelText,
-        hintText: hintText,
-        errorText: errorText,
-        suffix: suffix,
-      ),
+    return Row(
+      children: [
+        Flexible(
+          child: TextFormField(
+            autocorrect: false,
+            focusNode: focusNode,
+            controller: textEditingController,
+            onChanged: onChanged,
+            onTapOutside: (_) => focusNode.unfocus(),
+            onFieldSubmitted: onFieldSubmitted,
+            decoration: InputDecoration(
+              labelText: labelText,
+              hintText: hintText,
+              errorText: errorText,
+              suffix: suffix,
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        ElevatedButton(
+          onPressed: () {
+            textEditingController.clear();
+            setValue('');
+          },
+          child: const Text('Empty'),
+        ),
+        if (onSetToInitial case final onSetToInitial?) ...[
+          const SizedBox(width: 16),
+          ElevatedButton(
+            onPressed: () => textEditingController.text = onSetToInitial(),
+            child: const Text('Set to initial'),
+          ),
+        ],
+      ],
     );
   }
 }

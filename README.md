@@ -213,6 +213,8 @@ The package contains a collection of field cubits useful for implementing common
 - `SingleSelectFieldCubit` - specialization of `FieldCubit` for a single choice of value from list of options,
 - `MultiSelectFieldCubit` - specialization of `FieldCubit` for a multiple choice of values from list of options.
 
+`TextFieldCubit`, `SingleSelectFieldCubit` and `MultiSelectFieldCubit` contain the `clear()` method that resets the value of the field to the initial value by calling `reset()`. You can also call `reset()` as it is defined in the `FieldCubit` class.
+
 ### Creating custom `FieldCubit`
 
 If none of the existing `FieldCubit` implementations meet your requirements, you can create your own. Simply create a class that extends `FieldCubit`. Inside such cubit, you can add any method or a field.
