@@ -82,10 +82,8 @@ class AppTextField extends HookWidget {
         const SizedBox(width: 16),
         ElevatedButton(
           onPressed: () {
-            {
-              textEditingController.clear();
-              setValue('');
-            }
+            textEditingController.clear();
+            setValue('');
           },
           child: const Text('Empty'),
         ),
