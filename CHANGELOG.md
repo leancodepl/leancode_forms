@@ -1,3 +1,9 @@
+
+
+## 0.1.1
+
+* Bumped `rxdart` to `^0.28.0`.
+
 ## 0.1.0
 
 * Write README.md
