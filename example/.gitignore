@@ -38,8 +38,8 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Symlink to the Flutter SDK
-.fvm/flutter_sdk
+# FVM Version Cache
+.fvm/
 
 # Android Studio will place build artifacts here
 /android/app/debug
