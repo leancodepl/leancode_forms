@@ -37,8 +37,8 @@ class SimpleFormCubit extends FormGroupCubit {
 class SimpleFormCubit extends FormGroupCubit {
   SimpleFormCubit() {
     registerFields([
-        firstName,
-        lastName,
+      firstName,
+      lastName,
     ]);
   }
 
@@ -73,13 +73,13 @@ The simplest way to create a form field widget is to wrap a single widget (i.e. 
 ```dart
 final firstNameFieldCubit = context.read<SimpleFormCubit>().firstName; 
 FieldBuilder(
-    field: firstNameFieldCubit,
-    builder: (context, state) {
-        return TextFormField(
-            onChanged: firstNameFieldCubit.getValueSetter(),
-        );
-      },
+  field: firstNameFieldCubit,
+  builder: (context, state) {
+    return TextFormField(
+      onChanged: firstNameFieldCubit.getValueSetter(),
     );
+  },
+);
 ```
 
 ### Validating Simple Form Fields
@@ -93,24 +93,24 @@ There is a set of [ready-to-use validators](#ready-to-use-validators) but you ca
 class SimpleFormCubit extends FormGroupCubit {
   SimpleFormCubit() {
     registerFields([
-        firstName,
-        lastName,
+      firstName,
+      lastName,
     ]);
   }
 
   final firstName = TextFieldCubit(
     validator: (value) {
-        if(value.isEmpty) {
-            return 'First name cannot be empty';
-        }
+      if (value.isEmpty) {
+        return 'First name cannot be empty';
+      }
     }
   );
 
   final lastName = TextFieldCubit(
     validator: (value) {
-        if(value.isEmpty) {
-            return 'Last name cannot be empty';
-        }
+      if (value.isEmpty) {
+        return 'Last name cannot be empty';
+      }
     }
   );
 }
@@ -124,15 +124,15 @@ To validate whole simple form you can call `validate()` method on the form cubit
 class SimpleFormCubit extends FormGroupCubit {
   SimpleFormCubit() {
     registerFields([
-        firstName,
-        lastName,
+      firstName,
+      lastName,
     ]);
   }
 
   /*FORM FIELDS*/
 
   void validateForm() {
-    if(validate()) {
+    if (validate()) {
       print('Form is valid');
     } else {
       print('Form is invalid!');
