@@ -1,7 +1,6 @@
 <a href="https://leancode.co/?utm_source=github.com&utm_medium=referral&utm_campaign=leancode-forms" align="center">
-  <img alt="leancode_forms" src="https://github.com/user-attachments/assets/e4d555ab-0470-43b4-bcc6-22af3b282f0c" />
+  <img alt="leancode_forms" src="https://github.com/user-attachments/assets/95006237-b166-47b1-85d5-2010e852a7ef" />
 </a>
-
 
 # leancode_forms
 
