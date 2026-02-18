@@ -206,7 +206,14 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 
   /// Adds a subform to the current form.
   /// If [form] was already added as a subform this is a noop.
+  /// If [form] is closed this will throw a [StateError].
   void addSubform(FormGroupCubit form) {
+    if (form.isClosed) {
+      throw StateError(
+        'Cannot add a closed form',
+      );
+    }
+
     emit(
       FormGroupState(
         wasModified: state.wasModified,

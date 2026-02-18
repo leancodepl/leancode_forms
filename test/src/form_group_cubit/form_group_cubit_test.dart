@@ -486,6 +486,20 @@ void main() {
         },
         expect: () => <dynamic>[],
       );
+
+      blocTest<FormGroupCubit, FormGroupState>(
+        'throws if form is closed',
+        build: () => form,
+        setUp: () => subform.close(),
+        act: (cubit) {
+          cubit.addSubform(subform);
+        },
+        errors: () => [
+          predicate(
+            (e) => e is StateError && e.message == 'Cannot add a closed form',
+          ),
+        ],
+      );
     });
 
     group('validateAll', () {
