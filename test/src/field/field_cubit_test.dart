@@ -38,7 +38,7 @@ void main() {
       build: () => cubit,
       act: (cubit) => cubit.setValue(10),
       expect: () => const [
-        _FieldState(value: 10),
+        _FieldState(value: 10, isDirty: true, wasModified: true),
       ],
     );
 
@@ -50,7 +50,7 @@ void main() {
       build: () => cubit,
       act: (cubit) => cubit.setValue(10),
       expect: () => const [
-        _FieldState(value: 10),
+        _FieldState(value: 10, isDirty: true, wasModified: true),
       ],
     );
 
@@ -68,6 +68,8 @@ void main() {
           validationError: _Error.malformed,
           autovalidate: true,
           status: FieldStatus.invalid,
+          isDirty: true,
+          wasModified: true,
         ),
       ],
     );
@@ -97,7 +99,62 @@ void main() {
         _FieldState(
           value: 10,
           readOnly: true,
+          isDirty: true,
+          wasModified: true,
         ),
+      ],
+    );
+  });
+
+  group('modification flags', () {
+    blocTest<_FieldCubit, _FieldState>(
+      'isDirty and wasModified are false for initial state',
+      build: () => cubit,
+      verify: (cubit) {
+        expect(cubit.state.isDirty, false);
+        expect(cubit.state.wasModified, false);
+      },
+    );
+
+    blocTest<_FieldCubit, _FieldState>(
+      'setValue marks field as dirty and modified for non-initial value',
+      build: () => cubit,
+      act: (cubit) => cubit.setValue(10),
+      expect: () => const [
+        _FieldState(value: 10, isDirty: true, wasModified: true),
+      ],
+    );
+
+    blocTest<_FieldCubit, _FieldState>(
+      'setValue marks field as dirty but not modified for initial value',
+      build: () => cubit,
+      act: (cubit) => cubit.setValue(_initialValue),
+      expect: () => const [
+        _FieldState(value: _initialValue, isDirty: true),
+      ],
+    );
+
+    blocTest<_FieldCubit, _FieldState>(
+      'setting initial value marks field as dirty but not modified',
+      build: () => cubit,
+      act: (cubit) => cubit
+        ..setValue(10)
+        ..setValue(_initialValue),
+      expect: () => const [
+        _FieldState(value: 10, isDirty: true, wasModified: true),
+        _FieldState(value: _initialValue, isDirty: true),
+      ],
+    );
+
+    blocTest<_FieldCubit, _FieldState>(
+      'reset clears isDirty and wasModified',
+      build: () => cubit,
+      act: (cubit) => cubit
+        ..setValue(10)
+        ..reset(),
+      expect: () => const [
+        _FieldState(value: 10, isDirty: true, wasModified: true),
+        _FieldState(value: _initialValue),
       ],
     );
   });
@@ -223,15 +280,21 @@ void main() {
           _FieldState(
             value: 10,
             status: FieldStatus.pending,
+            isDirty: true,
+            wasModified: true,
           ),
           _FieldState(
             value: 10,
             status: FieldStatus.validating,
+            isDirty: true,
+            wasModified: true,
           ),
           _FieldState(
             value: 10,
             status: FieldStatus.invalid,
             asyncError: _Error.malformed,
+            isDirty: true,
+            wasModified: true,
           ),
         ],
       );
@@ -252,19 +315,27 @@ void main() {
           _FieldState(
             value: 10,
             status: FieldStatus.pending,
+            isDirty: true,
+            wasModified: true,
           ),
           _FieldState(
             value: 20,
             status: FieldStatus.pending,
+            isDirty: true,
+            wasModified: true,
           ),
           _FieldState(
             value: 20,
             status: FieldStatus.validating,
+            isDirty: true,
+            wasModified: true,
           ),
           _FieldState(
             value: 20,
             status: FieldStatus.invalid,
             asyncError: _Error.malformed,
+            isDirty: true,
+            wasModified: true,
           ),
         ],
       );
@@ -285,23 +356,33 @@ void main() {
           _FieldState(
             value: 10,
             status: FieldStatus.pending,
+            isDirty: true,
+            wasModified: true,
           ),
           _FieldState(
             value: 10,
             status: FieldStatus.validating,
+            isDirty: true,
+            wasModified: true,
           ),
           _FieldState(
             value: 20,
             status: FieldStatus.pending,
+            isDirty: true,
+            wasModified: true,
           ),
           _FieldState(
             value: 20,
             status: FieldStatus.validating,
+            isDirty: true,
+            wasModified: true,
           ),
           _FieldState(
             value: 20,
             status: FieldStatus.invalid,
             asyncError: _Error.malformed,
+            isDirty: true,
+            wasModified: true,
           ),
         ],
       );

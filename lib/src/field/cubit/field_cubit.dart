@@ -88,6 +88,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         asyncError: state.asyncError,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
+        isDirty: true,
+        wasModified: value != _initialValue,
         status:
             validationError == null ? FieldStatus.valid : FieldStatus.invalid,
       ),
@@ -111,6 +113,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
         status: FieldStatus.pending,
+        isDirty: true,
+        wasModified: value != _initialValue,
       ),
     );
 
@@ -125,6 +129,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
           autovalidate: state.autovalidate,
           readOnly: state.readOnly,
           status: FieldStatus.validating,
+          isDirty: state.isDirty,
+          wasModified: state.wasModified,
         ),
       );
 
@@ -145,6 +151,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         asyncError: error,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
+        isDirty: state.isDirty,
+        wasModified: state.wasModified,
         status: error == null ? FieldStatus.valid : FieldStatus.invalid,
       ),
     );
@@ -171,6 +179,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
         status: FieldStatus.invalid,
+        isDirty: state.isDirty,
+        wasModified: state.wasModified,
       ),
     );
   }
@@ -192,6 +202,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
           asyncError: state.asyncError,
           autovalidate: state.autovalidate,
           readOnly: state.readOnly,
+          isDirty: state.isDirty,
+          wasModified: state.wasModified,
           status: error == null ? FieldStatus.valid : FieldStatus.invalid,
         ),
       );
@@ -210,6 +222,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         autovalidate: autovalidate,
         readOnly: state.readOnly,
         status: state.status,
+        isDirty: state.isDirty,
+        wasModified: state.wasModified,
       ),
     );
   }
@@ -224,6 +238,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         autovalidate: state.autovalidate,
         readOnly: true,
         status: state.status,
+        isDirty: state.isDirty,
+        wasModified: state.wasModified,
       ),
     );
   }
@@ -237,6 +253,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         asyncError: state.asyncError,
         autovalidate: state.autovalidate,
         status: state.status,
+        isDirty: state.isDirty,
+        wasModified: state.wasModified,
       ),
     );
   }
@@ -248,6 +266,8 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         value: state.value,
         autovalidate: state.autovalidate,
         readOnly: state.readOnly,
+        isDirty: state.isDirty,
+        wasModified: state.wasModified,
       ),
     );
   }
@@ -289,6 +309,8 @@ class FieldState<T, E extends Object> with EquatableMixin {
     this.autovalidate = false,
     this.readOnly = false,
     this.status = FieldStatus.valid,
+    this.isDirty = false,
+    this.wasModified = false,
   });
 
   /// Returns true if there are no errors.
@@ -337,6 +359,12 @@ class FieldState<T, E extends Object> with EquatableMixin {
   /// The current status of the field.
   final FieldStatus status;
 
+  /// Whether the value is different from the initial value.
+  final bool wasModified;
+
+  /// Whether this field has ever been changed via [FieldCubit.setValue].
+  final bool isDirty;
+
   @override
   List<Object?> get props => [
         value,
@@ -345,5 +373,7 @@ class FieldState<T, E extends Object> with EquatableMixin {
         autovalidate,
         readOnly,
         status,
+        isDirty,
+        wasModified,
       ];
 }
