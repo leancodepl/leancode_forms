@@ -62,14 +62,14 @@ void main() {
 
     group('getFieldValues', () {
       test('when no fields are registered', () {
-        final values = form.getFieldValues();
+        final values = form.state.fields.map((f) => f.state.value);
 
         expect(values, isEmpty);
       });
 
       test('when fields are registered', () {
         form.registerFields([field1, field2]);
-        final values = form.getFieldValues();
+        final values = form.state.fields.map((f) => f.state.value);
 
         expect(values, <dynamic>[_initialValue1, _initialValue2]);
       });
@@ -80,7 +80,7 @@ void main() {
         field1.setValue('hello');
         field2.setValue(10);
 
-        final values = form.getFieldValues();
+        final values = form.state.fields.map((f) => f.state.value);
 
         expect(values, <dynamic>['hello', 10]);
       });
@@ -93,15 +93,15 @@ void main() {
         field1.setValue('hello');
         field2.setValue(10);
 
-        final values = form.getFieldValues();
+        final values = form.state.fields.map((f) => f.state.value);
 
         expect(values, isEmpty);
       });
     });
 
-    group('wasModified', () {
+    group('modification flags', () {
       blocTest<FormGroupCubit, FormGroupState>(
-        'is false after register',
+        'are false after register',
         build: () => form,
         act: (cubit) => cubit.registerFields([field1, field2]),
         expect: () => <dynamic>[
@@ -112,7 +112,7 @@ void main() {
       );
 
       blocTest<FormGroupCubit, FormGroupState>(
-        'is true if subform was modified',
+        'are true if subform was modified',
         build: () => form,
         setUp: () {
           subform.registerFields([subformField]);
@@ -127,6 +127,7 @@ void main() {
         expect: () => <dynamic>[
           FormGroupState(
             wasModified: true,
+            isDirty: true,
             fields: [field1, field2],
             subforms: {subform},
           ),
@@ -134,7 +135,7 @@ void main() {
       );
 
       blocTest<FormGroupCubit, FormGroupState>(
-        'is true if field1 changes',
+        'are true if field1 changes',
         build: () => form,
         setUp: () {
           form.registerFields([field1, field2]);
@@ -146,13 +147,14 @@ void main() {
         expect: () => [
           FormGroupState(
             wasModified: true,
+            isDirty: true,
             fields: [field1, field2],
           ),
         ],
       );
 
       blocTest<FormGroupCubit, FormGroupState>(
-        'is true if field2 changes',
+        'are true if field2 changes',
         build: () => form,
         setUp: () {
           form.registerFields([field1, field2]);
@@ -162,12 +164,41 @@ void main() {
           field2.setValue(0xb0b);
         },
         expect: () => [
-          FormGroupState(wasModified: true, fields: [field1, field2]),
+          FormGroupState(
+            wasModified: true,
+            isDirty: true,
+            fields: [field1, field2],
+          ),
         ],
       );
 
       blocTest<FormGroupCubit, FormGroupState>(
-        'does not change if field was unregistered',
+        'isDirty stays true even after value returns to initial one',
+        build: () => form,
+        setUp: () {
+          form.registerFields([field1, field2]);
+        },
+        act: (cubit) async {
+          await Future<void>.delayed(Duration.zero);
+          field1.setValue('value');
+          await Future<void>.delayed(Duration.zero);
+          field1.setValue(_initialValue1);
+        },
+        expect: () => [
+          FormGroupState(
+            wasModified: true,
+            isDirty: true,
+            fields: [field1, field2],
+          ),
+          FormGroupState(
+            isDirty: true,
+            fields: [field1, field2],
+          ),
+        ],
+      );
+
+      blocTest<FormGroupCubit, FormGroupState>(
+        'do not change if field was unregistered',
         build: () => form,
         setUp: () {
           form

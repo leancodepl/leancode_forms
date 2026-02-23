@@ -1,8 +1,6 @@
 import 'dart:async';
 
-import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
 import 'package:leancode_forms/src/utils/disposable.dart';
@@ -58,8 +56,6 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
   /// their validator called if they have autovalidate enabled.
   final bool validateAll;
 
-  List<dynamic> _initialFieldsState = <dynamic>[];
-
   StreamSubscription<dynamic>? _onFieldsChangeSubscription;
   final _fieldsController = StreamController<dynamic>.broadcast();
 
@@ -114,6 +110,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     emit(
       FormGroupState(
         wasModified: state.wasModified,
+        isDirty: state.isDirty,
         fields: fields,
         subforms: state.subforms,
         validationEnabled: state.validationEnabled,
@@ -122,15 +119,8 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 
     addDisposable(() => Future.wait(fields.map((e) => e.close())));
 
-    _initialFieldsState = getFieldValues();
     // inform that the fields have changed
     _fieldsController.add(null);
-  }
-
-  /// Returns a list of all field values.
-  @visibleForTesting
-  List<dynamic> getFieldValues() {
-    return state.fields.map<dynamic>((f) => f.state.value).toList();
   }
 
   /// Recursively calls validate on all subforms/fields if `state.validationEnabled` is true.
@@ -210,6 +200,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     emit(
       FormGroupState(
         wasModified: state.wasModified,
+        isDirty: state.isDirty,
         fields: state.fields,
         subforms: {...state.subforms, form},
         validationEnabled: state.validationEnabled,
@@ -224,6 +215,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
       emit(
         FormGroupState(
           wasModified: state.wasModified,
+          isDirty: state.isDirty,
           fields: state.fields,
           subforms: {...state.subforms}..remove(form),
           validationEnabled: state.validationEnabled,
@@ -257,6 +249,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     emit(
       FormGroupState(
         wasModified: state.wasModified,
+        isDirty: state.isDirty,
         fields: state.fields,
         subforms: state.subforms,
         validationEnabled: validationEnabled,
@@ -270,19 +263,30 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
   }
 
   void _onFieldsStateChanged() {
-    final subformsWereModified = state.subforms.any(
-      (subform) => subform.state.wasModified,
-    );
-    late final fieldsWereModified = !const DeepCollectionEquality()
-        .equals(_initialFieldsState, getFieldValues());
-
     if (validateAll) {
       validateWithAutovalidate();
     }
 
+    final subformsWereModified = state.subforms.any(
+      (subform) => subform.state.wasModified,
+    );
+
+    final fieldsWereModified = state.fields.any(
+      (field) => field.state.wasModified,
+    );
+
+    final subformsAreDirty = state.subforms.any(
+      (subform) => subform.state.isDirty,
+    );
+
+    final fieldsAreDirty = state.fields.any(
+      (field) => field.state.isDirty,
+    );
+
     emit(
       FormGroupState(
         wasModified: subformsWereModified || fieldsWereModified,
+        isDirty: subformsAreDirty || fieldsAreDirty,
         fields: state.fields,
         subforms: state.subforms,
         validationEnabled: state.validationEnabled,
@@ -302,6 +306,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     emit(
       FormGroupState(
         wasModified: state.wasModified,
+        isDirty: state.isDirty,
         fields: state.fields,
         subforms: state.subforms,
         validationEnabled: state.validationEnabled,
@@ -322,15 +327,18 @@ class FormGroupState with EquatableMixin {
   /// Creates a new [FormGroupState].
   const FormGroupState({
     this.wasModified = false,
+    this.isDirty = false,
     this.fields = const [],
     this.subforms = const {},
     this.validationEnabled = true,
     this.validating = false,
   });
 
-  /// wasModified is true when any of the field values differ since the
-  /// last `registerFields` or when any of the subforms has wasModified=true.
+  /// Whether any of the fields differ from their initial value.
   final bool wasModified;
+
+  /// Whether any of the fields or subforms were modified.
+  final bool isDirty;
 
   /// List of all registered fields by this form.
   final List<FieldCubit<dynamic, dynamic>> fields;
@@ -357,6 +365,7 @@ class FormGroupState with EquatableMixin {
   @override
   List<Object?> get props => [
         wasModified,
+        isDirty,
         fields,
         subforms,
         validationEnabled,
