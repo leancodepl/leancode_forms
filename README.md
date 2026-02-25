@@ -1,5 +1,5 @@
 <a href="https://leancode.co/?utm_source=github.com&utm_medium=referral&utm_campaign=leancode-forms" align="center">
-  <img alt="leancode_forms" src="https://raw.githubusercontent.com/leancodepl/leancode_forms/refs/heads/main/docs/imgs/banner.png" />
+  <img alt="leancode_forms" src="https://raw.githubusercontent.com/leancodepl/leancode_forms/refs/heads/main/doc/imgs/banner.png" />
 </a>
 
 # leancode_forms
