@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:provider/provider.dart';
 
 /// This is an example of a simple form with two basic fields and one field with async validation.
 /// The form is validated ONLY when the submit button is pressed.
@@ -12,8 +12,8 @@ class SimpleFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<SimpleFormCubit>(
-      create: (context) => SimpleFormCubit(),
+    return ChangeNotifierProvider<SimpleFormController>(
+      create: (_) => SimpleFormController(),
       child: const SimpleForm(),
     );
   }
@@ -24,33 +24,34 @@ class SimpleForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = context.read<SimpleFormController>();
     return FormPage(
       title: 'Simple Form',
       child: SingleChildScrollView(
         child: Column(
           children: [
             FormTextField(
-              field: context.read<SimpleFormCubit>().firstName,
+              field: controller.firstName,
               translateError: validatorTranslator,
               labelText: 'First Name',
               hintText: 'Enter your first name',
               canSetToInitial: true,
             ),
             FormTextField(
-              field: context.read<SimpleFormCubit>().lastName,
+              field: controller.lastName,
               translateError: validatorTranslator,
               labelText: 'Last Name',
               hintText: 'Enter your last name',
               canSetToInitial: true,
             ),
             FormTextField(
-              field: context.read<SimpleFormCubit>().email,
+              field: controller.email,
               translateError: validatorTranslator,
               labelText: 'Email',
               hintText: 'Enter your email',
             ),
             ElevatedButton(
-              onPressed: context.read<SimpleFormCubit>().submit,
+              onPressed: controller.submit,
               child: const Text('Submit'),
             ),
           ],
@@ -60,8 +61,8 @@ class SimpleForm extends StatelessWidget {
   }
 }
 
-class SimpleFormCubit extends FormGroupCubit {
-  SimpleFormCubit() {
+class SimpleFormController extends FormGroupController {
+  SimpleFormController() {
     registerFields([
       firstName,
       lastName,
@@ -69,18 +70,17 @@ class SimpleFormCubit extends FormGroupCubit {
     ]);
   }
 
-  final firstName = TextFieldCubit(
+  final firstName = TextFieldController(
     initialValue: 'John',
     validator: filled(ValidationError.empty),
   );
 
-  final lastName = TextFieldCubit(
+  final lastName = TextFieldController(
     initialValue: 'Foo',
     validator: filled(ValidationError.empty),
   );
 
-  //A field with async validation
-  late final email = TextFieldCubit(
+  late final email = TextFieldController(
     validator: filled(ValidationError.empty),
     asyncValidator: _onEmailChanged,
     asyncValidationDebounce: const Duration(milliseconds: 500),
@@ -93,11 +93,10 @@ class SimpleFormCubit extends FormGroupCubit {
   }
 
   void submit() {
-    //Change to true to enable autovalidation of each field after pressing submit.
     if (validate(enableAutovalidate: false)) {
-      debugPrint('First name: ${firstName.state.value}');
-      debugPrint('Last name: ${lastName.state.value}');
-      debugPrint('Email: ${email.state.value}');
+      debugPrint('First name: ${firstName.value.value}');
+      debugPrint('Last name: ${lastName.value.value}');
+      debugPrint('Email: ${email.value.value}');
     } else {
       debugPrint('Form is invalid');
     }

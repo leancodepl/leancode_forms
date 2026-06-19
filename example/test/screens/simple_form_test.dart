@@ -1,47 +1,46 @@
-import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/simple_form.dart';
 
 void main() {
-  blocTest<SimpleFormCubit, FormGroupState>(
-    'sets email when setValue is called',
-    build: SimpleFormCubit.new,
-    act: (cubit) => cubit.email.setValue('john@email.com'),
-    verify: (cubit) {
-      expect(cubit.email.state.value, 'john@email.com');
-    },
-  );
+  test('sets email when setValue is called', () {
+    final controller = SimpleFormController();
+    addTearDown(controller.dispose);
 
-  blocTest<SimpleFormCubit, FormGroupState>(
-    'sets ValidationErrors.emailTaken when email is taken',
-    build: SimpleFormCubit.new,
-    act: (cubit) => cubit.email.setValue('john@email.com'),
-    wait: const Duration(seconds: 2),
-    verify: (cubit) async {
-      expect(cubit.email.state.error, ValidationError.emailTaken);
-    },
-  );
+    controller.email.setValue('john@email.com');
 
-  blocTest<SimpleFormCubit, FormGroupState>(
-    'should not have any errors before submit method invoked',
-    build: SimpleFormCubit.new,
-    verify: (cubit) {
-      expect(cubit.email.state.error, null);
-      expect(cubit.firstName.state.error, null);
-      expect(cubit.lastName.state.error, null);
-    },
-  );
+    expect(controller.email.value.value, 'john@email.com');
+  });
 
-  blocTest<SimpleFormCubit, FormGroupState>(
-    'validates fields and sets errors after submit method invoked',
-    build: SimpleFormCubit.new,
-    act: (cubit) => cubit.validate(),
-    verify: (cubit) {
-      expect(cubit.email.state.error, ValidationError.empty);
-      expect(cubit.firstName.state.error, ValidationError.empty);
-      expect(cubit.lastName.state.error, ValidationError.empty);
-    },
-  );
+  test('sets ValidationError.emailTaken when email is taken', () async {
+    final controller = SimpleFormController();
+    addTearDown(controller.dispose);
+
+    controller.email.setValue('john@email.com');
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    expect(controller.email.value.error, ValidationError.emailTaken);
+  });
+
+  test('has no errors before submit is invoked', () {
+    final controller = SimpleFormController();
+    addTearDown(controller.dispose);
+
+    expect(controller.email.value.error, null);
+    expect(controller.firstName.value.error, null);
+    expect(controller.lastName.value.error, null);
+  });
+
+  test('validate flags only empty fields as invalid', () {
+    final controller = SimpleFormController();
+    addTearDown(controller.dispose);
+
+    controller.validate();
+
+    // email defaults to '' so it fails `filled`; firstName/lastName have
+    // non-empty initial values so they pass.
+    expect(controller.email.value.error, ValidationError.empty);
+    expect(controller.firstName.value.error, null);
+    expect(controller.lastName.value.error, null);
+  });
 }
