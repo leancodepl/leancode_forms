@@ -8,9 +8,8 @@ A package for creating and managing forms with `ValueNotifier` / `ChangeNotifier
 flutter pub add leancode_forms
 ```
 
-# Usage
+## Usage
 Let's go through the basics of the package while explaining some of the key terms/concepts.
-    
 ## Creating a Simple Form
 
 To create a simple form, you need to define a `FormGroupController` that will manage its fields.
