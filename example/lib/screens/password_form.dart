@@ -6,6 +6,7 @@ import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_password_field.dart';
 import 'package:leancode_forms_example/widgets/form_switch_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:leancode_forms_example/widgets/screen_description.dart';
 import 'package:provider/provider.dart';
 
 /// This is an example of a form with a password/repeat password fields.
@@ -32,6 +33,17 @@ class PasswordForm extends StatelessWidget {
       title: 'Password Form',
       child: Column(
         children: [
+          ScreenDescription([
+            bold('Cross-field validation. '),
+            plain('The "Repeat Password" field listens to the password '
+                'field via '),
+            code('subscribeToFields'),
+            plain(' and re-validates whenever the password changes. The '
+                'username field demonstrates '),
+            bold('autovalidation'),
+            plain(': it only starts showing errors after losing focus '
+                'for the first time.'),
+          ]),
           FormTextField(
             field: controller.username,
             onUnfocus: () => controller.username

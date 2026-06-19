@@ -4,6 +4,7 @@ import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_dropdown_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:leancode_forms_example/widgets/screen_description.dart';
 import 'package:provider/provider.dart';
 
 /// This is an example of a form with dynamically added subforms.
@@ -31,6 +32,17 @@ class DeliveryListForm extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            ScreenDescription([
+              bold('Dynamic subforms. '),
+              plain('Each consumer is its own '),
+              code('FormGroupController'),
+              plain(' added as a subform to the parent. The parent\'s '),
+              code('validate()'),
+              plain(' recursively validates every consumer; disposing the '
+                  'parent '),
+              bold('cascades'),
+              plain(' to every subform.'),
+            ]),
             ...controller.deliveryList.map(
               (e) => ConsumerSubform(
                 key: ValueKey(e.hashCode),
