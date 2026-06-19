@@ -1,8 +1,12 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
+import 'package:leancode_forms/src/field/field_controller.dart';
 
-/// Listens to the given [field] and rerenders the child using [builder].
+/// A thin wrapper around [ValueListenableBuilder] that rebuilds whenever the
+/// given [field] notifies. Saves typing the `<FieldState<T, E>>` type argument
+/// at call sites.
+///
+/// For finer control (e.g. the `child:` optimization on
+/// [ValueListenableBuilder]), use [ValueListenableBuilder] directly.
 class FieldBuilder<T, E extends Object> extends StatelessWidget {
   /// Creates a new [FieldBuilder].
   const FieldBuilder({
@@ -11,20 +15,17 @@ class FieldBuilder<T, E extends Object> extends StatelessWidget {
     required this.builder,
   });
 
-  /// The [FieldCubit] to listen to.
-  final FieldCubit<T, E> field;
+  /// The field to listen to.
+  final FieldController<T, E> field;
 
-  /// The builder to use to build the child.
-  final BlocWidgetBuilder<FieldState<T, E>> builder;
+  /// Called with the latest [FieldState] every time [field] notifies.
+  final Widget Function(BuildContext context, FieldState<T, E> state) builder;
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<FieldCubit<T, E>, FieldState<T, E>>(
-      bloc: field,
-      builder: builder,
+    return ValueListenableBuilder<FieldState<T, E>>(
+      valueListenable: field,
+      builder: (context, state, _) => builder(context, state),
     );
   }
 }
-
-/// Translates an error to a string.
-typedef ErrorTranslator<E extends Object> = String Function(E);

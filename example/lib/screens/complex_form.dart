@@ -1,11 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_dropdown_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
-import 'package:rxdart/rxdart.dart';
+import 'package:provider/provider.dart';
 
 /// This is an example of a simple form with two fields.
 /// The form is validated ONLY when the submit button is pressed.
@@ -14,8 +15,8 @@ class ComplexFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<ComplexFormCubit>(
-      create: (context) => ComplexFormCubit(),
+    return ChangeNotifierProvider<ComplexFormController>(
+      create: (_) => ComplexFormController(),
       child: const ComplexForm(),
     );
   }
@@ -26,13 +27,14 @@ class ComplexForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = context.read<ComplexFormController>();
     return FormPage(
       title: 'Complex Form',
       child: SingleChildScrollView(
         child: Column(
           children: [
             FormDropdownField(
-              field: context.read<ComplexFormCubit>().type,
+              field: controller.type,
               labelBuilder: (value) => value?.name ?? 'Select subform type',
               translateError: validatorTranslator,
               labelText: 'Subform Type',
@@ -40,22 +42,22 @@ class ComplexForm extends StatelessWidget {
             ),
             Builder(
               builder: (context) {
-                final type = context.select<ComplexFormCubit, SubformType?>(
-                  (cubit) => cubit.subformType,
+                final type = context.select<ComplexFormController, SubformType?>(
+                  (c) => c.subformType,
                 );
                 return switch (type) {
                   SubformType.human => HumanSubform(
-                      cubit: context.read<ComplexFormCubit>().humanSubform,
+                      controller: controller.humanSubform,
                     ),
                   SubformType.dog => DogSubform(
-                      cubit: context.read<ComplexFormCubit>().dogSubform,
+                      controller: controller.dogSubform,
                     ),
                   _ => const SizedBox(),
                 };
               },
             ),
             ElevatedButton(
-              onPressed: context.read<ComplexFormCubit>().submit,
+              onPressed: controller.submit,
               child: const Text('Submit'),
             ),
           ],
@@ -66,16 +68,16 @@ class ComplexForm extends StatelessWidget {
 }
 
 class HumanSubform extends StatelessWidget {
-  const HumanSubform({super.key, required this.cubit});
+  const HumanSubform({super.key, required this.controller});
 
-  final HumanSubformCubit cubit;
+  final HumanSubformController controller;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         FormDropdownField(
-          field: cubit.gender,
+          field: controller.gender,
           labelBuilder: (value) => value.name,
           translateError: validatorTranslator,
           labelText: 'Gender',
@@ -84,7 +86,7 @@ class HumanSubform extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         FormTextField(
-          field: cubit.age,
+          field: controller.age,
           translateError: validatorTranslator,
           labelText: 'Age',
           hintText: 'Enter human age',
@@ -95,16 +97,16 @@ class HumanSubform extends StatelessWidget {
 }
 
 class DogSubform extends StatelessWidget {
-  const DogSubform({super.key, required this.cubit});
+  const DogSubform({super.key, required this.controller});
 
-  final DogSubformCubit cubit;
+  final DogSubformController controller;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         FormDropdownField(
-          field: cubit.breed,
+          field: controller.breed,
           labelBuilder: (value) => value.name,
           translateError: validatorTranslator,
           labelText: 'Breed',
@@ -112,7 +114,7 @@ class DogSubform extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         FormTextField(
-          field: cubit.age,
+          field: controller.age,
           translateError: validatorTranslator,
           labelText: 'Age',
           hintText: 'Enter dog age',
@@ -122,35 +124,41 @@ class DogSubform extends StatelessWidget {
   }
 }
 
-class ComplexFormCubit extends FormGroupCubit {
-  ComplexFormCubit() {
-    registerFields([
-      type,
-    ]);
-    addDisposable(
-      type.stream
-          .map((event) => event.value)
-          .distinct()
-          .debounceTime(const Duration(milliseconds: 500))
-          .listen(_onTypeUpdated)
-          .cancel,
-    );
+class ComplexFormController extends FormGroupController {
+  ComplexFormController() {
+    registerFields([type]);
+    type.addListener(_onTypeListenerFired);
   }
 
-  final type = SingleSelectFieldCubit<SubformType?, ValidationError>(
+  final type = SingleSelectFieldController<SubformType?, ValidationError>(
     options: SubformType.values,
     initialValue: null,
   );
 
   SubformType? subformType;
 
-  final dogSubform = DogSubformCubit();
+  final dogSubform = DogSubformController();
+  final humanSubform = HumanSubformController();
 
-  final humanSubform = HumanSubformCubit();
+  Timer? _typeDebounce;
+  SubformType? _lastSeenType;
+
+  void _onTypeListenerFired() {
+    final current = type.value.value;
+    if (current == _lastSeenType) {
+      return;
+    }
+    _lastSeenType = current;
+    _typeDebounce?.cancel();
+    _typeDebounce = Timer(const Duration(milliseconds: 500), () {
+      _onTypeUpdated(current);
+    });
+  }
 
   Future<void> _onTypeUpdated(SubformType? type) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     subformType = type;
+    notifyListeners();
 
     if (type == SubformType.human) {
       addSubform(humanSubform);
@@ -173,35 +181,44 @@ class ComplexFormCubit extends FormGroupCubit {
       debugPrint('Form is invalid!');
     }
   }
+
+  @override
+  void dispose() {
+    _typeDebounce?.cancel();
+    type.removeListener(_onTypeListenerFired);
+    humanSubform.dispose();
+    dogSubform.dispose();
+    super.dispose();
+  }
 }
 
-class HumanSubformCubit extends FormGroupCubit {
-  HumanSubformCubit() {
+class HumanSubformController extends FormGroupController {
+  HumanSubformController() {
     registerFields([
       gender,
       age,
     ]);
   }
 
-  final gender = SingleSelectFieldCubit<Gender, ValidationError>(
+  final gender = SingleSelectFieldController<Gender, ValidationError>(
     initialValue: Gender.male,
     options: Gender.values,
   );
 
-  final age = TextFieldCubit(
+  final age = TextFieldController(
     validator: filled(ValidationError.empty),
   );
 }
 
-class DogSubformCubit extends FormGroupCubit {
-  DogSubformCubit() {
+class DogSubformController extends FormGroupController {
+  DogSubformController() {
     registerFields([
       breed,
       age,
     ]);
   }
 
-  final breed = SingleSelectFieldCubit<Breed, ValidationError>(
+  final breed = SingleSelectFieldController<Breed, ValidationError>(
     initialValue: null,
     options: Breed.values,
     validator: (value) {
@@ -212,7 +229,7 @@ class DogSubformCubit extends FormGroupCubit {
     },
   );
 
-  final age = TextFieldCubit(
+  final age = TextFieldController(
     validator: filled(ValidationError.empty),
   );
 }

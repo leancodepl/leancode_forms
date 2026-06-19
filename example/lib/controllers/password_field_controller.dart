@@ -1,10 +1,11 @@
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 
-/// A specialization of [FieldCubit] for a password field.
-class PasswordFieldCubit extends FieldCubit<String, List<ValidationError>> {
-  /// Creates a new [PasswordFieldCubit].
-  PasswordFieldCubit({
+/// A specialization of [TextFieldController] for a password field. Errors are
+/// reported as a list of rule violations.
+class PasswordFieldController extends TextFieldController<List<ValidationError>> {
+  /// Creates a new [PasswordFieldController].
+  PasswordFieldController({
     super.initialValue = '',
     this.minLength = 8,
     this.numberRequired = false,
