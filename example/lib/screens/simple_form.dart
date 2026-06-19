@@ -3,6 +3,7 @@ import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:leancode_forms_example/widgets/screen_description.dart';
 import 'package:provider/provider.dart';
 
 /// This is an example of a simple form with two basic fields and one field with async validation.
@@ -30,6 +31,18 @@ class SimpleForm extends StatelessWidget {
       child: SingleChildScrollView(
         child: Column(
           children: [
+            ScreenDescription([
+              plain('A basic form with two text fields and one with '),
+              bold('async validation'),
+              plain(' (email). Validation only runs on '),
+              bold('submit'),
+              plain(' — type anything and press Submit to see errors appear. '
+                  'Try '),
+              code('john@email.com'),
+              plain(' or '),
+              code('jack@email.com'),
+              plain(' to trigger the async "email taken" error.'),
+            ]),
             FormTextField(
               field: controller.firstName,
               translateError: validatorTranslator,

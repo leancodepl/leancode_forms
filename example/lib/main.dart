@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:leancode_forms_example/screens/complex_form.dart';
 import 'package:leancode_forms_example/screens/delivery_form.dart';
 import 'package:leancode_forms_example/screens/home_page.dart';
+import 'package:leancode_forms_example/screens/optimized_rendering_form.dart';
 import 'package:leancode_forms_example/screens/password_form.dart';
 import 'package:leancode_forms_example/screens/quiz_form.dart';
 import 'package:leancode_forms_example/screens/scroll_form.dart';
@@ -19,6 +20,7 @@ class Routes {
   static const quiz = '/quiz';
   static const complex = '/complex';
   static const scroll = '/scroll';
+  static const optimized = '/optimized';
 }
 
 enum ValidationError {
@@ -75,6 +77,7 @@ class MainApp extends StatelessWidget {
         Routes.quiz: (_) => const QuizFormScreen(),
         Routes.complex: (_) => const ComplexFormScreen(),
         Routes.scroll: (_) => const ScrollFormScreen(),
+        Routes.optimized: (_) => const OptimizedRenderingFormScreen(),
       },
     );
   }

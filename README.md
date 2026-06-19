@@ -1,4 +1,4 @@
-A package for creating and managing form based on BLoC.
+A package for creating and managing forms with `ValueNotifier` / `ChangeNotifier`.
 
 ## Getting Started
 
@@ -8,47 +8,48 @@ A package for creating and managing form based on BLoC.
 flutter pub add leancode_forms
 ```
 
-## Usage
-
+# Usage
+Let's go through the basics of the package while explaining some of the key terms/concepts.
+    
 ## Creating a Simple Form
 
-To create a simple form, first, you need to define a `FormGroupCubit` that will manage its fields. The easiest way to do this is by extending the `FormGroupCubit` class.
+To create a simple form, you need to define a `FormGroupController` that will manage its fields.
+Common way to do this is by extending the `FormGroupController` class.
+
 ```dart
-class SimpleFormCubit extends FormGroupCubit {
-  SimpleFormCubit();
+class SimpleFormController extends FormGroupController {
+  SimpleFormController();
 }
 ```
 
-Next, inside the form cubit, you should define the form fields. You can either use one of the [predefined field cubits](#predefined-field-cubits) or [create custom `FieldCubit`](#creating-custom-fieldcubit). In simple form, we will use `TextFieldCubit` which is a `FieldCubit` implementation for text inputs.  
+Next, inside the form controller, you define the form fields. You can either use one of the [predefined field controllers](#predefined-field-controllers) or [create a custom `FieldController`](#creating-custom-fieldcontroller). In this simple form, we use `TextFieldController` — the `FieldController` specialization for text inputs.
 
 ```dart
-class SimpleFormCubit extends FormGroupCubit {
-  SimpleFormCubit();
+class SimpleFormController extends FormGroupController {
+  SimpleFormController();
 
-  final firstName = TextFieldCubit();
-
-  final lastName = TextFieldCubit();
+  final firstName = TextFieldController();
+  final lastName = TextFieldController();
 }
 ```
 
-**Important:** To make FormGroupCubit manage the defined fields, you need to register them by calling the `registerFields()` method. This also ensures that the field cubits will be disposed together with the form cubit.
+**Important:** To make the form manage the defined fields, you should register them via `registerFields()`. The form takes ownership and disposes them when the form itself is disposed.
 
 ```dart
-class SimpleFormCubit extends FormGroupCubit {
-  SimpleFormCubit() {
+class SimpleFormController extends FormGroupController {
+  SimpleFormController() {
     registerFields([
       firstName,
       lastName,
     ]);
   }
 
-  final firstName = TextFieldCubit();
-
-  final lastName = TextFieldCubit();
+  final firstName = TextFieldController();
+  final lastName = TextFieldController();
 }
 ```
 
-You can provide the cubit created in this way in the same manner as any other cubit.
+You can provide the controller through any DI mechanism. With the `provider` package:
 
 ```dart
 class SimpleForm extends StatelessWidget {
@@ -56,82 +57,158 @@ class SimpleForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<SimpleFormCubit>(
-      create: (context) => SimpleFormCubit(),
-      child: /*FORM WIDGETS*/,
+    return ChangeNotifierProvider<SimpleFormController>(
+      create: (_) => SimpleFormController(),
+      child: /* Here the form fields */,
     );
   }
 }
 ```
 
-### Creating a Widgets for Defined Fields
-The simplest way to create a form field widget is to wrap a single widget (i.e. `FormTextField`) with `FieldBuilder`.
-`FieldBuilder` is a widget that takes two arguments:
-- **`field`** - instance of a `FieldCubit` that `FieldBuilder` should listen to,
-- **`builder`** - a callback function that defines how to build the child widget based on the `FieldState`. 
+### Creating widgets for defined fields
+
+Every `FieldController` is a wrapper around the `ValueNotifier<FieldState<T, E>>`, so you can render one with the SDK's `ValueListenableBuilder`:
 
 ```dart
-final firstNameFieldCubit = context.read<SimpleFormCubit>().firstName; 
-FieldBuilder(
-  field: firstNameFieldCubit,
-  builder: (context, state) {
+final firstName = context.read<SimpleFormController>().firstName;
+
+ValueListenableBuilder<FieldState<String, MyError>>(
+  valueListenable: firstName,
+  builder: (context, state, _) {
     return TextFormField(
-      onChanged: firstNameFieldCubit.getValueSetter(),
+      controller: firstName.textController,
+      decoration: InputDecoration(
+        errorText: state.error != null ? translate(state.error!) : null,
+      ),
     );
   },
 );
 ```
 
-### Validating Simple Form Fields
-You can provide a validator function to each `FieldCubit`.
-`Validator` is defined as a function which takes a value of a field and returns an error of any type you want.
+Or use the shorthand `FieldBuilder` from this package. It is the same thing, but saves typing the `<FieldState<T, E>>` type argument:
+
+```dart
+FieldBuilder<String, MyError>(
+  field: firstName,
+  builder: (context, state) {
+    return TextFormField(
+      controller: firstName.textController,
+      decoration: InputDecoration(
+        errorText: state.error != null ? translate(state.error!) : null,
+      ),
+    );
+  },
+);
+```
+`FieldBuilder` is a thin wrapper around `ValueListenableBuilder`. Of course you can use `ValueListenableBuilder` directly when you need the SDK's `child:` optimization for a static subtree. that means, a part of your widget tree that doesn't depend on the field state (e.g. an expensive icon) and shouldn't be rebuilt on every change. `ValueListenableBuilder`'s `child:` parameter lets you build that piece once and reuse the same instance across every rebuild.
+
+```dart
+ValueListenableBuilder<FieldState<String, MyError>>(
+  valueListenable: firstName,
+  child: const Icon(Icons.email),                       // built once
+  builder: (context, state, child) => Row(
+    children: [
+      child!,                                            // reused on every rebuild
+      const SizedBox(width: 8),
+      Expanded(
+        child: TextFormField(
+          controller: firstName.textController,
+          decoration: InputDecoration(
+            errorText: state.error != null ? translate(state.error!) : null,
+          ),
+        ),
+      ),
+    ],
+  ),
+);
+```
+
+See `example/lib/widgets/form_text_field_with_icon.dart` for the widget, and `example/lib/screens/optimized_rendering_form.dart` for a runnable screen that uses it (accessible from the example app's home page under "Optimized Rendering").
+
+`TextFieldController` owns its own `TextEditingController` (`field.textController`) and keeps it in two-way sync with the field value — user input flows into the field state, and programmatic changes (`setValue`, `reset`, `clear`) flow into the text controller.
+
+### How the field modifications flow
+
+Every `FieldController` is a `ValueListenable<FieldState<T, E>>`. Widgets subscribe to it directly (via `FieldBuilder` or `ValueListenableBuilder`), and only the subscribed subtree rebuilds when the field changes — the parent form widget doesn't need to participate.
+
+The chain for a single keystroke in a text field:
+
+```
+user types 'h'
+   ↓
+TextFormField writes 'h' into field.textController       [Flutter SDK]
+   ↓
+field.textController.notifyListeners()
+   ↓
+TextFieldController._onTextControllerChanged             [internal sync]
+   ↓ calls setValue('h')
+field.value = FieldState(value: 'h', ...)
+   ↓
+field.notifyListeners()
+   ↓
+   ├── TextFieldController._onFieldChanged               [internal sync — noop here]
+   └── ValueListenableBuilder's listener                 [UI rebuild]
+         ↓
+       only that one FormTextField's subtree rebuilds
+```
+
+Two layers of listeners are alive at all times on a `TextFieldController`:
+
+- **Internal sync layer.** Two listeners set up in `TextFieldController`'s constructor: one keeps the field state in sync with the text buffer (`_onTextControllerChanged`), the other keeps the text buffer in sync with the field state (`_onFieldChanged`). This is how `field.reset()` actually updates the visible text, and how cross-field updates from `subscribeToFields` propagate to the UI.
+- **Widget subscription layer.** Each `ValueListenableBuilder` / `FieldBuilder` in the widget tree subscribes independently to the field it cares about. When the field notifies, only that subtree rebuilds — not the rest of the form.
+
+Practical implication for parents: use `context.read<MyFormController>()` to get the controller handle (no subscription, no parent rebuilds), then let each field widget subscribe to its own field on its own. The parent does not need to rebuild on field changes — the leaf widgets do that on their own, granularly.
+
+For form-level state (e.g. a "saving..." indicator that depends on `controller.value.validating`), use `context.select<MyFormController, bool>((c) => c.value.validating)` — that subscribes only to changes in the selected slice, not to every field change in the form.
+
+### Validating simple form fields
+
+Pass a `Validator` to any `FieldController`. A validator takes a value and returns an error (any type you want), or `null` if the value is valid.
+
 ```dart
 typedef Validator<T, E extends Object> = E? Function(T);
 ```
-There is a set of [ready-to-use validators](#ready-to-use-validators) but you can simply create your own validator. Let's add a validators to our simple form:
+
+There is a set of [ready-to-use validators](#ready-to-use-validators), or you can write your own:
+
 ```dart
-class SimpleFormCubit extends FormGroupCubit {
-  SimpleFormCubit() {
+class SimpleFormController extends FormGroupController {
+  SimpleFormController() {
     registerFields([
       firstName,
       lastName,
     ]);
   }
 
-  final firstName = TextFieldCubit(
+  final firstName = TextFieldController(
     validator: (value) {
       if (value.isEmpty) {
         return 'First name cannot be empty';
       }
-    }
+      return null;
+    },
   );
 
-  final lastName = TextFieldCubit(
+  final lastName = TextFieldController(
     validator: (value) {
       if (value.isEmpty) {
         return 'Last name cannot be empty';
       }
-    }
+      return null;
+    },
   );
 }
 ```
-To run the validation, you have to call `validate()` method on the field.
-Validation can also be triggered automatically when value of the field changes. In order to achieve such behavior you need to set `autovalidate` to `true`.
 
-To validate whole simple form you can call `validate()` method on the form cubit. It will iterate through all the fields and return false if any of the form fields is not valid. 
+Call `validate()` on a field to run its sync validator. Set `autovalidate` to `true` to run the validator on every value change.
+
+To validate the whole form, call `validate()` on the form controller. It iterates through every field (and every subform) and returns `false` if any of them is invalid.
 
 ```dart
-class SimpleFormCubit extends FormGroupCubit {
-  SimpleFormCubit() {
-    registerFields([
-      firstName,
-      lastName,
-    ]);
-  }
+class SimpleFormController extends FormGroupController {
+  /* fields */
 
-  /*FORM FIELDS*/
-
-  void validateForm() {
+  void submit() {
     if (validate()) {
       print('Form is valid');
     } else {
@@ -141,154 +218,167 @@ class SimpleFormCubit extends FormGroupCubit {
 }
 ```
 
-## Ready-To-Use Validators
-There is a set of validators which you can use:
- - `boundedNonNegativeInteger` - validates if a string represents a non-negative integer that is less than or equal to a specified upper bound,
- - `positiveInteger` - validates if a string represents a positive integer (greater than 0),
- - `nonNegativeInteger` - validates if a string represents a non-negative integer (greater than or equal to 0),
- - `positiveDecimal` - validates if a string represents a positive decimal number (greater than 0),
- - `nonNegativeDecimal` - validates if a string represents a non-negative decimal number (greater than or equal to 0),
- - `exactly` - validates if a string is exactly equal to a specified string,
- - `filled` - rejects null and empty strings (including whitespace-only strings),
- - `notLongerThan` - rejects strings longer than a specified maximum length,
- - `atLeastLength` - rejects strings shorter than a specified minimum length,
- - `notNull` - rejects null values,
- - `notEmpty` - rejects null and empty lists,
- - `nothing` - matches empty strings and returns an error message if the string is not empty,
- - `or` - allows you to combine multiple validators using logical OR. If at least one of the validators accepts the input, it returns null (no error),
- - `and` - allows you to combine multiple validators using logical AND. If all of the validators accept the input, it returns null (no error).
+## Ready-to-use validators
 
-Additionally, there are extension methods (`&` and `|`) for combining validators with logical AND and OR operations, respectively.
+There is a set of validators ready to use:
 
-## Async Validators
-If you want to validate the field using asynchronous function, you can do it by passing `asyncValidator` to a `FieldCubit`. Async validator is an equivalent of basic validator but returns a `Future` that resolves to an error. Async validator does not run when you call `validate()`.
+- `boundedNonNegativeInteger` — validates if a string represents a non-negative integer that is less than or equal to a specified upper bound,
+- `positiveInteger` — validates if a string represents a positive integer (greater than 0),
+- `nonNegativeInteger` — validates if a string represents a non-negative integer (greater than or equal to 0),
+- `positiveDecimal` — validates if a string represents a positive decimal number (greater than 0),
+- `nonNegativeDecimal` — validates if a string represents a non-negative decimal number (greater than or equal to 0),
+- `exactly` — validates if a string is exactly equal to a specified string,
+- `filled` — rejects null and empty strings (including whitespace-only strings),
+- `notLongerThan` — rejects strings longer than a specified maximum length,
+- `atLeastLength` — rejects strings shorter than a specified minimum length,
+- `notNull` — rejects null values,
+- `notEmpty` — rejects null and empty lists,
+- `nothing` — matches empty strings and returns an error message if the string is not empty,
+- `or` — combines multiple validators with logical OR; passes if at least one accepts,
+- `and` — combines multiple validators with logical AND; passes only if all accept.
 
-### Validators Order
-If you pass both `validator` and `asyncValidator` to `FieldCubit`, async will be invoked only if basic validator will not return any error.
+There are also `&` and `|` extension methods for combining validators with logical AND and OR, respectively.
 
-### Debouncing Async Validator
-If you set `autovalidate` to `true`, async validator will be triggered every time value of the field changes. To prevent excessive calls to the async validator while a user is typing or interacting with the form field, the `asyncValidationDebounce` is used.
+## Async validators
 
-### Field State During Async Validation
-When async validation is triggered, the field's state is updated to indicate that it is in the "pending" status using the `FieldStatus.pending` value. While async validation is in progress, the `FieldCubit` sets the field's status to "validating" using the `FieldStatus.validating` value. Once async validation completes (whether successful or with an error), the field state is updated accordingly.
-If you call `validate()` function on a field which state is "validating" or "pending" at the moment it will return `false`.
+To validate a field with an asynchronous function, pass an `asyncValidator` to a `FieldController`. An async validator is the same shape as a sync one but returns a `Future`. Async validators do **not** run when you call `validate()`.
 
-If you want to see an example of a form with async validation take a look at `SimpleFormScreen` in example.
+### Validator order
 
-## Validation based on value of another field
+If you pass both `validator` and `asyncValidator`, the async one only runs if the sync validator passes (returns null).
 
-Sometimes you want to validate one field based on the value of another field (e.g., the 'password' field and the 'confirm password' field). To facilitate the implementation of such a case, you can use the `subscribeToFields` method of `FieldCubit`.
+### Debouncing the async validator
+
+When `autovalidate` is true, the async validator runs every time the value changes. The `asyncValidationDebounce` (default 300ms) prevents excessive calls while a user is typing.
+
+### Field state during async validation
+
+When async validation is triggered, the field's status transitions: `pending` → `validating` → `valid` / `invalid`. `FieldStatus.pending` covers the debounce window; `FieldStatus.validating` covers the in-flight future. If you call `validate()` on a field whose status is `pending` or `validating`, it returns `false`.
+
+For an example of a form with async validation, see `SimpleFormScreen` in the example app.
+
+## Validation based on another field's value
+
+Sometimes a field's validity depends on another field's value (e.g. "password" vs. "confirm password"). Use `subscribeToFields` on a `FieldController`:
 
 ```dart
-class PasswordFormCubit extends FormGroupCubit {
-  PasswordFormCubit() {
+class PasswordFormController extends FormGroupController {
+  PasswordFormController() {
     registerFields([
       password,
       repeatPassword,
     ]);
   }
 
-  final password = TextFieldCubit(
+  final password = TextFieldController(
     validator: atLeastLength(8, 'Password is too short'),
   );
 
-  late final repeatPassword = TextFieldCubit(
-    validator: exactly(password.state.value, 'Passwords do not match'),
+  late final repeatPassword = TextFieldController(
+    validator: (value) => value == password.value.value
+        ? null
+        : 'Passwords do not match',
   )..subscribeToFields([password]);
 }
 ```
 
-Every time the value of the `password` field changes, it will trigger the validator of the `repeatPassword` field.
+Every time the value of the `password` field changes, the `repeatPassword` validator runs (provided `autovalidate` is on). Status changes on the observed fields (e.g. async-validating) are filtered out — only genuine value changes trigger revalidation.
 
-If you want to see a fully functional form utilizing `subscribeToFields`, take a look at the `PasswordFormScreen` in the example folder.
+For a fully working example, see `PasswordFormScreen` in the example app.
 
-## `FieldCubit`
+## `FieldController`
 
-### Predefined field cubits 
+### Predefined field controllers
 
-The package contains a collection of field cubits useful for implementing commonly occurring form fields.
+The package ships with controllers covering the most common field shapes:
 
-- `TextFieldCubit` - specialization of `FieldCubit` for a `String` value,
-- `BooleanFieldCubit` - specialization of `FieldCubit` for a `bool` value,
-- `SingleSelectFieldCubit` - specialization of `FieldCubit` for a single choice of value from list of options,
-- `MultiSelectFieldCubit` - specialization of `FieldCubit` for a multiple choice of values from list of options.
+- `TextFieldController` — specialization for a `String` value; owns a `TextEditingController`,
+- `BooleanFieldController` — specialization for a `bool` value,
+- `SingleSelectFieldController` — specialization for a single choice of value from a list of options,
+- `MultiSelectFieldController` — specialization for multiple choices from a list of options.
 
-`TextFieldCubit`, `SingleSelectFieldCubit` and `MultiSelectFieldCubit` contain the `clear()` method that resets the value of the field to the initial value by calling `reset()`. You can also call `reset()` as it is defined in the `FieldCubit` class.
+`TextFieldController`, `SingleSelectFieldController` and `MultiSelectFieldController` each expose a `clear()` method that resets the value to the initial one by calling `reset()`. `reset()` is also available on the base `FieldController`.
 
-### Creating custom `FieldCubit`
+### Creating a custom `FieldController`
 
-If none of the existing `FieldCubit` implementations meet your requirements, you can create your own. Simply create a class that extends `FieldCubit`. Inside such cubit, you can add any method or a field.
+If none of the existing specializations fit, extend `FieldController` directly:
 
 ```dart
-class IntegerFieldCubit<E extends Object> extends FieldCubit<int, E> {
-  IntegerFieldCubit({
+class IntegerFieldController<E extends Object> extends FieldController<int, E> {
+  IntegerFieldController({
     super.initialValue = 0,
     super.validator,
     super.asyncValidator,
     super.asyncValidationDebounce,
+    super.name,
   });
 
-  bool get isNegative => state.value.isNegative;
+  bool get isNegative => value.value.isNegative;
 
-  void negate() => setValue(-state.value);
+  void negate() => setValue(-value.value);
 }
 ```
 
-## Creating form field widget
+## Creating a form field widget
 
-When you create a UI for your form, you can define widget like it is shown in [Simple Form Example](#creating-a-widgets-for-defined-fields). However, this approach can lead to a lot of boilerplate code, especially when one form widget is used multiple times. In such cases, it's best to create a custom widget by extending `FieldBuilder`.
+For a one-off field you can just wrap it in `ValueListenableBuilder` inline. When you reuse the same field shape across the app, extract it into a `StatelessWidget`:
 
 ```dart
-class FormTextField<E extends Object> extends FieldBuilder<String, E> {
-  FormTextField({
+class FormTextField<E extends Object> extends StatelessWidget {
+  const FormTextField({
     super.key,
-    required TextFieldCubit<E> super.field,
-    required ErrorTranslator<E> errorTranslator,
-    ValueChanged<String>? onFieldSubmitted,
-    String? labelText,
-    String? hintText,
-  }) : super(
-          builder: (context, state) => TextFormField(
-            onChanged: field.getValueSetter(),
-            onFieldSubmitted: onFieldSubmitted,
-            decoration: InputDecoration(
-              labelText: labelText,
-              hintText: hintText,
-              errorText:
-                  state.error != null ? errorTranslator(state.error!) : null,
-            ),
-          ),
-        );
+    required this.field,
+    required this.translateError,
+    this.labelText,
+    this.hintText,
+  });
+
+  final TextFieldController<E> field;
+  final ErrorTranslator<E> translateError;
+  final String? labelText;
+  final String? hintText;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<FieldState<String, E>>(
+      valueListenable: field,
+      builder: (context, state, _) => TextFormField(
+        controller: field.textController,
+        decoration: InputDecoration(
+          labelText: labelText,
+          hintText: hintText,
+          errorText: state.error != null ? translateError(state.error!) : null,
+        ),
+      ),
+    );
+  }
 }
 ```
 
 ## Subforms
 
-It happens that a created form contains a subform that is dynamically added to the page, affecting the validation result of the entire form. `leancode_forms` allows you to manage fields of such a form. `FormGroupCubit` includes `addSubform` method that enable you to add another `FormGroupCubit` as a subform to the base form. Added subform fields will be taken into account when methods which affects all fields will be invoked (such as `validate`, `markReadOnly` `setValidationEnabled`). This can also prove useful when you're creating a form with a large number of fields, resulting in a FormGroupCubit having a high number of LOC (Lines of Code). Dividing it into smaller subforms can improve code readability.
+When a form contains a subform that's dynamically added to the page and affects the overall validation result, `leancode_forms` lets you nest forms. `FormGroupController.addSubform` adds another `FormGroupController` as a child; its fields participate in `validate`, `markReadOnly`, `setValidationEnabled`, and the other broadcast operations. This is also a good way to split a large form into smaller, more readable pieces.
 
 ```dart
-class BaseFormCubit extends FormGroupCubit {
-  BaseFormCubit() {
-    registerFields([
-      field,
-    ]);
+class BaseFormController extends FormGroupController {
+  BaseFormController() {
+    registerFields([field]);
   }
 
-  final field = TextFieldCubit();
+  final field = TextFieldController();
+  final subform = SubformController();
 
-  final subform = SubformCubit();
-
-  // Adds subform to the base form
+  /// Adds the subform to the base form.
   void extendForm() {
     addSubform(subform);
   }
 }
 
-class SubformCubit extends FormGroupCubit {
-  SubformCubit() {
+class SubformController extends FormGroupController {
+  SubformController() {
     registerFields([subformField]);
   }
 
-  final subformField = TextFieldCubit();
+  final subformField = TextFieldController();
 }
 ```

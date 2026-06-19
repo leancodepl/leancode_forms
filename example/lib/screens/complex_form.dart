@@ -6,6 +6,7 @@ import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_dropdown_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:leancode_forms_example/widgets/screen_description.dart';
 import 'package:provider/provider.dart';
 
 /// This is an example of a simple form with two fields.
@@ -33,6 +34,19 @@ class ComplexForm extends StatelessWidget {
       child: SingleChildScrollView(
         child: Column(
           children: [
+            ScreenDescription([
+              bold('Subform switching. '),
+              plain('Choosing a type swaps the active subform (human / dog). '
+                  'The parent uses a '),
+              bold('debounced listener'),
+              plain(' on the dropdown field to call '),
+              code('addSubform'),
+              plain(' or '),
+              code('removeSubform'),
+              plain('. Only the '),
+              bold('active'),
+              plain(' subform participates in validation.'),
+            ]),
             FormDropdownField(
               field: controller.type,
               labelBuilder: (value) => value?.name ?? 'Select subform type',

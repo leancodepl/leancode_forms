@@ -1,0 +1,63 @@
+import 'package:flutter/material.dart';
+import 'package:leancode_forms/leancode_forms.dart';
+
+/// A form text field with a leading icon. Demonstrates the
+/// `ValueListenableBuilder.child:` optimization — the [icon] widget is built
+/// once when this widget is mounted, and reused on every subsequent rebuild
+/// instead of being constructed fresh on every keystroke.
+///
+/// For most form fields you should reach for [FieldBuilder] instead — it's
+/// shorter and equally correct. Use this pattern only when part of the
+/// subtree (here, the leading icon) is genuinely expensive AND doesn't
+/// depend on the field state.
+class FormTextFieldWithIcon<E extends Object> extends StatelessWidget {
+  const FormTextFieldWithIcon({
+    super.key,
+    required this.field,
+    required this.translateError,
+    required this.icon,
+    this.labelText,
+    this.hintText,
+  });
+
+  final TextFieldController<E> field;
+  final ErrorTranslator<E> translateError;
+
+  /// Built once and reused on every rebuild via `ValueListenableBuilder`'s
+  /// `child:` parameter.
+  final Widget icon;
+
+  final String? labelText;
+  final String? hintText;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<FieldState<String, E>>(
+      valueListenable: field,
+      child: icon, // <-- built once, reused on every rebuild
+      builder: (context, state, child) => Row(
+        children: [
+          child!, // <-- the same `icon` instance every rebuild
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextFormField(
+              controller: field.textController,
+              decoration: InputDecoration(
+                labelText: labelText,
+                hintText: hintText,
+                errorText:
+                    state.error != null ? translateError(state.error!) : null,
+                suffix: state.isValidating
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(),
+                      )
+                    : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

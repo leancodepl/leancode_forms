@@ -3,6 +3,7 @@ import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:leancode_forms_example/widgets/screen_description.dart';
 import 'package:provider/provider.dart';
 
 /// This is an example of a form which is asynchronously validated after pressing the submit button.
@@ -33,6 +34,18 @@ class QuizForm extends StatelessWidget {
       title: 'Quiz Form',
       child: Column(
         children: [
+          ScreenDescription([
+            bold('Manual error setting. '),
+            plain('Validation happens '),
+            bold('after'),
+            plain(' the user presses Submit — the controller calls '),
+            code('setError'),
+            plain(' directly on each field once the async check returns. '
+                'The status text at the bottom reflects the controller\'s '
+                'own '),
+            code('ValueNotifier'),
+            plain('-backed state.'),
+          ]),
           const Text('What is the longest river in the world?'),
           FormTextField(
             field: controller.formController.riverQuestion,

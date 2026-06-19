@@ -7,6 +7,7 @@ import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/utils/extensions/iterable_extensions.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:leancode_forms_example/widgets/screen_description.dart';
 import 'package:provider/provider.dart';
 
 class ScrollFormScreen extends StatelessWidget {
@@ -66,6 +67,18 @@ class _ScrollFormState extends State<ScrollForm> {
       child: SingleChildScrollView(
         child: Column(
           children: [
+            ScreenDescription([
+              bold('Focus management. '),
+              plain('Each field owns its own '),
+              code('FocusNode'),
+              plain('. On submit failure the controller emits a '),
+              code('SubmitFailedWithErrors'),
+              plain(' event over a plain broadcast '),
+              code('Stream'),
+              plain('; the widget listens and focuses the '),
+              bold('first invalid field'),
+              plain(', scrolling it into view.'),
+            ]),
             FocusableFormTextField(
               field: controller.firstField,
               translateError: validatorTranslator,
