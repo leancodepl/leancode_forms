@@ -91,9 +91,10 @@ class SignupController extends FormGroupController {
   }
 }
 
-// Inside the widget's build method — grab the field once, then close
-// over it inside the builder instead of re-fetching from context:
-final email = context.read<SignupController>().email;
+// Let's select field reference
+final email = context.select<SignupController, TextFieldController<ValidationError>>(
+  (c) => c.email,
+);
 
 return FieldBuilder<String, ValidationError>(
   field: email,
