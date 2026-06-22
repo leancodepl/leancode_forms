@@ -43,13 +43,12 @@ class DeliveryListForm extends StatelessWidget {
               bold('cascades'),
               plain(' to every subform.'),
             ]),
-            ...controller.deliveryList.map(
-              (e) => ConsumerSubform(
-                key: ValueKey(e.hashCode),
-                form: e,
+            for (final form in controller.deliveryList)
+              ConsumerSubform(
+                key: ValueKey(form.hashCode),
+                form: form,
                 onRemove: controller.removeConsumer,
               ),
-            ),
             ElevatedButton(
               onPressed: controller.addConsumer,
               child: const Text('Add Consumer'),
