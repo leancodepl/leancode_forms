@@ -36,67 +36,66 @@ class _OptimizedRenderingForm extends StatelessWidget {
         OptimizedRenderingFormController>((c) => c);
     return FormPage(
       title: 'Optimized Rendering',
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            ScreenDescription([
-              bold('Optimized rebuilds. '),
-              plain('Demonstrates '),
-              code('ValueListenableBuilder.child'),
-              plain(' across three layouts of increasing visual weight — '),
-              bold('leading icon'),
-              plain(', '),
-              bold('avatar card'),
-              plain(', and '),
-              bold('banner header'),
-              plain('. Each keeps a '),
-              bold('static subtree'),
-              plain(' that never depends on field state out of the rebuild '
-                  'cycle. The email field has '),
-              bold('async validation'),
-              plain(', so its text field rebuilds often — but the banner '
-                  'above it does not.'),
-            ]),
-            FormTextFieldWithIcon(
-              field: controller.firstName,
-              translateError: validatorTranslator,
-              icon: const _FancyLeadingIcon(
-                icon: Icons.person,
-                color: Color(0xFF7C4DFF),
-              ),
-              labelText: 'First Name',
-              hintText: 'Enter your first name',
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          ScreenDescription([
+            bold('Optimized rebuilds. '),
+            plain('Demonstrates '),
+            code('ValueListenableBuilder.child'),
+            plain(' across three layouts of increasing visual weight — '),
+            bold('leading icon'),
+            plain(', '),
+            bold('avatar card'),
+            plain(', and '),
+            bold('banner header'),
+            plain('. Each keeps a '),
+            bold('static subtree'),
+            plain(' that never depends on field state out of the rebuild '
+                'cycle. The email field has '),
+            bold('async validation'),
+            plain(', so its text field rebuilds often — but the banner '
+                'above it does not.'),
+          ]),
+          FormTextFieldWithIcon(
+            field: controller.firstName,
+            translateError: validatorTranslator,
+            icon: const _FancyLeadingIcon(
+              icon: Icons.person,
+              color: Color(0xFF7C4DFF),
             ),
-            const SizedBox(height: 16),
-            FormTextFieldAvatarCard(
-              field: controller.nickname,
-              translateError: validatorTranslator,
-              avatarCaption: 'Profile',
-              avatarIcon: Icons.face_retouching_natural,
-              avatarColor: const Color(0xFFFF7043),
-              labelText: 'Nickname',
-              hintText: 'Pick a display name',
+            labelText: 'First Name',
+            hintText: 'Enter your first name',
+          ),
+          const SizedBox(height: 16),
+          FormTextFieldAvatarCard(
+            field: controller.nickname,
+            translateError: validatorTranslator,
+            avatarCaption: 'Profile',
+            avatarIcon: Icons.face_retouching_natural,
+            avatarColor: const Color(0xFFFF7043),
+            labelText: 'Nickname',
+            hintText: 'Pick a display name',
+          ),
+          const SizedBox(height: 8),
+          FormTextFieldWithBanner(
+            field: controller.email,
+            translateError: validatorTranslator,
+            banner: const _FancyBanner(
+              title: 'Stay in touch',
+              subtitle: 'We only email about important account updates.',
+              colors: [Color(0xFF00BFA5), Color(0xFF1DE9B6)],
+              icon: Icons.mail_outline,
             ),
-            const SizedBox(height: 8),
-            FormTextFieldWithBanner(
-              field: controller.email,
-              translateError: validatorTranslator,
-              banner: const _FancyBanner(
-                title: 'Stay in touch',
-                subtitle: 'We only email about important account updates.',
-                colors: [Color(0xFF00BFA5), Color(0xFF1DE9B6)],
-                icon: Icons.mail_outline,
-              ),
-              labelText: 'Email',
-              hintText: 'Enter your email',
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: controller.submit,
-              child: const Text('Submit'),
-            ),
-          ],
-        ),
+            labelText: 'Email',
+            hintText: 'Enter your email',
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: controller.submit,
+            child: const Text('Submit'),
+          ),
+        ],
       ),
     );
   }

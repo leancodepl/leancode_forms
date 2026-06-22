@@ -32,7 +32,8 @@ class PasswordForm extends StatelessWidget {
         .select<PasswordFormController, PasswordFormController>((c) => c);
     return FormPage(
       title: 'Password Form',
-      child: Column(
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
           ScreenDescription([
             bold('Cross-field validation. '),
