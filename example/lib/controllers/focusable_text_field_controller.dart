@@ -13,7 +13,9 @@ class FocusableTextFieldController<E extends Object>
   });
 
   /// The focus node of the field.
-  final focusNode = FocusNode();
+  late final focusNode = FocusNode(
+    debugLabel: 'FocusableTextFieldController${name?.isNotEmpty ?? false ? '($name)' : ''}',
+  );
 
   /// Focuses the field.
   void focus() => focusNode.requestFocus();

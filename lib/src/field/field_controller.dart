@@ -19,7 +19,6 @@ typedef ErrorTranslator<E extends Object> = String Function(E);
 /// to be able to unambiguously detect lack of errors.
 ///
 /// If autovalidate is true, the validator will be run after each field change.
-// ignore_for_file: avoid_positional_boolean_parameters
 class FieldController<T, E extends Object>
     extends ValueNotifier<FieldState<T, E>> {
   /// Creates a new [FieldController] with an initial value and a validator.
