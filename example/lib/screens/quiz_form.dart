@@ -25,15 +25,15 @@ class QuizForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller =
-        context.select<QuizController, QuizController>((c) => c);
+    final controller = context.select<QuizController, QuizController>((c) => c);
     final formStatus = context.select<QuizController, ValidationStatus>(
       (c) => c.validationStatus,
     );
 
     return FormPage(
       title: 'Quiz Form',
-      child: Column(
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
           ScreenDescription([
             bold('Manual error setting. '),
