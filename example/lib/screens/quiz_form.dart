@@ -25,7 +25,8 @@ class QuizForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.read<QuizController>();
+    final controller =
+        context.select<QuizController, QuizController>((c) => c);
     final formStatus = context.select<QuizController, ValidationStatus>(
       (c) => c.validationStatus,
     );

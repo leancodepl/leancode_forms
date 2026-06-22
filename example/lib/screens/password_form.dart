@@ -28,7 +28,8 @@ class PasswordForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.read<PasswordFormController>();
+    final controller = context
+        .select<PasswordFormController, PasswordFormController>((c) => c);
     return FormPage(
       title: 'Password Form',
       child: Column(
