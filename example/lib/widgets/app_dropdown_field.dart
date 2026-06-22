@@ -32,14 +32,13 @@ class AppDropdownField<T> extends StatelessWidget {
           child: DropdownButtonFormField<T>(
             value: value,
             onChanged: onChanged,
-            items: options
-                .map(
-                  (e) => DropdownMenuItem(
-                    value: e,
-                    child: Text(labelBuilder(e)),
-                  ),
-                )
-                .toList(),
+            items: [
+              for (final option in options)
+                DropdownMenuItem(
+                  value: option,
+                  child: Text(labelBuilder(option)),
+                ),
+            ],
             decoration: InputDecoration(
               labelText: label,
               hintText: hint,
