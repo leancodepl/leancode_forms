@@ -16,7 +16,6 @@ import 'package:leancode_forms/src/field/field_controller.dart';
 ///
 /// Introducing cycles in forms is not supported and not checked against (most
 /// likely will cause a stack overflow somewhere).
-// ignore_for_file: avoid_positional_boolean_parameters
 class FormGroupController extends ValueNotifier<FormGroupState> {
   /// Creates a new [FormGroupController].
   FormGroupController({
