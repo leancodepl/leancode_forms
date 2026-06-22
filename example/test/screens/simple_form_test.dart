@@ -17,6 +17,7 @@ void main() {
     addTearDown(controller.dispose);
 
     controller.email.setValue('john@email.com');
+    // TODO: replace with an await on the field's pending async validation.
     await Future<void>.delayed(const Duration(seconds: 2));
 
     expect(controller.email.value.error, ValidationError.emailTaken);

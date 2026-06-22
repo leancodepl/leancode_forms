@@ -12,7 +12,7 @@ void main() {
         home: Scaffold(
           body: FieldBuilder<String, String>(
             field: field,
-            builder: (context, state) => Text(state.value),
+            builder: (context, state, _) => Text(state.value),
           ),
         ),
       ),
