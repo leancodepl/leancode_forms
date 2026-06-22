@@ -1,141 +1,8 @@
 # Examples
 
-Side-by-side snippets showing the same form scenario in three flavors:
+## Using `FieldBuilder` (recommended)
 
-1. **0.1.x (pre-migration)** — built on `flutter_bloc` + `rxdart`
-2. **0.2.0 with `FieldBuilder`** — the recommended default; tiny wrapper around `ValueListenableBuilder`
-3. **0.2.0 with `ValueListenableBuilder`** directly — for cases where you want the SDK primitive (e.g. the `child:` optimization)
-
-For a step-by-step migration walkthrough see [MIGRATION.md](./MIGRATION.md).
-
----
-
-## 0.1.x — pre-migration (BLoC-based)
-
-> These examples won't compile against 0.2.0. They're here so you can recognize your old code and find the matching new-shape example below.
-
-### 1. A simple text field with an error message
-
-```dart
-class _MyError {}
-
-final field = TextFieldCubit<_MyError>(
-  initialValue: '',
-  validator: filled(_MyError()),
-);
-
-// In the widget tree:
-FieldBuilder<String, _MyError>(
-  field: field,
-  builder: (context, state) {
-    return TextFormField(
-      onChanged: field.getValueSetter(),
-      decoration: InputDecoration(
-        errorText: state.error != null ? 'Required' : null,
-      ),
-    );
-  },
-);
-```
-
-### 2. A form with submit-time validation
-
-```dart
-class SimpleFormCubit extends FormGroupCubit {
-  SimpleFormCubit() {
-    registerFields([firstName, email]);
-  }
-
-  final firstName = TextFieldCubit(
-    initialValue: 'John',
-    validator: filled(ValidationError.empty),
-  );
-
-  final email = TextFieldCubit(
-    validator: filled(ValidationError.empty),
-  );
-
-  void submit() {
-    if (validate()) {
-      print('First: ${firstName.state.value}');
-      print('Email: ${email.state.value}');
-    }
-  }
-}
-
-// Provider:
-BlocProvider<SimpleFormCubit>(
-  create: (_) => SimpleFormCubit(),
-  child: const SimpleForm(),
-)
-
-// Inside the widget tree:
-context.read<SimpleFormCubit>().submit();
-```
-
-### 3. Async email validation
-
-```dart
-class SignupCubit extends FormGroupCubit {
-  SignupCubit() {
-    registerFields([email]);
-  }
-
-  final email = TextFieldCubit(
-    validator: filled(ValidationError.empty),
-    asyncValidator: _checkEmail,
-    asyncValidationDebounce: const Duration(milliseconds: 500),
-  );
-
-  Future<ValidationError?> _checkEmail(String value) async {
-    final taken = ['taken@example.com'];
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    return taken.contains(value) ? ValidationError.emailTaken : null;
-  }
-}
-
-// Render:
-FieldBuilder<String, ValidationError>(
-  field: context.read<SignupCubit>().email,
-  builder: (context, state) => TextFormField(
-    onChanged: context.read<SignupCubit>().email.getValueSetter(),
-    decoration: InputDecoration(
-      errorText: state.error?.toString(),
-      suffix: state.isValidating
-          ? const SizedBox.square(
-              dimension: 16,
-              child: CircularProgressIndicator(),
-            )
-          : null,
-    ),
-  ),
-)
-```
-
-### 4. Cross-field validation (password / repeat-password)
-
-```dart
-class PasswordFormCubit extends FormGroupCubit {
-  PasswordFormCubit() {
-    registerFields([password, repeatPassword]);
-  }
-
-  final password = TextFieldCubit(
-    validator: atLeastLength(8, ValidationError.toShort),
-  );
-
-  late final repeatPassword = TextFieldCubit<ValidationError>(
-    validator: (value) =>
-        value == password.state.value ? null : ValidationError.doesNotMatch,
-  )..subscribeToFields([password]);
-}
-```
-
----
-
-## 0.2.0 — using `FieldBuilder` (recommended)
-
-Same scenarios as above, ported to the new API. `FieldBuilder` is a thin wrapper around `ValueListenableBuilder` — it saves typing the `<FieldState<T, E>>` type argument, and keeps your widget code looking almost identical to the 0.1.x version.
+Common form scenarios using `FieldBuilder` — a thin wrapper around `ValueListenableBuilder` that saves typing the `<FieldState<T, E>>` type argument and reads as "build for a field" at call sites.
 
 ### 1. A simple text field with an error message
 
@@ -161,7 +28,7 @@ FieldBuilder<String, _MyError>(
 );
 ```
 
-Note the `controller: field.textController` — `TextFieldController` owns its own `TextEditingController` now, kept in two-way sync with the field value. No `onChanged: field.setValue` needed; programmatic resets (`field.reset()`, `field.clear()`) propagate to the visible text automatically.
+Note the `controller: field.textController` — `TextFieldController` owns its own `TextEditingController`, kept in two-way sync with the field value. Programmatic resets (`field.reset()`, `field.clear()`) propagate to the visible text automatically.
 
 ### 2. A form with submit-time validation
 
@@ -194,8 +61,13 @@ ChangeNotifierProvider<SimpleFormController>(
   child: const SimpleForm(),
 )
 
-// Inside the widget tree:
-context.read<SimpleFormController>().submit();
+// Inside the SimpleForm widget — context.read is the right call here,
+// because we want a stable reference for the onPressed callback (no
+// subscription to rebuilds).
+ElevatedButton(
+  onPressed: () => context.read<SimpleFormController>().submit(),
+  child: const Text('Submit'),
+)
 ```
 
 ### 3. Async email validation
@@ -219,11 +91,14 @@ class SignupController extends FormGroupController {
   }
 }
 
-// Render:
-FieldBuilder<String, ValidationError>(
-  field: context.read<SignupController>().email,
+// Inside the widget's build method — grab the field once, then close
+// over it inside the builder instead of re-fetching from context:
+final email = context.read<SignupController>().email;
+
+return FieldBuilder<String, ValidationError>(
+  field: email,
   builder: (context, state) => TextFormField(
-    controller: context.read<SignupController>().email.textController,
+    controller: email.textController,
     decoration: InputDecoration(
       errorText: state.error?.toString(),
       suffix: state.isValidating
@@ -234,7 +109,7 @@ FieldBuilder<String, ValidationError>(
           : null,
     ),
   ),
-)
+);
 ```
 
 ### 4. Cross-field validation (password / repeat-password)
@@ -256,7 +131,7 @@ class PasswordFormController extends FormGroupController {
 }
 ```
 
-`subscribeToFields` works exactly as before — only the implementation underneath changed (no more `rxdart`).
+`subscribeToFields` listens to the given fields and re-runs this field's validator whenever any of their values change.
 
 ### 5. A reusable custom form widget
 
@@ -302,7 +177,7 @@ FormTextField(
 
 ---
 
-## 0.2.0 — using `ValueListenableBuilder` directly
+## Using `ValueListenableBuilder` directly
 
 `FieldBuilder` is shorthand. When you want the SDK primitive instead, drop down to `ValueListenableBuilder`. Reasons to reach for it:
 

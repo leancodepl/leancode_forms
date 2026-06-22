@@ -363,25 +363,24 @@ class FormGroupState {
       };
 
   // ⚠️ Maintainer: keep these in sync with the fields declared above. `fields`
-  // and `subforms` use ListEquality/SetEquality (with identity-based element
-  // comparison, since FieldController/FormGroupController don't override `==`).
+  // and `subforms` compare element-wise via Flutter's listEquals/setEquals
+  // (identity-based, since FieldController/FormGroupController don't override
+  // `==`).
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is FormGroupState &&
           wasModified == other.wasModified &&
-          const ListEquality<FieldController<dynamic, dynamic>>()
-              .equals(fields, other.fields) &&
-          const SetEquality<FormGroupController>()
-              .equals(subforms, other.subforms) &&
+          listEquals(fields, other.fields) &&
+          setEquals(subforms, other.subforms) &&
           validationEnabled == other.validationEnabled &&
           validating == other.validating;
 
   @override
   int get hashCode => Object.hash(
         wasModified,
-        const ListEquality<FieldController<dynamic, dynamic>>().hash(fields),
-        const SetEquality<FormGroupController>().hash(subforms),
+        Object.hashAll(fields),
+        Object.hashAllUnordered(subforms),
         validationEnabled,
         validating,
       );
