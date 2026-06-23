@@ -81,17 +81,17 @@ class SimpleFormController extends FormController {
 }
 ```
 
-Reading the current state still works either way:
+Reading the current state goes through `.value` (inherited from `ValueNotifier`):
 
 ```dart
-// 0.1.x and still works in 0.2.0:
+// 0.1.x:
 controller.firstName.state.value;
 
-// Idiomatic 0.2.0:
+// 0.2.0:
 controller.firstName.value.value;
 ```
 
-We kept a `.state` getter alias on both `FieldController` and `FormController` so existing call sites can stay untouched if you'd rather not touch them.
+The bloc-era `.state` getter has been removed — `.value` is the only access path on both `FieldController` and `FormController`.
 
 > **Why the rebuild?** `ValueNotifier` is a synchronous state container: when you assign a new value, listeners run in the same call stack — no broadcast stream, no microtask hop. Same observable behavior in real apps, simpler mental model, no `rxdart` plumbing, and the whole library now sits on Flutter SDK primitives only.
 
