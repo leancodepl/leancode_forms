@@ -35,7 +35,7 @@ class DeliveryListForm extends StatelessWidget {
             ScreenDescription([
               bold('Dynamic subforms. '),
               plain('Each consumer is its own '),
-              code('FormGroupController'),
+              code('FormController'),
               plain(' added as a subform to the parent. The parent\'s '),
               code('validate()'),
               plain(' recursively validates every consumer; disposing the '
@@ -110,7 +110,7 @@ class ConsumerSubform extends StatelessWidget {
   }
 }
 
-class DeliveryListFormController extends FormGroupController {
+class DeliveryListFormController extends FormController {
   DeliveryListFormController();
 
   final deliveryList = <ConsumerSubformController>{};
@@ -141,7 +141,7 @@ class DeliveryListFormController extends FormGroupController {
   }
 }
 
-class ConsumerSubformController extends FormGroupController {
+class ConsumerSubformController extends FormController {
   ConsumerSubformController() {
     registerFields([
       email,

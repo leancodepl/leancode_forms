@@ -139,7 +139,7 @@ class DogSubform extends StatelessWidget {
   }
 }
 
-class ComplexFormController extends FormGroupController {
+class ComplexFormController extends FormController {
   ComplexFormController() {
     registerFields([type]);
     type.addListener(_onTypeListenerFired);
@@ -207,7 +207,7 @@ class ComplexFormController extends FormGroupController {
   }
 }
 
-class HumanSubformController extends FormGroupController {
+class HumanSubformController extends FormController {
   HumanSubformController() {
     registerFields([
       gender,
@@ -225,7 +225,7 @@ class HumanSubformController extends FormGroupController {
   );
 }
 
-class DogSubformController extends FormGroupController {
+class DogSubformController extends FormController {
   DogSubformController() {
     registerFields([
       breed,

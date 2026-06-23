@@ -129,7 +129,7 @@ class QuizController extends ChangeNotifier {
   }
 }
 
-class QuizFormController extends FormGroupController {
+class QuizFormController extends FormController {
   QuizFormController() {
     registerFields([
       riverQuestion,
