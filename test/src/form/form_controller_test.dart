@@ -16,7 +16,7 @@ class _ValidatorMock<T, E> {
 }
 
 /// Records every new state emitted by [notifier].
-List<S> _record<S>(ValueNotifier<S> notifier) {
+List<S> _record<S>(ValueListenable<S> notifier) {
   final emissions = <S>[];
   notifier.addListener(() => emissions.add(notifier.value));
   return emissions;
