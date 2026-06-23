@@ -6,7 +6,7 @@ import 'package:leancode_forms/leancode_forms.dart';
 /// once when this widget is mounted, and reused on every subsequent rebuild
 /// instead of being constructed fresh on every keystroke.
 ///
-/// For most form fields you should reach for [FieldBuilder] instead — it's
+/// For most form fields you should reach for [AdvancedFieldBuilder] instead — it's
 /// shorter and equally correct. Use this pattern only when part of the
 /// subtree (here, the leading icon) is genuinely expensive AND doesn't
 /// depend on the field state.
@@ -20,7 +20,7 @@ class FormTextFieldWithIcon<E extends Object> extends StatelessWidget {
     this.hintText,
   });
 
-  final TextFieldController<E> field;
+  final AdvancedTextFieldController<E> field;
   final ErrorTranslator<E> translateError;
 
   /// Built once and reused on every rebuild via `ValueListenableBuilder`'s
@@ -32,7 +32,7 @@ class FormTextFieldWithIcon<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<FieldState<String, E>>(
+    return ValueListenableBuilder<AdvancedFieldState<String, E>>(
       valueListenable: field,
       child: icon, // <-- built once, reused on every rebuild
       builder: (context, state, child) => Row(

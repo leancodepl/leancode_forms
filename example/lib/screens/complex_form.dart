@@ -139,13 +139,13 @@ class DogSubform extends StatelessWidget {
   }
 }
 
-class ComplexFormController extends FormController {
+class ComplexFormController extends AdvancedFormController {
   ComplexFormController() {
     registerFields([type]);
     type.addListener(_onTypeListenerFired);
   }
 
-  final type = SingleSelectFieldController<SubformType?, ValidationError>(
+  final type = AdvancedSingleSelectFieldController<SubformType?, ValidationError>(
     options: SubformType.values,
     initialValue: null,
   );
@@ -207,7 +207,7 @@ class ComplexFormController extends FormController {
   }
 }
 
-class HumanSubformController extends FormController {
+class HumanSubformController extends AdvancedFormController {
   HumanSubformController() {
     registerFields([
       gender,
@@ -215,17 +215,17 @@ class HumanSubformController extends FormController {
     ]);
   }
 
-  final gender = SingleSelectFieldController<Gender, ValidationError>(
+  final gender = AdvancedSingleSelectFieldController<Gender, ValidationError>(
     initialValue: Gender.male,
     options: Gender.values,
   );
 
-  final age = TextFieldController(
+  final age = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
   );
 }
 
-class DogSubformController extends FormController {
+class DogSubformController extends AdvancedFormController {
   DogSubformController() {
     registerFields([
       breed,
@@ -233,7 +233,7 @@ class DogSubformController extends FormController {
     ]);
   }
 
-  final breed = SingleSelectFieldController<Breed, ValidationError>(
+  final breed = AdvancedSingleSelectFieldController<Breed, ValidationError>(
     initialValue: null,
     options: Breed.values,
     validator: (value) {
@@ -244,7 +244,7 @@ class DogSubformController extends FormController {
     },
   );
 
-  final age = TextFieldController(
+  final age = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
   );
 }

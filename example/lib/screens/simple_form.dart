@@ -75,7 +75,7 @@ class SimpleForm extends StatelessWidget {
   }
 }
 
-class SimpleFormController extends FormController {
+class SimpleFormController extends AdvancedFormController {
   SimpleFormController() {
     registerFields([
       firstName,
@@ -84,17 +84,17 @@ class SimpleFormController extends FormController {
     ]);
   }
 
-  final firstName = TextFieldController(
+  final firstName = AdvancedTextFieldController(
     initialValue: 'John',
     validator: filled(ValidationError.empty),
   );
 
-  final lastName = TextFieldController(
+  final lastName = AdvancedTextFieldController(
     initialValue: 'Foo',
     validator: filled(ValidationError.empty),
   );
 
-  late final email = TextFieldController(
+  late final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
     asyncValidator: _onEmailChanged,
     asyncValidationDebounce: const Duration(milliseconds: 500),

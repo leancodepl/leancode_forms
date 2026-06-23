@@ -129,7 +129,7 @@ class QuizController extends ChangeNotifier {
   }
 }
 
-class QuizFormController extends FormController {
+class QuizFormController extends AdvancedFormController {
   QuizFormController() {
     registerFields([
       riverQuestion,
@@ -137,6 +137,6 @@ class QuizFormController extends FormController {
     ]);
   }
 
-  final riverQuestion = TextFieldController<ValidationError>();
-  final mountQuestion = TextFieldController<ValidationError>();
+  final riverQuestion = AdvancedTextFieldController<ValidationError>();
+  final mountQuestion = AdvancedTextFieldController<ValidationError>();
 }

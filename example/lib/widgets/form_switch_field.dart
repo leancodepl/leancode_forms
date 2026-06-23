@@ -8,12 +8,12 @@ class FormSwitchField<E extends Object> extends StatelessWidget {
     this.labelText,
   });
 
-  final BooleanFieldController<E> field;
+  final AdvancedBooleanFieldController<E> field;
   final String? labelText;
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<FieldState<bool, E>>(
+    return ValueListenableBuilder<AdvancedFieldState<bool, E>>(
       valueListenable: field,
       builder: (context, state, _) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

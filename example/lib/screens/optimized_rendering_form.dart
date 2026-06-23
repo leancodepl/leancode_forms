@@ -225,20 +225,20 @@ class _FancyBanner extends StatelessWidget {
   }
 }
 
-class OptimizedRenderingFormController extends FormController {
+class OptimizedRenderingFormController extends AdvancedFormController {
   OptimizedRenderingFormController() {
     registerFields([firstName, nickname, email]);
   }
 
-  final firstName = TextFieldController(
+  final firstName = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
   );
 
-  final nickname = TextFieldController(
+  final nickname = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
   );
 
-  late final email = TextFieldController(
+  late final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
     asyncValidator: _onEmailChanged,
     asyncValidationDebounce: const Duration(milliseconds: 500),

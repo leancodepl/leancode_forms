@@ -1,11 +1,11 @@
-import 'package:leancode_forms/src/field/field_controller.dart';
+import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 
-/// A specialization of [FieldController] for a single choice of [V] from a
+/// A specialization of [AdvancedFieldController] for a single choice of [V] from a
 /// list of [options].
-class SingleSelectFieldController<V, E extends Object>
-    extends FieldController<V?, E> {
-  /// Creates a new [SingleSelectFieldController].
-  SingleSelectFieldController({
+class AdvancedSingleSelectFieldController<V, E extends Object>
+    extends AdvancedFieldController<V?, E> {
+  /// Creates a new [AdvancedSingleSelectFieldController].
+  AdvancedSingleSelectFieldController({
     required super.initialValue,
     super.validator,
     required this.options,

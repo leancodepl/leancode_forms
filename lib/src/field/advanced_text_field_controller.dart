@@ -1,15 +1,15 @@
 import 'package:flutter/widgets.dart';
-import 'package:leancode_forms/src/field/field_controller.dart';
+import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 
-/// A specialization of [FieldController] for a [String] value.
+/// A specialization of [AdvancedFieldController] for a [String] value.
 ///
 /// Owns a [TextEditingController] kept in two-way sync with the field value.
 /// Widgets can bind directly to [textController]; programmatic changes via
 /// [setValue] / [reset] / [clearErrors] propagate to the text controller, and
 /// user input on the text controller propagates back to the field state.
-class TextFieldController<E extends Object> extends FieldController<String, E> {
-  /// Creates a new [TextFieldController].
-  TextFieldController({
+class AdvancedTextFieldController<E extends Object> extends AdvancedFieldController<String, E> {
+  /// Creates a new [AdvancedTextFieldController].
+  AdvancedTextFieldController({
     super.initialValue = '',
     super.validator,
     super.asyncValidator,

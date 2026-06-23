@@ -14,8 +14,8 @@ class _ValidatorMock {
 
 const _initialValue = 0;
 
-typedef _Field = FieldController<int, _Error>;
-typedef _State = FieldState<int, _Error>;
+typedef _Field = AdvancedFieldController<int, _Error>;
+typedef _State = AdvancedFieldState<int, _Error>;
 
 /// Returns a list that records every new state emitted by [notifier].
 List<_State> _record(_Field notifier) {
@@ -30,7 +30,7 @@ void main() {
 
   setUp(() {
     validator = _ValidatorMock();
-    field = FieldController<int, _Error>(
+    field = AdvancedFieldController<int, _Error>(
       initialValue: _initialValue,
       validator: validator,
     );
@@ -86,14 +86,14 @@ void main() {
 
   group('reset', () {
     test('resets state to initial state', () {
-      field.value = const _State(
+      field.debugSetState(const _State(
         value: 10,
         validationError: _Error.malformed,
         asyncError: _Error.malformed,
         autovalidate: true,
         readOnly: true,
         status: FieldStatus.invalid,
-      );
+      ),);
       final emissions = _record(field);
       field.reset();
       expect(emissions, const [_State(value: 0)]);
@@ -102,18 +102,18 @@ void main() {
 
   group('clearErrors', () {
     test('clears validationError and asyncError. Sets status to valid', () {
-      field.value = const _State(
+      field.debugSetState(const _State(
         value: 1,
         validationError: _Error.valueRequired,
         asyncError: _Error.malformed,
-      );
+      ),);
       final emissions = _record(field);
       field.clearErrors();
       expect(emissions, const [_State(value: 1)]);
     });
 
     test('does nothing if errors were not present', () {
-      field.value = const _State(value: 1);
+      field.setValue(1);
       final emissions = _record(field);
       field.clearErrors();
       expect(emissions, isEmpty);
@@ -150,11 +150,7 @@ void main() {
         'when validation result is the same as previous, does not emit new state',
         () {
       validator.validationResult = _Error.malformed;
-      field.value = const _State(
-        value: 1,
-        validationError: _Error.malformed,
-        status: FieldStatus.invalid,
-      );
+      field.setError(_Error.malformed);
       final emissions = _record(field);
       field.validate();
       expect(emissions, isEmpty);
@@ -176,7 +172,7 @@ void main() {
     late _Field asyncField;
 
     setUp(() {
-      asyncField = FieldController<int, _Error>(
+      asyncField = AdvancedFieldController<int, _Error>(
         initialValue: _initialValue,
         asyncValidator: (value) async {
           await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -270,8 +266,8 @@ void main() {
   group('subscribeToFields', () {
     test('should run validation when subscribed field changes', () async {
       validator.validationResult = _Error.malformed;
-      final field2 = FieldController<int, _Error>(initialValue: 0);
-      final field1 = FieldController<int, _Error>(
+      final field2 = AdvancedFieldController<int, _Error>(initialValue: 0);
+      final field1 = AdvancedFieldController<int, _Error>(
         initialValue: 0,
         validator: validator,
       )
@@ -288,8 +284,8 @@ void main() {
 
     test('should run async validation when subscribed field changes', () async {
       validator.validationResult = _Error.malformed;
-      final field2 = FieldController<int, _Error>(initialValue: 0);
-      final field1 = FieldController<int, _Error>(
+      final field2 = AdvancedFieldController<int, _Error>(initialValue: 0);
+      final field1 = AdvancedFieldController<int, _Error>(
         initialValue: 0,
         asyncValidator: (_) async => validator.validationResult,
       )
@@ -305,23 +301,23 @@ void main() {
     });
   });
 
-  group('TextFieldController text controller sync', () {
+  group('AdvancedTextFieldController text controller sync', () {
     test('typing into textController updates field value', () {
-      final tf = TextFieldController<_Error>(initialValue: 'a')
+      final tf = AdvancedTextFieldController<_Error>(initialValue: 'a')
         ..textController.text = 'abc';
       expect(tf.value.value, 'abc');
       tf.dispose();
     });
 
     test('setValue mirrors to textController', () {
-      final tf = TextFieldController<_Error>(initialValue: 'a')
+      final tf = AdvancedTextFieldController<_Error>(initialValue: 'a')
         ..setValue('hello');
       expect(tf.textController.text, 'hello');
       tf.dispose();
     });
 
     test('reset clears both field and textController', () {
-      final tf = TextFieldController<_Error>()
+      final tf = AdvancedTextFieldController<_Error>()
         ..setValue('typed')
         ..reset();
       expect(tf.value.value, '');

@@ -1,9 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
-/// A [TextFieldController] that owns a [FocusNode] for scroll-to-error flows.
+/// A [AdvancedTextFieldController] that owns a [FocusNode] for scroll-to-error flows.
 class FocusableTextFieldController<E extends Object>
-    extends TextFieldController<E> {
+    extends AdvancedTextFieldController<E> {
   FocusableTextFieldController({
     super.initialValue,
     super.validator,
