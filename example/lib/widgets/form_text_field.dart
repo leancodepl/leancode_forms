@@ -27,17 +27,18 @@ class FormTextField<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AdvancedFieldState<String, E>>(
-      valueListenable: field,
-      builder: (context, state, _) => AppTextField(
+    return AdvancedFieldBuilder<AdvancedTextFieldController<E>>(
+      field: field,
+      builder: (context, field, _) => AppTextField(
         controller: field.textController,
         onUnfocus: onUnfocus,
         onFieldSubmitted: onFieldSubmitted,
         trimOnUnfocus: trimOnUnfocus,
         labelText: labelText,
         hintText: hintText,
-        errorText: state.error != null ? translateError(state.error!) : null,
-        suffix: state.isValidating
+        errorText:
+            field.value.error != null ? translateError(field.value.error!) : null,
+        suffix: field.value.isValidating
             ? const SizedBox.square(
                 dimension: 16,
                 child: CircularProgressIndicator(),
@@ -71,9 +72,9 @@ class FocusableFormTextField<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AdvancedFieldState<String, E>>(
-      valueListenable: field,
-      builder: (context, state, _) => AppTextField(
+    return AdvancedFieldBuilder<FocusableTextFieldController<E>>(
+      field: field,
+      builder: (context, field, _) => AppTextField(
         controller: field.textController,
         focusNode: field.focusNode,
         onUnfocus: onUnfocus,
@@ -81,8 +82,9 @@ class FocusableFormTextField<E extends Object> extends StatelessWidget {
         trimOnUnfocus: trimOnUnfocus,
         labelText: labelText,
         hintText: hintText,
-        errorText: state.error != null ? translateError(state.error!) : null,
-        suffix: state.isValidating
+        errorText:
+            field.value.error != null ? translateError(field.value.error!) : null,
+        suffix: field.value.isValidating
             ? const SizedBox.square(
                 dimension: 16,
                 child: CircularProgressIndicator(),

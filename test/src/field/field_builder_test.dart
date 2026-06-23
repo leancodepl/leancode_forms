@@ -10,9 +10,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: AdvancedFieldBuilder<String, String>(
+          body: AdvancedFieldBuilder<AdvancedTextFieldController<String>>(
             field: field,
-            builder: (context, state, _) => Text(state.value),
+            builder: (context, field, _) => Text(field.value.value),
           ),
         ),
       ),

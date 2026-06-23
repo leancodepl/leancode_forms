@@ -13,14 +13,14 @@ class FormSwitchField<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AdvancedFieldState<bool, E>>(
-      valueListenable: field,
-      builder: (context, state, _) => Row(
+    return AdvancedFieldBuilder<AdvancedBooleanFieldController<E>>(
+      field: field,
+      builder: (context, field, _) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           if (labelText != null) Flexible(child: Text(labelText!)),
           Switch(
-            value: state.value,
+            value: field.value.value,
             onChanged: field.getValueSetter(),
           ),
         ],
