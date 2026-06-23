@@ -12,11 +12,11 @@ flutter pub add leancode_forms
 Let's go through the basics of the package while explaining some of the key terms/concepts.
 ## Creating a Simple Form
 
-To create a simple form, you need to define a `FormGroupController` that will manage its fields.
-Common way to do this is by extending the `FormGroupController` class.
+To create a simple form, you need to define a `FormController` that will manage its fields.
+Common way to do this is by extending the `FormController` class.
 
 ```dart
-class SimpleFormController extends FormGroupController {
+class SimpleFormController extends FormController {
   SimpleFormController();
 }
 ```
@@ -24,7 +24,7 @@ class SimpleFormController extends FormGroupController {
 Next, inside the form controller, you define the form fields. You can either use one of the [predefined field controllers](#predefined-field-controllers) or [create a custom `FieldController`](#creating-custom-fieldcontroller). In this simple form, we use `TextFieldController` — the `FieldController` specialization for text inputs.
 
 ```dart
-class SimpleFormController extends FormGroupController {
+class SimpleFormController extends FormController {
   SimpleFormController();
 
   final firstName = TextFieldController();
@@ -35,7 +35,7 @@ class SimpleFormController extends FormGroupController {
 **Important:** To make the form manage the defined fields, you should register them via `registerFields()`. The form takes ownership and disposes them when the form itself is disposed.
 
 ```dart
-class SimpleFormController extends FormGroupController {
+class SimpleFormController extends FormController {
   SimpleFormController() {
     registerFields([
       firstName,
@@ -171,7 +171,7 @@ typedef Validator<T, E extends Object> = E? Function(T);
 There is a set of [ready-to-use validators](#ready-to-use-validators), or you can write your own:
 
 ```dart
-class SimpleFormController extends FormGroupController {
+class SimpleFormController extends FormController {
   SimpleFormController() {
     registerFields([
       firstName,
@@ -204,7 +204,7 @@ Call `validate()` on a field to run its sync validator. Set `autovalidate` to `t
 To validate the whole form, call `validate()` on the form controller. It iterates through every field (and every subform) and returns `false` if any of them is invalid.
 
 ```dart
-class SimpleFormController extends FormGroupController {
+class SimpleFormController extends FormController {
   /* fields */
 
   void submit() {
@@ -261,7 +261,7 @@ For an example of a form with async validation, see `SimpleFormScreen` in the ex
 Sometimes a field's validity depends on another field's value (e.g. "password" vs. "confirm password"). Use `subscribeToFields` on a `FieldController`:
 
 ```dart
-class PasswordFormController extends FormGroupController {
+class PasswordFormController extends FormController {
   PasswordFormController() {
     registerFields([
       password,
@@ -356,10 +356,10 @@ class FormTextField<E extends Object> extends StatelessWidget {
 
 ## Subforms
 
-When a form contains a subform that's dynamically added to the page and affects the overall validation result, `leancode_forms` lets you nest forms. `FormGroupController.addSubform` adds another `FormGroupController` as a child; its fields participate in `validate`, `markReadOnly`, `setValidationEnabled`, and the other broadcast operations. This is also a good way to split a large form into smaller, more readable pieces.
+When a form contains a subform that's dynamically added to the page and affects the overall validation result, `leancode_forms` lets you nest forms. `FormController.addSubform` adds another `FormController` as a child; its fields participate in `validate`, `markReadOnly`, `setValidationEnabled`, and the other broadcast operations. This is also a good way to split a large form into smaller, more readable pieces.
 
 ```dart
-class BaseFormController extends FormGroupController {
+class BaseFormController extends FormController {
   BaseFormController() {
     registerFields([field]);
   }
@@ -373,7 +373,7 @@ class BaseFormController extends FormGroupController {
   }
 }
 
-class SubformController extends FormGroupController {
+class SubformController extends FormController {
   SubformController() {
     registerFields([subformField]);
   }

@@ -75,7 +75,7 @@ class SimpleForm extends StatelessWidget {
   }
 }
 
-class SimpleFormController extends FormGroupController {
+class SimpleFormController extends FormController {
   SimpleFormController() {
     registerFields([
       firstName,

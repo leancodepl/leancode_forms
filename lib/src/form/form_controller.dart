@@ -16,12 +16,12 @@ import 'package:leancode_forms/src/field/field_controller.dart';
 ///
 /// Introducing cycles in forms is not supported and not checked against (most
 /// likely will cause a stack overflow somewhere).
-class FormGroupController extends ValueNotifier<FormGroupState> {
-  /// Creates a new [FormGroupController].
-  FormGroupController({
+class FormController extends ValueNotifier<FormState> {
+  /// Creates a new [FormController].
+  FormController({
     this.debugName = '',
     this.validateAll = false,
-  }) : super(const FormGroupState());
+  }) : super(const FormState());
 
   /// A debug label for this form. Not significant to the form.
   final String debugName;
@@ -32,7 +32,7 @@ class FormGroupController extends ValueNotifier<FormGroupState> {
 
   /// The current state. Alias for [value] kept for readability at call sites
   /// that previously read `cubit.state`.
-  FormGroupState get state => value;
+  FormState get state => value;
 
   /// Fires when any leaf field's value changes (recursively through subforms),
   /// or when fields are registered.
@@ -54,7 +54,7 @@ class FormGroupController extends ValueNotifier<FormGroupState> {
   void registerFields(List<FieldController<dynamic, dynamic>> fields) {
     _runChildCleanups();
 
-    value = FormGroupState(
+    value = FormState(
       wasModified: value.wasModified,
       fields: fields,
       subforms: value.subforms,
@@ -148,13 +148,13 @@ class FormGroupController extends ValueNotifier<FormGroupState> {
 
   /// Adds a subform to the current form.
   /// If [form] was already added as a subform this is a noop.
-  void addSubform(FormGroupController form) {
+  void addSubform(FormController form) {
     if (value.subforms.contains(form)) {
       return;
     }
     _runChildCleanups();
 
-    value = FormGroupState(
+    value = FormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: {...value.subforms, form},
@@ -168,7 +168,7 @@ class FormGroupController extends ValueNotifier<FormGroupState> {
   /// Removes and disposes an owned subform.
   /// If [form] was not a subform this is a noop.
   Future<void> removeSubform(
-    FormGroupController form, {
+    FormController form, {
     bool close = true,
   }) async {
     if (!value.subforms.contains(form)) {
@@ -176,7 +176,7 @@ class FormGroupController extends ValueNotifier<FormGroupState> {
     }
     _runChildCleanups();
 
-    value = FormGroupState(
+    value = FormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: {...value.subforms}..remove(form),
@@ -209,7 +209,7 @@ class FormGroupController extends ValueNotifier<FormGroupState> {
     if (validationEnabled == value.validationEnabled) {
       return;
     }
-    value = FormGroupState(
+    value = FormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: value.subforms,
@@ -271,7 +271,7 @@ class FormGroupController extends ValueNotifier<FormGroupState> {
       validateWithAutovalidate();
     }
 
-    value = FormGroupState(
+    value = FormState(
       wasModified: subformsWereModified || fieldsWereModified,
       fields: value.fields,
       subforms: value.subforms,
@@ -289,7 +289,7 @@ class FormGroupController extends ValueNotifier<FormGroupState> {
       (field) => field.value.isInProgress,
     );
 
-    value = FormGroupState(
+    value = FormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: value.subforms,
@@ -315,9 +315,9 @@ class FormGroupController extends ValueNotifier<FormGroupState> {
   }
 }
 
-/// The state of a [FormGroupController].
+/// The state of a [FormController].
 ///
-/// Value-equal: two [FormGroupState]s are equal when every field matches.
+/// Value-equal: two [FormState]s are equal when every field matches.
 /// This is required for [ValueNotifier]'s built-in dedup — without it,
 /// every internal state recompute (`_handleValuesChanged`,
 /// `_handleStatusChanged`, etc.) would notify listeners even when the
@@ -326,9 +326,9 @@ class FormGroupController extends ValueNotifier<FormGroupState> {
 /// **Maintainer note:** when adding a new field below, you MUST also add it
 /// to both [operator ==] and [hashCode] at the bottom of the class, otherwise
 /// the new field is silently invisible to dedup and structural comparisons.
-class FormGroupState {
-  /// Creates a new [FormGroupState].
-  const FormGroupState({
+class FormState {
+  /// Creates a new [FormState].
+  const FormState({
     this.wasModified = false,
     this.fields = const [],
     this.subforms = const {},
@@ -344,7 +344,7 @@ class FormGroupState {
   final List<FieldController<dynamic, dynamic>> fields;
 
   /// Set of registered subforms. Reference equality is assumed.
-  final Set<FormGroupController> subforms;
+  final Set<FormController> subforms;
 
   /// If false, validators are not ran and `validate` always returns true.
   final bool validationEnabled;
@@ -364,12 +364,12 @@ class FormGroupState {
 
   // ⚠️ Maintainer: keep these in sync with the fields declared above. `fields`
   // and `subforms` compare element-wise via Flutter's listEquals/setEquals
-  // (identity-based, since FieldController/FormGroupController don't override
+  // (identity-based, since FieldController/FormController don't override
   // `==`).
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FormGroupState &&
+      other is FormState &&
           wasModified == other.wasModified &&
           listEquals(fields, other.fields) &&
           setEquals(subforms, other.subforms) &&

@@ -96,7 +96,7 @@ Validator<String, E> passwordMatch<E extends Object>(
       return null;
     };
 
-class PasswordFormController extends FormGroupController {
+class PasswordFormController extends FormController {
   PasswordFormController() {
     registerFields([
       username,

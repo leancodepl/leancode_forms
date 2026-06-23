@@ -9,15 +9,15 @@
   * `BooleanFieldCubit` → `BooleanFieldController`
   * `SingleSelectFieldCubit` → `SingleSelectFieldController`
   * `MultiSelectFieldCubit` → `MultiSelectFieldController`
-  * `FormGroupCubit` → `FormGroupController`
+  * `FormGroupCubit` → `FormController`
 * `FieldBuilder` is kept. It is now a thin wrapper around `ValueListenableBuilder` instead of `BlocBuilder`. The `field:` parameter is now typed `FieldController<T, E>` (previously `FieldCubit<T, E>`); the builder signature is otherwise unchanged. You can also use `ValueListenableBuilder` directly.
 * **Breaking:** Lifecycle method renamed from `close()` to `dispose()` on both controllers.
-* **Breaking:** `FormGroupController` exposes `onValuesChanged` and `onStatusChanged` as `Listenable`s (previously `Stream`s named `onValuesChangedStream` / `onStatusChangedStream`).
+* **Breaking:** `FormController` exposes `onValuesChanged` and `onStatusChanged` as `Listenable`s (previously `Stream`s named `onValuesChangedStream` / `onStatusChangedStream`).
 * `TextFieldController` now owns a `TextEditingController` (`field.textController`) kept in two-way sync with the field value. Widgets bind to it directly; programmatic changes (`setValue`, `reset`, `clear`) propagate to the text controller, and user input propagates back. Removes the dual-write bug class around resetting fields, set-to-initial flows, etc.
 * `FieldController` gained an optional `String? name` parameter for debugging, logging, and serialization.
 * `Disposable` mixin removed (lifecycle is handled by `ChangeNotifier.dispose`).
 * Internal `distinctWithFirst` stream extension and `CancelableFuture` are no longer exported.
-* Dropped the `equatable` dependency. `FieldState` and `FormGroupState` now manual `==` / `hashCode`. No behavioral change — value-equality semantics are identical.
+* Dropped the `equatable` dependency. `FieldState` and `FormState` now manual `==` / `hashCode`. No behavioral change — value-equality semantics are identical.
 
 ## 0.1.2
 

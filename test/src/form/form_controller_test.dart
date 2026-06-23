@@ -30,9 +30,9 @@ int Function() _countCalls(Listenable listenable) {
 }
 
 void main() {
-  group('FormGroupController', () {
-    late FormGroupController form;
-    late FormGroupController subform;
+  group('FormController', () {
+    late FormController form;
+    late FormController subform;
     late TextFieldController<_Error1> field1;
     late FieldController<int, _Error2> field2;
     late FieldController<int, _Error2> subformField;
@@ -54,8 +54,8 @@ void main() {
         initialValue: _initialValue2,
         validator: validator2,
       );
-      form = FormGroupController();
-      subform = FormGroupController();
+      form = FormController();
+      subform = FormController();
     });
 
     tearDown(() {
@@ -66,7 +66,7 @@ void main() {
     });
 
     test('has correct initial state', () {
-      expect(form.value, const FormGroupState());
+      expect(form.value, const FormState());
       form.dispose();
     });
 
@@ -107,10 +107,10 @@ void main() {
 
     group('wasModified', () {
       test('is false after register', () {
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         form.registerFields([field1, field2]);
         expect(emissions, [
-          FormGroupState(fields: [field1, field2]),
+          FormState(fields: [field1, field2]),
         ]);
         form.dispose();
       });
@@ -122,12 +122,12 @@ void main() {
           ..registerFields([field1, field2]);
 
         await Future<void>.delayed(Duration.zero);
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         subformField.setValue(123);
         await Future<void>.delayed(Duration.zero);
 
         expect(emissions, [
-          FormGroupState(
+          FormState(
             wasModified: true,
             fields: [field1, field2],
             subforms: {subform},
@@ -140,12 +140,12 @@ void main() {
         form.registerFields([field1, field2]);
 
         await Future<void>.delayed(Duration.zero);
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         field1.setValue('value');
         await Future<void>.delayed(Duration.zero);
 
         expect(emissions, [
-          FormGroupState(wasModified: true, fields: [field1, field2]),
+          FormState(wasModified: true, fields: [field1, field2]),
         ]);
         form.dispose();
       });
@@ -154,12 +154,12 @@ void main() {
         form.registerFields([field1, field2]);
 
         await Future<void>.delayed(Duration.zero);
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         field2.setValue(0xb0b);
         await Future<void>.delayed(Duration.zero);
 
         expect(emissions, [
-          FormGroupState(wasModified: true, fields: [field1, field2]),
+          FormState(wasModified: true, fields: [field1, field2]),
         ]);
         form.dispose();
       });
@@ -170,7 +170,7 @@ void main() {
           ..registerFields([]);
 
         await Future<void>.delayed(Duration.zero);
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         field2.setValue(0xb0b);
         await Future<void>.delayed(Duration.zero);
 
@@ -331,7 +331,7 @@ void main() {
           initialValue: 0,
           asyncValidator: (_) async => validator2.validationResult,
         );
-        final asyncSubform = FormGroupController()
+        final asyncSubform = FormController()
           ..registerFields([asyncSubformField]);
         form.addSubform(asyncSubform);
 
@@ -513,10 +513,10 @@ void main() {
 
     group('addSubform', () {
       test('adds a new subform', () {
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         form.addSubform(subform);
         expect(emissions, [
-          FormGroupState(subforms: {subform}),
+          FormState(subforms: {subform}),
         ]);
         form.dispose();
         field1.dispose();
@@ -526,7 +526,7 @@ void main() {
 
       test('is noop if form was already added', () {
         form.addSubform(subform);
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         form.addSubform(subform);
         expect(emissions, isEmpty);
         form.dispose();
@@ -537,10 +537,10 @@ void main() {
     });
 
     group('validateAll', () {
-      late FormGroupController validateAllForm;
+      late FormController validateAllForm;
 
       setUp(() {
-        validateAllForm = FormGroupController(validateAll: true);
+        validateAllForm = FormController(validateAll: true);
       });
 
       test('validate is called on other autovalidate fields', () async {
@@ -580,10 +580,10 @@ void main() {
 
     group('setValidationEnabled', () {
       test('sets validationEnabled to false', () {
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         form.setValidationEnabled(false);
         expect(emissions, [
-          const FormGroupState(validationEnabled: false),
+          const FormState(validationEnabled: false),
         ]);
         form.dispose();
         field1.dispose();
@@ -594,9 +594,9 @@ void main() {
 
       test('sets validationEnabled to true', () {
         form.setValidationEnabled(false);
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         form.setValidationEnabled(true);
-        expect(emissions, [const FormGroupState()]);
+        expect(emissions, [const FormState()]);
         form.dispose();
         field1.dispose();
         field2.dispose();
@@ -605,7 +605,7 @@ void main() {
       });
 
       test('is noop if the same validationEnabled was already set', () {
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         form.setValidationEnabled(true);
         expect(emissions, isEmpty);
         form.dispose();
@@ -677,11 +677,11 @@ void main() {
     group('removeSubform', () {
       test('removes a previously added subform and disposes it', () async {
         form.addSubform(subform);
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
 
         await form.removeSubform(subform);
 
-        expect(emissions, [const FormGroupState()]);
+        expect(emissions, [const FormState()]);
         // Subform is disposed — touching its onValuesChanged would throw, so
         // we don't probe it further. Form does not dispose it twice on close.
         form.dispose();
@@ -694,13 +694,13 @@ void main() {
           'removes a previously added subform but does not dispose it when close is false',
           () async {
         form.addSubform(subform);
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
 
         await form.removeSubform(subform, close: false);
 
-        expect(emissions, [const FormGroupState()]);
+        expect(emissions, [const FormState()]);
         // Subform should still be alive — confirm by reading its state.
-        expect(subform.value, const FormGroupState());
+        expect(subform.value, const FormState());
 
         form.dispose();
         subform.dispose();
@@ -710,7 +710,7 @@ void main() {
       });
 
       test('is noop if form was not added', () async {
-        final emissions = _record<FormGroupState>(form);
+        final emissions = _record<FormState>(form);
         await form.removeSubform(subform);
         expect(emissions, isEmpty);
         form.dispose();

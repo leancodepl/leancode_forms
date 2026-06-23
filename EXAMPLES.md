@@ -33,7 +33,7 @@ Note the `controller: field.textController` — `TextFieldController` owns its o
 ### 2. A form with submit-time validation
 
 ```dart
-class SimpleFormController extends FormGroupController {
+class SimpleFormController extends FormController {
   SimpleFormController() {
     registerFields([firstName, email]);
   }
@@ -73,7 +73,7 @@ ElevatedButton(
 ### 3. Async email validation
 
 ```dart
-class SignupController extends FormGroupController {
+class SignupController extends FormController {
   SignupController() {
     registerFields([email]);
   }
@@ -116,7 +116,7 @@ return FieldBuilder<String, ValidationError>(
 ### 4. Cross-field validation (password / repeat-password)
 
 ```dart
-class PasswordFormController extends FormGroupController {
+class PasswordFormController extends FormController {
   PasswordFormController() {
     registerFields([password, repeatPassword]);
   }

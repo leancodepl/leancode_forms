@@ -225,7 +225,7 @@ class _FancyBanner extends StatelessWidget {
   }
 }
 
-class OptimizedRenderingFormController extends FormGroupController {
+class OptimizedRenderingFormController extends FormController {
   OptimizedRenderingFormController() {
     registerFields([firstName, nickname, email]);
   }

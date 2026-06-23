@@ -22,7 +22,7 @@ Most call sites need only a class rename and an import cleanup.
 | `BooleanFieldCubit<E>` | `BooleanFieldController<E>` |
 | `SingleSelectFieldCubit<V, E>` | `SingleSelectFieldController<V, E>` |
 | `MultiSelectFieldCubit<V, E>` | `MultiSelectFieldController<V, E>` |
-| `FormGroupCubit` | `FormGroupController` |
+| `FormGroupCubit` | `FormController` |
 | `FieldBuilder<T, E>` | **Kept** — now a wrapper around `ValueListenableBuilder`; `field:` param re-typed to `FieldController<T, E>` |
 | `form.onValuesChangedStream` (`Stream<void>`) | `form.onValuesChanged` (`Listenable`) |
 | `form.onStatusChangedStream` (`Stream<FieldStatus>`) | `form.onStatusChanged` (`Listenable`) |
@@ -62,7 +62,7 @@ class SimpleFormCubit extends FormGroupCubit {
 
 **0.2.0:**
 ```dart
-class SimpleFormController extends FormGroupController {
+class SimpleFormController extends FormController {
   SimpleFormController() {
     registerFields([firstName, lastName, email]);
   }
@@ -91,7 +91,7 @@ controller.firstName.state.value;
 controller.firstName.value.value;
 ```
 
-We kept a `.state` getter alias on both `FieldController` and `FormGroupController` so existing call sites can stay untouched if you'd rather not touch them.
+We kept a `.state` getter alias on both `FieldController` and `FormController` so existing call sites can stay untouched if you'd rather not touch them.
 
 > **Why the rebuild?** `ValueNotifier` is a synchronous state container: when you assign a new value, listeners run in the same call stack — no broadcast stream, no microtask hop. Same observable behavior in real apps, simpler mental model, no `rxdart` plumbing, and the whole library now sits on Flutter SDK primitives only.
 
@@ -153,7 +153,7 @@ Calling `dispose()` twice on a `ValueNotifier`/`ChangeNotifier` throws `'A Value
 
 In 0.2.0:
 
-- Let `FormGroupController` own field disposal via `registerFields(...)`. Don't call `dispose()` on owned fields yourself.
+- Let `FormController` own field disposal via `registerFields(...)`. Don't call `dispose()` on owned fields yourself.
 - If you registered the same field twice (multi-`registerFields` patterns), it's still safe — the library tracks ownership with a `Set` and disposes each owned controller exactly once.
 
 ---
@@ -190,7 +190,7 @@ To migrate a custom text widget:
 
 ---
 
-## 6. `FormGroupController` exposes `Listenable`s, not `Stream`s
+## 6. `FormController` exposes `Listenable`s, not `Stream`s
 
 **0.1.x:**
 ```dart
@@ -220,7 +220,7 @@ Everything not listed above. Quick reassurance checklist — if your call site o
 
 - **Validators:** `Validator<T, E>` / `AsyncValidator<T, E>` typedefs unchanged. All ready-to-use validators (`filled`, `atLeastLength`, `notLongerThan`, `notNull`, `notEmpty`, `or`, `and`, `&`, `|`, etc.) have the same names and signatures.
 - **Field methods:** `setValue`, `validate`, `setAutovalidate`, `markReadOnly`, `unmarkReadOnly`, `clearErrors`, `reset`, `setError`, `getValueSetter`, `subscribeToFields` — all unchanged on `FieldController`.
-- **Form-group methods:** `registerFields`, `addSubform`, `removeSubform`, `setValidationEnabled`, `validateWithAutovalidate`, `resetAll`, `markReadOnly`, `clearErrors` — all unchanged on `FormGroupController`.
+- **Form-group methods:** `registerFields`, `addSubform`, `removeSubform`, `setValidationEnabled`, `validateWithAutovalidate`, `resetAll`, `markReadOnly`, `clearErrors` — all unchanged on `FormController`.
 - **Async validation flow:** `pending` → `validating` → `valid`/`invalid` sequence, debounce timer, cancel-on-new-value semantics — bit-for-bit identical.
 - **`wasModified` / `validating` aggregate flags:** still tracked the same way. `DeepCollectionEquality` is still the baseline.
 - **`subscribeToFields`:** still filters out status-only changes. Implementation switched from `Rx.combineLatest + distinct` to a manual `lastValues` cache; observable behavior is the same.
