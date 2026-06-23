@@ -53,10 +53,6 @@ class FieldController<T, E extends Object>
 
   VoidCallback? _fieldsSubscriptionCleanup;
 
-  /// The current state. Alias for [value] kept for readability at call sites
-  /// that previously read `cubit.state`.
-  FieldState<T, E> get state => value;
-
   /// Subscribes to the [fields] and revalidates this field whenever any of
   /// their values change. Only fires on value changes — status changes on the
   /// observed fields are ignored.

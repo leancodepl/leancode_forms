@@ -30,10 +30,6 @@ class FormController extends ValueNotifier<FormState> {
   /// their validator called if they have autovalidate enabled.
   final bool validateAll;
 
-  /// The current state. Alias for [value] kept for readability at call sites
-  /// that previously read `cubit.state`.
-  FormState get state => value;
-
   /// Fires when any leaf field's value changes (recursively through subforms),
   /// or when fields are registered.
   Listenable get onValuesChanged => _onValuesChanged;
