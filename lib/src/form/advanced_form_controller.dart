@@ -16,12 +16,27 @@ import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 ///
 /// Introducing cycles in forms is not supported and not checked against (most
 /// likely will cause a stack overflow somewhere).
-class AdvancedFormController extends ValueNotifier<AdvancedFormState> {
+class AdvancedFormController
+    with ChangeNotifier
+    implements ValueListenable<AdvancedFormState> {
   /// Creates a new [AdvancedFormController].
   AdvancedFormController({
     this.debugName = '',
     this.validateAll = false,
-  }) : super(const AdvancedFormState());
+  }) : _value = const AdvancedFormState();
+
+  AdvancedFormState _value;
+
+  @override
+  AdvancedFormState get value => _value;
+
+  void _setState(AdvancedFormState newValue) {
+    if (newValue == _value) {
+      return;
+    }
+    _value = newValue;
+    notifyListeners();
+  }
 
   /// A debug label for this form. Not significant to the form.
   final String debugName;
@@ -50,13 +65,13 @@ class AdvancedFormController extends ValueNotifier<AdvancedFormState> {
   void registerFields(List<AdvancedFieldController<dynamic, dynamic>> fields) {
     _runChildCleanups();
 
-    value = AdvancedFormState(
+    _setState(AdvancedFormState(
       wasModified: value.wasModified,
       fields: fields,
       subforms: value.subforms,
       validationEnabled: value.validationEnabled,
       validating: value.validating,
-    );
+    ),);
 
     _ownedFields.addAll(fields);
     _initialFieldsState = getFieldValues();
@@ -150,13 +165,13 @@ class AdvancedFormController extends ValueNotifier<AdvancedFormState> {
     }
     _runChildCleanups();
 
-    value = AdvancedFormState(
+    _setState(AdvancedFormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: {...value.subforms, form},
       validationEnabled: value.validationEnabled,
       validating: value.validating,
-    );
+    ),);
 
     _wireChildren();
   }
@@ -172,13 +187,13 @@ class AdvancedFormController extends ValueNotifier<AdvancedFormState> {
     }
     _runChildCleanups();
 
-    value = AdvancedFormState(
+    _setState(AdvancedFormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: {...value.subforms}..remove(form),
       validationEnabled: value.validationEnabled,
       validating: value.validating,
-    );
+    ),);
 
     if (close) {
       form.dispose();
@@ -205,13 +220,13 @@ class AdvancedFormController extends ValueNotifier<AdvancedFormState> {
     if (validationEnabled == value.validationEnabled) {
       return;
     }
-    value = AdvancedFormState(
+    _setState(AdvancedFormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: value.subforms,
       validationEnabled: validationEnabled,
       validating: value.validating,
-    );
+    ),);
     if (validationEnabled) {
       validateWithAutovalidate();
     } else {
@@ -267,13 +282,13 @@ class AdvancedFormController extends ValueNotifier<AdvancedFormState> {
       validateWithAutovalidate();
     }
 
-    value = AdvancedFormState(
+    _setState(AdvancedFormState(
       wasModified: subformsWereModified || fieldsWereModified,
       fields: value.fields,
       subforms: value.subforms,
       validationEnabled: value.validationEnabled,
       validating: value.validating,
-    );
+    ),);
     _onValuesChanged.notifyListeners();
   }
 
@@ -285,13 +300,13 @@ class AdvancedFormController extends ValueNotifier<AdvancedFormState> {
       (field) => field.value.isInProgress,
     );
 
-    value = AdvancedFormState(
+    _setState(AdvancedFormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: value.subforms,
       validationEnabled: value.validationEnabled,
       validating: fieldsValidating || subformsValidating,
-    );
+    ),);
     _onStatusChanged.notifyListeners();
   }
 
