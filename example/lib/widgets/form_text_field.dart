@@ -27,6 +27,16 @@ class FormTextField<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Before:
+    //   return AdvancedFieldBuilder<String, E>(
+    //     field: field,
+    //     builder: (context, state, _) => AppTextField(
+    //       controller: field.textController,         <-- this is from the upper scope
+    //       errorText: state.error != null ? translateError(state.error!) : null,
+    //       suffix: state.isValidating ? ... : null,
+    //       onSetToInitial: canSetToInitial ? field.clear : null,
+    //     ),
+    //   );
     return AdvancedFieldBuilder<AdvancedTextFieldController<E>>(
       field: field,
       builder: (context, field, _) => AppTextField(
@@ -72,6 +82,16 @@ class FocusableFormTextField<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Before:
+    //   return AdvancedFieldBuilder<String, E>(
+    //     field: field,
+    //     builder: (context, state, _) => AppTextField(
+    //       controller: field.textController,   <-- this is from the upper scope
+    //       focusNode: field.focusNode,<-- this is from the upper scope
+    //       errorText: state.error != null ? translateError(state.error!) : null,
+    //       suffix: state.isValidating ? ... : null,
+    //     ),
+    //   );
     return AdvancedFieldBuilder<FocusableTextFieldController<E>>(
       field: field,
       builder: (context, field, _) => AppTextField(

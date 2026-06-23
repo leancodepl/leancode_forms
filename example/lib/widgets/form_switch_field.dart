@@ -13,8 +13,17 @@ class FormSwitchField<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Before:
+    //   return AdvancedFieldBuilder<bool, E>(
+    //     field: field,
+    //     builder: (context, state, _) => Switch(
+    //       value: state.value,
+    //       onChanged: field.getValueSetter(),  <-- this is from the upper scope
+    //     ),
+    //   );
     return AdvancedFieldBuilder<AdvancedBooleanFieldController<E>>(
       field: field,
+      ///Here let's use the field directly from the builder callback
       builder: (context, field, _) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
