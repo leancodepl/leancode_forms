@@ -3,11 +3,12 @@ import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 
 /// A specialization of [AdvancedFieldController] for a [String] value.
 ///
-/// Owns a [TextEditingController] kept in two-way sync with the field value.
-/// Widgets can bind directly to [textController]; programmatic changes via
-/// [setValue] / [reset] / [clearErrors] propagate to the text controller, and
-/// user input on the text controller propagates back to the field state.
-class AdvancedTextFieldController<E extends Object> extends AdvancedFieldController<String, E> {
+/// Owns a [TextEditingController] kept in two-way sync with the field value,
+/// and a [FocusNode] for focus-management flows. Widgets can bind directly to
+/// [textController] and [focusNode]; programmatic changes via [setValue] /
+/// [reset] / [clearErrors] propagate to the text controller, and user input on
+/// the text controller propagates back to the field state.
+class AdvancedTextFieldController<E extends Object> extends AdvancedFieldController<  String, E> {
   /// Creates a new [AdvancedTextFieldController].
   AdvancedTextFieldController({
     super.initialValue = '',
@@ -24,6 +25,13 @@ class AdvancedTextFieldController<E extends Object> extends AdvancedFieldControl
   /// controller — do not dispose externally.
   final TextEditingController textController;
 
+  /// The [FocusNode] bound to this field. Lifecycle owned by this class
+  /// don;t dispose externally.
+  late final FocusNode focusNode = FocusNode(
+    debugLabel:
+        'AdvancedTextFieldController${name?.isNotEmpty ?? false ? '($name)' : ''}',
+  );
+
   void _onTextControllerChanged() {
     if (textController.text != value.value) {
       setValue(textController.text);
@@ -36,6 +44,9 @@ class AdvancedTextFieldController<E extends Object> extends AdvancedFieldControl
     }
   }
 
+  /// Requests focus for the field via [focusNode].
+  void focus() => focusNode.requestFocus();
+
   /// Clears the value of the field, resetting it to its initial value.
   void clear() => reset();
 
@@ -45,6 +56,7 @@ class AdvancedTextFieldController<E extends Object> extends AdvancedFieldControl
     textController
       ..removeListener(_onTextControllerChanged)
       ..dispose();
+    focusNode.dispose();
     super.dispose();
   }
 }

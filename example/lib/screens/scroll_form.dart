@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:leancode_forms/leancode_forms.dart';
-import 'package:leancode_forms_example/controllers/focusable_text_field_controller.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/utils/extensions/iterable_extensions.dart';
@@ -80,7 +79,7 @@ class _ScrollFormState extends State<ScrollForm> {
               bold('first invalid field'),
               plain(', scrolling it into view.'),
             ]),
-            FocusableFormTextField(
+            FormTextField(
               field: controller.firstField,
               translateError: validatorTranslator,
               labelText: 'First field',
@@ -88,7 +87,7 @@ class _ScrollFormState extends State<ScrollForm> {
               onFieldSubmitted: (_) => controller.secondField.focus(),
             ),
             const SizedBox(height: 260),
-            FocusableFormTextField(
+            FormTextField(
               field: controller.secondField,
               translateError: validatorTranslator,
               labelText: 'Second field',
@@ -96,7 +95,7 @@ class _ScrollFormState extends State<ScrollForm> {
               onFieldSubmitted: (_) => controller.thirdField.focus(),
             ),
             const SizedBox(height: 260),
-            FocusableFormTextField(
+            FormTextField(
               field: controller.thirdField,
               translateError: validatorTranslator,
               labelText: 'Third field',
@@ -123,13 +122,13 @@ class ScrollFormController extends AdvancedFormController {
     ]);
   }
 
-  final firstField = FocusableTextFieldController<ValidationError>(
+  final firstField = AdvancedTextFieldController<ValidationError>(
     validator: filled(ValidationError.empty),
   );
-  final secondField = FocusableTextFieldController<ValidationError>(
+  final secondField = AdvancedTextFieldController<ValidationError>(
     validator: filled(ValidationError.empty),
   );
-  final thirdField = FocusableTextFieldController<ValidationError>(
+  final thirdField = AdvancedTextFieldController<ValidationError>(
     validator: filled(ValidationError.empty),
   );
 
