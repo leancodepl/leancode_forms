@@ -120,9 +120,14 @@ class PasswordFormController extends AdvancedFormController {
     lowerCaseRequired: true,
   );
 
+  // `subscribeToFields` + `autoValidate: true
+  // we expect: no validation fires until one of the
+  // subscribed fields' VALUE actually changes (state-only changes like the
   late final repeatPassword = AdvancedTextFieldController<ValidationError>(
     validator: passwordMatch(password, ValidationError.doesNotMatch),
-  )..subscribeToFields([switchField, password]);
+  )
+    ..setAutovalidate(true)
+    ..subscribeToFields([switchField, password]);
 
   void submit() {
     if (validate()) {
