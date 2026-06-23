@@ -20,7 +20,7 @@ class FormTextFieldWithBanner<E extends Object> extends StatelessWidget {
     this.hintText,
   });
 
-  final TextFieldController<E> field;
+  final AdvancedTextFieldController<E> field;
   final ErrorTranslator<E> translateError;
 
   /// Built once when this widget is mounted and reused on every rebuild via
@@ -35,7 +35,7 @@ class FormTextFieldWithBanner<E extends Object> extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       clipBehavior: Clip.antiAlias,
-      child: ValueListenableBuilder<FieldState<String, E>>(
+      child: ValueListenableBuilder<AdvancedFieldState<String, E>>(
         valueListenable: field,
         child: banner, // <-- built once, reused on every rebuild
         builder: (context, state, child) => Column(

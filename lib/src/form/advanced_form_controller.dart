@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
-import 'package:leancode_forms/src/field/field_controller.dart';
+import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 
-/// A parent of multiple [FieldController]s. Manages group validation and tracks
+/// A parent of multiple [AdvancedFieldController]s. Manages group validation and tracks
 /// changes as well as cleans up needed resources.
 ///
 /// A form is a tree which can be recursively defined:
@@ -16,12 +16,12 @@ import 'package:leancode_forms/src/field/field_controller.dart';
 ///
 /// Introducing cycles in forms is not supported and not checked against (most
 /// likely will cause a stack overflow somewhere).
-class FormController extends ValueNotifier<FormState> {
-  /// Creates a new [FormController].
-  FormController({
+class AdvancedFormController extends ValueNotifier<AdvancedFormState> {
+  /// Creates a new [AdvancedFormController].
+  AdvancedFormController({
     this.debugName = '',
     this.validateAll = false,
-  }) : super(const FormState());
+  }) : super(const AdvancedFormState());
 
   /// A debug label for this form. Not significant to the form.
   final String debugName;
@@ -41,16 +41,16 @@ class FormController extends ValueNotifier<FormState> {
 
   List<dynamic> _initialFieldsState = const <dynamic>[];
 
-  final Set<FieldController<dynamic, dynamic>> _ownedFields = {};
+  final Set<AdvancedFieldController<dynamic, dynamic>> _ownedFields = {};
   final List<VoidCallback> _childCleanups = [];
 
   /// Takes ownership of registered fields. Will dispose all controllers when
   /// the form group is disposed.
   /// Fields are expected to be filled with initial states.
-  void registerFields(List<FieldController<dynamic, dynamic>> fields) {
+  void registerFields(List<AdvancedFieldController<dynamic, dynamic>> fields) {
     _runChildCleanups();
 
-    value = FormState(
+    value = AdvancedFormState(
       wasModified: value.wasModified,
       fields: fields,
       subforms: value.subforms,
@@ -144,13 +144,13 @@ class FormController extends ValueNotifier<FormState> {
 
   /// Adds a subform to the current form.
   /// If [form] was already added as a subform this is a noop.
-  void addSubform(FormController form) {
+  void addSubform(AdvancedFormController form) {
     if (value.subforms.contains(form)) {
       return;
     }
     _runChildCleanups();
 
-    value = FormState(
+    value = AdvancedFormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: {...value.subforms, form},
@@ -164,7 +164,7 @@ class FormController extends ValueNotifier<FormState> {
   /// Removes and disposes an owned subform.
   /// If [form] was not a subform this is a noop.
   Future<void> removeSubform(
-    FormController form, {
+    AdvancedFormController form, {
     bool close = true,
   }) async {
     if (!value.subforms.contains(form)) {
@@ -172,7 +172,7 @@ class FormController extends ValueNotifier<FormState> {
     }
     _runChildCleanups();
 
-    value = FormState(
+    value = AdvancedFormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: {...value.subforms}..remove(form),
@@ -205,7 +205,7 @@ class FormController extends ValueNotifier<FormState> {
     if (validationEnabled == value.validationEnabled) {
       return;
     }
-    value = FormState(
+    value = AdvancedFormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: value.subforms,
@@ -267,7 +267,7 @@ class FormController extends ValueNotifier<FormState> {
       validateWithAutovalidate();
     }
 
-    value = FormState(
+    value = AdvancedFormState(
       wasModified: subformsWereModified || fieldsWereModified,
       fields: value.fields,
       subforms: value.subforms,
@@ -285,7 +285,7 @@ class FormController extends ValueNotifier<FormState> {
       (field) => field.value.isInProgress,
     );
 
-    value = FormState(
+    value = AdvancedFormState(
       wasModified: value.wasModified,
       fields: value.fields,
       subforms: value.subforms,
@@ -311,9 +311,9 @@ class FormController extends ValueNotifier<FormState> {
   }
 }
 
-/// The state of a [FormController].
+/// The state of a [AdvancedFormController].
 ///
-/// Value-equal: two [FormState]s are equal when every field matches.
+/// Value-equal: two [AdvancedFormState]s are equal when every field matches.
 /// This is required for [ValueNotifier]'s built-in dedup — without it,
 /// every internal state recompute (`_handleValuesChanged`,
 /// `_handleStatusChanged`, etc.) would notify listeners even when the
@@ -322,9 +322,9 @@ class FormController extends ValueNotifier<FormState> {
 /// **Maintainer note:** when adding a new field below, you MUST also add it
 /// to both [operator ==] and [hashCode] at the bottom of the class, otherwise
 /// the new field is silently invisible to dedup and structural comparisons.
-class FormState {
-  /// Creates a new [FormState].
-  const FormState({
+class AdvancedFormState {
+  /// Creates a new [AdvancedFormState].
+  const AdvancedFormState({
     this.wasModified = false,
     this.fields = const [],
     this.subforms = const {},
@@ -337,10 +337,10 @@ class FormState {
   final bool wasModified;
 
   /// List of all registered fields by this form.
-  final List<FieldController<dynamic, dynamic>> fields;
+  final List<AdvancedFieldController<dynamic, dynamic>> fields;
 
   /// Set of registered subforms. Reference equality is assumed.
-  final Set<FormController> subforms;
+  final Set<AdvancedFormController> subforms;
 
   /// If false, validators are not ran and `validate` always returns true.
   final bool validationEnabled;
@@ -349,23 +349,23 @@ class FormState {
   final bool validating;
 
   /// List of this form's fields including subforms' fields.
-  Iterable<FieldController<dynamic, dynamic>> get allFields =>
+  Iterable<AdvancedFieldController<dynamic, dynamic>> get allFields =>
       fields.followedBy(subforms.expand((e) => e.value.allFields));
 
   /// Map of all validation errors (including subforms') grouped by fields.
-  Map<FieldController<dynamic, dynamic>, dynamic> get validationErrors => {
+  Map<AdvancedFieldController<dynamic, dynamic>, dynamic> get validationErrors => {
         for (final field in allFields)
           if (field.value.validationError case final error?) field: error,
       };
 
   // ⚠️ Maintainer: keep these in sync with the fields declared above. `fields`
   // and `subforms` compare element-wise via Flutter's listEquals/setEquals
-  // (identity-based, since FieldController/FormController don't override
+  // (identity-based, since AdvancedFieldController/AdvancedFormController don't override
   // `==`).
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FormState &&
+      other is AdvancedFormState &&
           wasModified == other.wasModified &&
           listEquals(fields, other.fields) &&
           setEquals(subforms, other.subforms) &&

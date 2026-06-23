@@ -1,4 +1,4 @@
-import 'package:leancode_forms/src/field/field_controller.dart';
+import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 
 /// Creates a new validator.
 ///

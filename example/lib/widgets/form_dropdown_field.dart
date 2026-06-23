@@ -13,7 +13,7 @@ class FormDropdownField<T, E extends Object> extends StatelessWidget {
     this.canSetToInitial = false,
   });
 
-  final SingleSelectFieldController<T, E> field;
+  final AdvancedSingleSelectFieldController<T, E> field;
   final String Function(T) labelBuilder;
   final ErrorTranslator<E> translateError;
   final String? labelText;
@@ -22,7 +22,7 @@ class FormDropdownField<T, E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<FieldState<T?, E>>(
+    return ValueListenableBuilder<AdvancedFieldState<T?, E>>(
       valueListenable: field,
       builder: (context, state, _) => AppDropdownField<T>(
         value: state.value,

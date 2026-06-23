@@ -1,9 +1,9 @@
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 
-/// A specialization of [TextFieldController] for a password field. Errors are
+/// A specialization of [AdvancedTextFieldController] for a password field. Errors are
 /// reported as a list of rule violations.
-class PasswordFieldController extends TextFieldController<List<ValidationError>> {
+class PasswordFieldController extends AdvancedTextFieldController<List<ValidationError>> {
   /// Creates a new [PasswordFieldController].
   PasswordFieldController({
     super.initialValue = '',

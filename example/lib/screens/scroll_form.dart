@@ -114,7 +114,7 @@ class _ScrollFormState extends State<ScrollForm> {
   }
 }
 
-class ScrollFormController extends FormController {
+class ScrollFormController extends AdvancedFormController {
   ScrollFormController() {
     registerFields([
       firstField,

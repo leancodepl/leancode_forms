@@ -96,7 +96,7 @@ Validator<String, E> passwordMatch<E extends Object>(
       return null;
     };
 
-class PasswordFormController extends FormController {
+class PasswordFormController extends AdvancedFormController {
   PasswordFormController() {
     registerFields([
       username,
@@ -106,12 +106,12 @@ class PasswordFormController extends FormController {
     ]);
   }
 
-  final username = TextFieldController(
+  final username = AdvancedTextFieldController(
     validator: filled(ValidationError.empty) &
         atLeastLength(5, ValidationError.toShort),
   );
 
-  final switchField = BooleanFieldController();
+  final switchField = AdvancedBooleanFieldController();
 
   final password = PasswordFieldController(
     numberRequired: true,
@@ -120,7 +120,7 @@ class PasswordFormController extends FormController {
     lowerCaseRequired: true,
   );
 
-  late final repeatPassword = TextFieldController<ValidationError>(
+  late final repeatPassword = AdvancedTextFieldController<ValidationError>(
     validator: passwordMatch(password, ValidationError.doesNotMatch),
   )..subscribeToFields([switchField, password]);
 

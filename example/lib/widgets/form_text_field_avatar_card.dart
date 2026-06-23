@@ -18,7 +18,7 @@ class FormTextFieldAvatarCard<E extends Object> extends StatelessWidget {
     this.hintText,
   });
 
-  final TextFieldController<E> field;
+  final AdvancedTextFieldController<E> field;
   final ErrorTranslator<E> translateError;
   final String avatarCaption;
   final IconData avatarIcon;
@@ -33,7 +33,7 @@ class FormTextFieldAvatarCard<E extends Object> extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: ValueListenableBuilder<FieldState<String, E>>(
+        child: ValueListenableBuilder<AdvancedFieldState<String, E>>(
           valueListenable: field,
           child: _AvatarBlock(
             caption: avatarCaption,

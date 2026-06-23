@@ -16,7 +16,7 @@ class FormTextField<E extends Object> extends StatelessWidget {
     this.canSetToInitial = false,
   });
 
-  final TextFieldController<E> field;
+  final AdvancedTextFieldController<E> field;
   final ErrorTranslator<E> translateError;
   final VoidCallback? onUnfocus;
   final ValueChanged<String>? onFieldSubmitted;
@@ -27,7 +27,7 @@ class FormTextField<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<FieldState<String, E>>(
+    return ValueListenableBuilder<AdvancedFieldState<String, E>>(
       valueListenable: field,
       builder: (context, state, _) => AppTextField(
         controller: field.textController,
@@ -71,7 +71,7 @@ class FocusableFormTextField<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<FieldState<String, E>>(
+    return ValueListenableBuilder<AdvancedFieldState<String, E>>(
       valueListenable: field,
       builder: (context, state, _) => AppTextField(
         controller: field.textController,

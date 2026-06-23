@@ -3,14 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
 void main() {
-  testWidgets('FieldBuilder rebuilds when the field changes', (tester) async {
-    final field = TextFieldController<String>(initialValue: 'first');
+  testWidgets('AdvancedFieldBuilder rebuilds when the field changes', (tester) async {
+    final field = AdvancedTextFieldController<String>(initialValue: 'first');
     addTearDown(field.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: FieldBuilder<String, String>(
+          body: AdvancedFieldBuilder<String, String>(
             field: field,
             builder: (context, state, _) => Text(state.value),
           ),

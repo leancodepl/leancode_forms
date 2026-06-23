@@ -35,7 +35,7 @@ class DeliveryListForm extends StatelessWidget {
             ScreenDescription([
               bold('Dynamic subforms. '),
               plain('Each consumer is its own '),
-              code('FormController'),
+              code('AdvancedFormController'),
               plain(' added as a subform to the parent. The parent\'s '),
               code('validate()'),
               plain(' recursively validates every consumer; disposing the '
@@ -110,7 +110,7 @@ class ConsumerSubform extends StatelessWidget {
   }
 }
 
-class DeliveryListFormController extends FormController {
+class DeliveryListFormController extends AdvancedFormController {
   DeliveryListFormController();
 
   final deliveryList = <ConsumerSubformController>{};
@@ -141,7 +141,7 @@ class DeliveryListFormController extends FormController {
   }
 }
 
-class ConsumerSubformController extends FormController {
+class ConsumerSubformController extends AdvancedFormController {
   ConsumerSubformController() {
     registerFields([
       email,
@@ -149,11 +149,11 @@ class ConsumerSubformController extends FormController {
     ]);
   }
 
-  final email = TextFieldController(
+  final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
   );
 
-  final country = SingleSelectFieldController<Country?, ValidationError>(
+  final country = AdvancedSingleSelectFieldController<Country?, ValidationError>(
     initialValue: null,
     options: Country.values,
     validator: (country) {

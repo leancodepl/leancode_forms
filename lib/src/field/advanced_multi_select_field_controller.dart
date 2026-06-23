@@ -1,10 +1,10 @@
-import 'package:leancode_forms/src/field/field_controller.dart';
+import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 
-/// A specialization of [FieldController] for a multiple choice of [V] values.
-class MultiSelectFieldController<V, E extends Object>
-    extends FieldController<Set<V>, E> {
-  /// Creates a new [MultiSelectFieldController].
-  MultiSelectFieldController({
+/// A specialization of [AdvancedFieldController] for a multiple choice of [V] values.
+class AdvancedMultiSelectFieldController<V, E extends Object>
+    extends AdvancedFieldController<Set<V>, E> {
+  /// Creates a new [AdvancedMultiSelectFieldController].
+  AdvancedMultiSelectFieldController({
     required super.initialValue,
     super.validator,
     required this.options,
