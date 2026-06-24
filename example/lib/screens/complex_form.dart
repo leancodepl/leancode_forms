@@ -28,8 +28,7 @@ class ComplexForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller =
-        context.select<ComplexFormController, ComplexFormController>((c) => c);
+    final controller = context.watch<ComplexFormController>();
     return FormPage(
       title: 'Complex Form',
       child: SingleChildScrollView(

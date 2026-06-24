@@ -46,9 +46,6 @@ class AdvancedTextFieldController<E extends Object> extends AdvancedFieldControl
   /// Requests focus for the field via [focusNode].
   void focus() => focusNode.requestFocus();
 
-  /// Clears the value of the field, resetting it to its initial value.
-  void clear() => reset();
-
   @override
   void dispose() {
     removeListener(_onFieldChanged);

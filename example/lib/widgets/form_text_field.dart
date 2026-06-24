@@ -43,7 +43,7 @@ class FormTextField<E extends Object> extends StatelessWidget {
                 child: CircularProgressIndicator(),
               )
             : null,
-        onSetToInitial: canSetToInitial ? field.clear : null,
+        onSetToInitial: canSetToInitial ? field.reset : null,
       ),
     );
   }

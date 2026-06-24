@@ -23,9 +23,9 @@ class AdvancedFormController
   AdvancedFormController({
     this.debugName = '',
     this.validateAll = false,
-  }) : _value = const AdvancedFormState();
+  });
 
-  AdvancedFormState _value;
+  AdvancedFormState _value = const AdvancedFormState();
 
   @override
   AdvancedFormState get value => _value;
@@ -45,7 +45,8 @@ class AdvancedFormController
   /// Getter for the isDisposed flag
   bool get isDisposed => _isDisposed;
 
-  /// A debug label for this form. Not significant to the form.
+  /// A label for this form used for logging, or tracing
+  /// across nested subforms. Has no effect on form behavior.
   final String debugName;
 
   /// When true, whenever any field changes, all other fields get
@@ -72,13 +73,15 @@ class AdvancedFormController
   void registerFields(List<AdvancedFieldController<dynamic, dynamic>> fields) {
     _runChildCleanups();
 
-    _setState(AdvancedFormState(
-      wasModified: value.wasModified,
-      fields: fields,
-      subforms: value.subforms,
-      validationEnabled: value.validationEnabled,
-      validating: value.validating,
-    ),);
+    _setState(
+      AdvancedFormState(
+        wasModified: value.wasModified,
+        fields: fields,
+        subforms: value.subforms,
+        validationEnabled: value.validationEnabled,
+        validating: value.validating,
+      ),
+    );
 
     _ownedFields.addAll(fields);
     _initialFieldsState = getFieldValues();
@@ -185,13 +188,15 @@ class AdvancedFormController
 
     _runChildCleanups();
 
-    _setState(AdvancedFormState(
-      wasModified: value.wasModified,
-      fields: value.fields,
-      subforms: {...value.subforms, form},
-      validationEnabled: value.validationEnabled,
-      validating: value.validating,
-    ),);
+    _setState(
+      AdvancedFormState(
+        wasModified: value.wasModified,
+        fields: value.fields,
+        subforms: {...value.subforms, form},
+        validationEnabled: value.validationEnabled,
+        validating: value.validating,
+      ),
+    );
 
     _wireChildren();
   }
@@ -207,13 +212,15 @@ class AdvancedFormController
     }
     _runChildCleanups();
 
-    _setState(AdvancedFormState(
-      wasModified: value.wasModified,
-      fields: value.fields,
-      subforms: {...value.subforms}..remove(form),
-      validationEnabled: value.validationEnabled,
-      validating: value.validating,
-    ),);
+    _setState(
+      AdvancedFormState(
+        wasModified: value.wasModified,
+        fields: value.fields,
+        subforms: {...value.subforms}..remove(form),
+        validationEnabled: value.validationEnabled,
+        validating: value.validating,
+      ),
+    );
 
     if (close) {
       form.dispose();
@@ -240,13 +247,15 @@ class AdvancedFormController
     if (validationEnabled == value.validationEnabled) {
       return;
     }
-    _setState(AdvancedFormState(
-      wasModified: value.wasModified,
-      fields: value.fields,
-      subforms: value.subforms,
-      validationEnabled: validationEnabled,
-      validating: value.validating,
-    ),);
+    _setState(
+      AdvancedFormState(
+        wasModified: value.wasModified,
+        fields: value.fields,
+        subforms: value.subforms,
+        validationEnabled: validationEnabled,
+        validating: value.validating,
+      ),
+    );
     if (validationEnabled) {
       validateWithAutovalidate();
     } else {
@@ -286,7 +295,6 @@ class AdvancedFormController
     }
   }
 
-
   void _runChildCleanups() {
     for (final cleanup in _childCleanups) {
       cleanup();
@@ -305,13 +313,15 @@ class AdvancedFormController
       validateWithAutovalidate();
     }
 
-    _setState(AdvancedFormState(
-      wasModified: subformsWereModified || fieldsWereModified,
-      fields: value.fields,
-      subforms: value.subforms,
-      validationEnabled: value.validationEnabled,
-      validating: value.validating,
-    ),);
+    _setState(
+      AdvancedFormState(
+        wasModified: subformsWereModified || fieldsWereModified,
+        fields: value.fields,
+        subforms: value.subforms,
+        validationEnabled: value.validationEnabled,
+        validating: value.validating,
+      ),
+    );
     _onValuesChanged.notifyListeners();
   }
 
@@ -323,13 +333,15 @@ class AdvancedFormController
       (field) => field.value.isInProgress,
     );
 
-    _setState(AdvancedFormState(
-      wasModified: value.wasModified,
-      fields: value.fields,
-      subforms: value.subforms,
-      validationEnabled: value.validationEnabled,
-      validating: fieldsValidating || subformsValidating,
-    ),);
+    _setState(
+      AdvancedFormState(
+        wasModified: value.wasModified,
+        fields: value.fields,
+        subforms: value.subforms,
+        validationEnabled: value.validationEnabled,
+        validating: fieldsValidating || subformsValidating,
+      ),
+    );
     _onStatusChanged.notifyListeners();
   }
 
@@ -391,10 +403,11 @@ class AdvancedFormState {
       fields.followedBy(subforms.expand((e) => e.value.allFields));
 
   /// Map of all validation errors (including subforms') grouped by fields.
-  Map<AdvancedFieldController<dynamic, dynamic>, dynamic> get validationErrors => {
-        for (final field in allFields)
-          if (field.value.validationError case final error?) field: error,
-      };
+  Map<AdvancedFieldController<dynamic, dynamic>, dynamic>
+      get validationErrors => {
+            for (final field in allFields)
+              if (field.value.validationError case final error?) field: error,
+          };
 
   // ⚠️ Maintainer: keep these in sync with the fields declared above. `fields`
   // and `subforms` compare element-wise via Flutter's listEquals/setEquals

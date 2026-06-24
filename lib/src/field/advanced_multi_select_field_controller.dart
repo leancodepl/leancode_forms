@@ -32,7 +32,4 @@ class AdvancedMultiSelectFieldController<V, E extends Object>
   void removeValue(V value) {
     setValue(Set<V>.from(this.value.value)..remove(value));
   }
-
-  /// Resets selected values to the initial value.
-  void clear() => reset();
 }
