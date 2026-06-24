@@ -120,9 +120,9 @@ class PasswordFormController extends AdvancedFormController {
     lowerCaseRequired: true,
   );
 
-  // `subscribeToFields` + `autoValidate: true
-  // we expect: no validation fires until one of the
-  // subscribed fields' VALUE actually changes (state-only changes like the
+  // `subscribeToFields` + `autovalidate: true`:
+  // We expect: no validation fires until one of the subscribed fields' value
+  // actually changes (state-only changes, like status updates, are ignored).
   late final repeatPassword = AdvancedTextFieldController<ValidationError>(
     validator: passwordMatch(password, ValidationError.doesNotMatch),
   )
