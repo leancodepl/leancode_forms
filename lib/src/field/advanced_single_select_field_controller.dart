@@ -17,7 +17,4 @@ class AdvancedSingleSelectFieldController<V, E extends Object>
 
   /// Sets the value of the field to the [option].
   void select(V? option) => setValue(option);
-
-  /// Resets selected value to the initial one.
-  void clear() => reset();
 }

@@ -60,8 +60,7 @@ class _ScrollFormState extends State<ScrollForm> {
 
   @override
   Widget build(BuildContext context) {
-    final controller =
-        context.select<ScrollFormController, ScrollFormController>((c) => c);
+    final controller = context.watch<ScrollFormController>();
     return FormPage(
       title: 'Scroll Form',
       child: SingleChildScrollView(

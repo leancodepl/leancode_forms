@@ -32,7 +32,7 @@ class FormDropdownField<T, E extends Object> extends StatelessWidget {
         label: labelText,
         hint: hintText,
         errorText: state.error != null ? translateError(state.error!) : null,
-        onSetToInitial: canSetToInitial ? field.clear : null,
+        onSetToInitial: canSetToInitial ? field.reset : null,
         onEmpty: () => field.select(null),
       ),
     );
