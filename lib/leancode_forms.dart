@@ -5,4 +5,5 @@ export 'src/field/advanced_single_select_field_controller.dart';
 export 'src/field/advanced_text_field_controller.dart';
 export 'src/field/builder/advanced_field_builder.dart';
 export 'src/form/advanced_form_controller.dart';
+export 'src/validators/builder/advanced_validation_status_builder.dart';
 export 'src/validators/validators.dart';
