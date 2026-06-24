@@ -775,5 +775,30 @@ void main() {
         form.dispose();
       });
     });
+
+    group('addSubform — disposed guards', () {
+      test('isDisposed flips from false to true after dispose', () {
+        final f = AdvancedFormController();
+        expect(f.isDisposed, false);
+        f.dispose();
+        expect(f.isDisposed, true);
+      });
+
+      test('throws StateError when the parent has been disposed', () {
+        final parent = AdvancedFormController()..dispose();
+        final child = AdvancedFormController();
+        addTearDown(child.dispose);
+
+        expect(() => parent.addSubform(child), throwsStateError);
+      });
+
+      test('throws StateError when the subform has been disposed', () {
+        final parent = AdvancedFormController();
+        addTearDown(parent.dispose);
+        final child = AdvancedFormController()..dispose();
+
+        expect(() => parent.addSubform(child), throwsStateError);
+      });
+    });
   });
 }
