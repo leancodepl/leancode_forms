@@ -10,7 +10,7 @@ import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 /// A form is a tree which can be recursively defined:
 ///   1. A form is the root of its own form tree
 ///   2. A form has direct leaves, which are fields
-///   3. A form can have subtrees, which are forms (called subforms)
+///   3. A form can have subtrees, which are forms (this is called subforms)
 ///
 /// Most methods broadcast to all subforms.
 ///
@@ -37,6 +37,13 @@ class AdvancedFormController
     _value = newValue;
     notifyListeners();
   }
+
+  /// Flag about whether controller has been disposed. Once true it stays true.
+  /// Disposed controllers are not to be reused
+  bool _isDisposed = false;
+
+  /// Getter for the isDisposed flag
+  bool get isDisposed => _isDisposed;
 
   /// A debug label for this form. Not significant to the form.
   final String debugName;
@@ -159,10 +166,23 @@ class AdvancedFormController
 
   /// Adds a subform to the current form.
   /// If [form] was already added as a subform this is a noop.
+  ///
+  /// Throws a dedicated [StateError] if this controller has been disposed
   void addSubform(AdvancedFormController form) {
+    if (isDisposed) {
+      throw StateError(
+        'Cannot add a subform to a disposed AdvancedFormController.',
+      );
+    }
+    if (form.isDisposed) {
+      throw StateError(
+        'Cannot add a disposed AdvancedFormController as a subform.',
+      );
+    }
     if (value.subforms.contains(form)) {
       return;
     }
+
     _runChildCleanups();
 
     _setState(AdvancedFormState(
@@ -234,6 +254,8 @@ class AdvancedFormController
     }
   }
 
+  /// Wires listeners to each subform
+  /// in order to track and handle value/status changes
   void _wireChildren() {
     for (final field in value.fields) {
       var lastValue = field.value.value;
@@ -263,6 +285,7 @@ class AdvancedFormController
       });
     }
   }
+
 
   void _runChildCleanups() {
     for (final cleanup in _childCleanups) {
@@ -312,6 +335,7 @@ class AdvancedFormController
 
   @override
   void dispose() {
+    _isDisposed = true;
     _runChildCleanups();
     for (final field in _ownedFields) {
       field.dispose();
