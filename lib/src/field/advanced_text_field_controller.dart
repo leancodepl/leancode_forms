@@ -25,8 +25,7 @@ class AdvancedTextFieldController<E extends Object> extends AdvancedFieldControl
   /// controller — do not dispose externally.
   final TextEditingController textController;
 
-  /// The [FocusNode] bound to this field. Lifecycle owned by this class
-  /// don;t dispose externally.
+  /// The [FocusNode] bound to this field. Lifecycle owned by this controller — do not dispose externally.
   late final FocusNode focusNode = FocusNode(
     debugLabel:
         'AdvancedTextFieldController${name?.isNotEmpty ?? false ? '($name)' : ''}',
