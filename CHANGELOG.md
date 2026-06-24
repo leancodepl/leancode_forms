@@ -14,6 +14,7 @@
 * **Breaking:** Lifecycle method renamed from `close()` to `dispose()` on both controllers.
 * **Breaking:** `FormController` exposes `onValuesChanged` and `onStatusChanged` as `Listenable`s (previously `Stream`s named `onValuesChangedStream` / `onStatusChangedStream`).
 * `TextFieldController` now owns a `TextEditingController` (`field.textController`) kept in two-way sync with the field value. Widgets bind to it directly; programmatic changes (`setValue`, `reset`, `clear`) propagate to the text controller, and user input propagates back. Removes the dual-write bug class around resetting fields, set-to-initial flows, etc.
+* `TextFieldController` now owns a `FocusNode` (`field.focusNode`) and exposes a `focus()` shortcut. Enables scroll-to-first-invalid, sequential focus navigation, and programmatic focus from validators without subclassing.
 * `FieldController` gained an optional `String? name` parameter for debugging, logging, and serialization.
 * `Disposable` mixin removed (lifecycle is handled by `ChangeNotifier.dispose`).
 * Internal `distinctWithFirst` stream extension and `CancelableFuture` are no longer exported.

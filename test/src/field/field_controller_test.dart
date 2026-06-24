@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
@@ -323,6 +324,34 @@ void main() {
       expect(tf.value.value, '');
       expect(tf.textController.text, '');
       tf.dispose();
+    });
+  });
+
+  group('AdvancedTextFieldController focus node', () {
+    test('focusNode is created and not focused initially', () {
+      final tf = AdvancedTextFieldController<_Error>();
+      expect(tf.focusNode.hasFocus, false);
+      tf.dispose();
+    });
+
+    testWidgets('focus() requests focus on the focusNode', (tester) async {
+      final tf = AdvancedTextFieldController<_Error>();
+      addTearDown(tf.dispose);
+      await tester.pumpWidget(MaterialApp(
+        home: Material(
+          child: TextField(focusNode: tf.focusNode),
+        ),
+      ),);
+      tf.focus();
+      await tester.pump();
+      expect(tf.focusNode.hasFocus, true);
+    });
+
+    test('dispose disposes the focusNode', () {
+      final tf = AdvancedTextFieldController<_Error>();
+      final node = tf.focusNode;
+      tf.dispose();
+      expect(node.dispose, throwsAssertionError);
     });
   });
 }
