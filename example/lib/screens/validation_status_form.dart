@@ -28,7 +28,7 @@ class ValidationStatusForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    /// Here is the form controller that keeps all fields and their states
+    // Here is the form controller that keeps all fields and their states
     final controller = context.select<ValidationStatusFormController,
         ValidationStatusFormController>((c) => c);
     return FormPage(
@@ -38,7 +38,7 @@ class ValidationStatusForm extends StatelessWidget {
           children: [
             ScreenDescription([
               bold('Submit button enabling/disabling is based on form validity. '),
-              plain('Each field start autovalidating on unFocus. The Submit button is wrapped in '),
+              plain('Each field starts autovalidating when it loses focus. The Submit button is wrapped in '),
               code('AdvancedValidationStatusBuilder'),
               plain(', which subscribes to form validation status'),
               plain(' and rebuilds whenever any field flips between '),
