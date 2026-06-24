@@ -357,10 +357,9 @@ class AdvancedFormController
 /// every internal state recompute (`_handleValuesChanged`,
 /// `_handleStatusChanged`, etc.) would notify listeners even when the
 /// recomputed state is identical to the previous one.
-///
-/// **Maintainer note:** when adding a new field below, you MUST also add it
-/// to both [operator ==] and [hashCode] at the bottom of the class, otherwise
-/// the new field is silently invisible to dedup and structural comparisons.
+// Maintainer note: when adding a new field below, you MUST also add it
+// to both `operator ==` and `hashCode` at the bottom of the class, otherwise
+// the new field is silently invisible to dedup and structural comparisons.
 class AdvancedFormState {
   /// Creates a new [AdvancedFormState].
   const AdvancedFormState({

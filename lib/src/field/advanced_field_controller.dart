@@ -302,10 +302,9 @@ enum FieldStatus {
 /// is required for [ValueNotifier]'s built-in dedup — without it, every
 /// [AdvancedFieldController.setValue] call would notify listeners even when the new
 /// state is identical to the old one.
-///
-/// **Maintainer note:** when adding a new field below, you MUST also add it
-/// to both [operator ==] and [hashCode] at the bottom of the class, otherwise
-/// the new field is silently invisible to dedup and structural comparisons.
+// Maintainer note: when adding a new field below, you MUST also add it
+// to both `operator ==` and `hashCode` at the bottom of the class, otherwise
+// the new field is silently invisible to dedup and structural comparisons.
 class AdvancedFieldState<T, E extends Object> {
   /// Creates a new [AdvancedFieldState].
   const AdvancedFieldState({
