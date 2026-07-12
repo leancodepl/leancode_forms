@@ -301,6 +301,17 @@ class AdvancedFieldController<T, E extends Object>
 
   @override
   AdvancedFieldState<T, E> get value => _value;
+
+  /// The current field value — shortcut for `value.value`.
+  ///
+  /// Useful in subclasses with composite values, where `value.value.currency`
+  /// would otherwise stack up (state -> record -> component).
+  T get fieldValue => value.value;
+
+  /// The current error — shortcut for `value.error`
+  /// ([AdvancedFieldState.validationError] falling back to
+  /// [AdvancedFieldState.asyncError]).
+  E? get error => value.error;
 }
 
 /// The status of a [AdvancedFieldController].
