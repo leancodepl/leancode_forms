@@ -270,6 +270,8 @@ field.removeListener(_onChange);
 
 Same primitive `FieldBuilder` and `ValueListenableBuilder` use internally — just without the widget plumbing.
 
+If you're used to `leancode_forms` way of listening, use `onValueChange` and `stream` migration helpers. See [Migrating a rich custom field](./MIGRATION.md#9-migrating-a-rich-custom-field) in the migration guide.
+
 ---
 
 ## When to pick which
