@@ -283,6 +283,171 @@ class _SimpleFormScreenState extends State<SimpleFormScreen> {
 
 ---
 
+## 9. Migrating a rich custom field
+
+> Class names in this section use the current `Advanced*` prefix from the codebase.
+
+If you've been using `leancode_lint` library for a while, you probably have a folder full of custom fields: `FieldCubit` subclasses with a business-typed value (a `Decimal`, a record, a DTO, basically not a raw string), their own error types, and a couple of domain methods. That's the intended way to use the library, and it's usually the part people worry about most before migrating: "do I have to rewrite 30 of these?"
+
+You don't. Your field logic doesn't care whether it sits on a cubit or a `ChangeNotifier` — validators, error hierarchies, and domain methods carry over as-is. The migration is a rename plus one accessor change, and it's the same two edits in every file, so it's easy to knock out mechanically.
+
+Here's a realistic field, before and after. It holds an amount paired with a unit, validates against min/max bounds that are recomputed on every pass (so they can depend on other app state), and accepts validation errors coming back from the server.
+
+**OLD**
+
+```dart
+typedef QuantityFieldValue = ({String unit, num? amount});
+
+sealed class QuantityFieldError {
+  const QuantityFieldError();
+}
+
+final class QuantityNotFilledError extends QuantityFieldError {
+  const QuantityNotFilledError();
+}
+
+final class QuantityBelowMinError extends QuantityFieldError {
+  const QuantityBelowMinError({required this.min, required this.unit});
+  final num min;
+  final String unit;
+}
+
+final class QuantityBackendError extends QuantityFieldError {
+  const QuantityBackendError(this.message);
+  final String message;
+}
+
+typedef QuantityBounds = ({num min, num max});
+
+class QuantityFieldCubit
+    extends FieldCubit<QuantityFieldValue, QuantityFieldError> {
+  QuantityFieldCubit({
+    String initialUnit = 'kg',
+    num? initialAmount,
+    QuantityBounds? Function()? bounds,
+  }) : super(
+          initialValue: (unit: initialUnit, amount: initialAmount),
+          // Recomputed on every validation pass, so the bound can react
+          // to upstream state (e.g. the currently selected product).
+          validator: (value) => _validate(value, bounds?.call()),
+        );
+
+  static QuantityFieldError? _validate(
+    QuantityFieldValue value,
+    QuantityBounds? bounds,
+  ) {
+    final amount = value.amount;
+    if (amount == null) {
+      return const QuantityNotFilledError();
+    }
+    if (bounds != null && amount < bounds.min) {
+      return QuantityBelowMinError(min: bounds.min, unit: value.unit);
+    }
+    return null;
+  }
+
+  /// Replaces the numeric component while keeping the current unit.
+  void setAmount(num? amount) =>
+      setValue((unit: state.value.unit, amount: amount));
+
+  /// Pushes a server-side validation error into the field.
+  void setBackendError(String message) =>
+      setError(QuantityBackendError(message));
+
+  /// Clears a backend error by re-running the local validator.
+  void clearBackendError() {
+    if (state.validationError is QuantityBackendError) {
+      validate();
+    }
+  }
+}
+```
+
+**NEW** — same value type, same errors, same bounds callback, same methods. Two things change:
+
+1. The base class: `FieldCubit` → `AdvancedFieldController` (and you'll probably rename your own class `*Cubit` → `*Controller` while you're at it).
+2. How you read the current state: `state.value` → `fieldValue`, `state.validationError` → `value.validationError`.
+
+That's the whole diff:
+
+```dart
+class QuantityFieldController
+    extends AdvancedFieldController<QuantityFieldValue, QuantityFieldError> {
+  QuantityFieldController({
+    String initialUnit = 'kg',
+    num? initialAmount,
+    QuantityBounds? Function()? bounds,
+    super.name, // optional: shows up in logs and FocusNode debugLabels
+  }) : super(
+          initialValue: (unit: initialUnit, amount: initialAmount),
+          validator: (value) => _validate(value, bounds?.call()),
+        );
+
+  static QuantityFieldError? _validate(
+    QuantityFieldValue value,
+    QuantityBounds? bounds,
+  ) {
+    final amount = value.amount;
+    if (amount == null) {
+      return const QuantityNotFilledError();
+    }
+    if (bounds != null && amount < bounds.min) {
+      return QuantityBelowMinError(min: bounds.min, unit: value.unit);
+    }
+    return null;
+  }
+
+  /// Replaces the numeric component while keeping the current unit.
+  void setAmount(num? amount) =>
+      setValue((unit: fieldValue.unit, amount: amount));
+
+  /// Pushes a server-side validation error into the field.
+  void setBackendError(String message) =>
+      setError(QuantityBackendError(message));
+
+  /// Clears a backend error by re-running the local validator.
+  void clearBackendError() {
+    if (value.validationError is QuantityBackendError) {
+      validate();
+    }
+  }
+}
+```
+
+A few things worth knowing while you do this:
+
+- **You won't get extra rebuilds after the migration.** Previously, `Equatable` made sure that emitting an identical state didn't notify anyone. The new `FieldState` does the same through its `operator ==`, and Dart records compare by content — so calling `setValue` with an unchanged record is still a no-op for your listeners. No behavioral surprises hiding here.
+- **`fieldValue` exists so you don't have to write `value.value.unit`.** With a record-valued field, the "official" path to a component is state → record → component, which stacks up as `value.value.unit`. `fieldValue.unit` reads like `state.value.unit` used to. Same deal with `error` vs `value.error`. Small thing, but you'll hit it in every method of every custom field, so it's worth adopting from the start.
+- **`name` is new and optional.** Give a field a name and it shows up in logs and `FocusNode` debug labels, which helps when you're staring at a form with fifteen fields and one of them misbehaves. Skip it if you don't need it — it changes nothing about behavior.
+
+### "But I listened to cubit streams"
+
+The old cubits exposed a `stream`, and if your project is anything like ours, you built listening patterns on top of it. Notifiers don't have streams — here's where each pattern goes, starting with the most common:
+
+- **Field B revalidates when field A changes** — `subscribeToFields([fieldA])`, exactly like in old version. Nothing to migrate.
+- **Do something when part of a field's value changes** — say, refresh the price when the selected product changes. If you had a `select`/`listen` extension on `FieldCubit` for this (many projects did), `onValueChange` is its drop-in replacement:
+
+  ```dart
+  final cleanup = productField.onValueChange(
+    (value) => value.productId,
+    (productId) => priceField.refreshFor(productId),
+  );
+  // Later, e.g. in dispose():
+  cleanup();
+  ```
+
+- **Code that genuinely composes streams** — rxdart operators, `await for`, merging fields into a pipeline. You don't have to rewrite it today: bridge the field with `stream` and move on.
+
+  ```dart
+  quantityField.stream
+      .map((state) => state.value.amount)
+      .listen(recalculateTotals);
+  ```
+
+  Treat the bridge as harness, not architecture: it exists so a big migration doesn't stall on its hairiest corner, and the plan is to deprecate it once everyone's across. New code should use `addListener`, `subscribeToFields`, or the builders — they cover everything streams did here, without the extra moving parts.
+
+---
+
 ## Reference
 
 - The new architecture is documented in [`README.md`](./README.md).
