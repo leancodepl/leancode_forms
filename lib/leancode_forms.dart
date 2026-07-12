@@ -1,5 +1,6 @@
 export 'src/field/advanced_boolean_field_controller.dart';
 export 'src/field/advanced_field_controller.dart';
+export 'src/field/advanced_field_controller_extensions.dart';
 export 'src/field/advanced_multi_select_field_controller.dart';
 export 'src/field/advanced_single_select_field_controller.dart';
 export 'src/field/advanced_text_field_controller.dart';
