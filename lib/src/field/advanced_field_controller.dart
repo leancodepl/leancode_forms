@@ -19,7 +19,8 @@ typedef ErrorTranslator<E extends Object> = String Function(E);
 /// to be able to unambiguously detect lack of errors.
 ///
 /// If autovalidate is true, the validator will be run after each field change.
-class AdvancedFieldController<T, E extends Object> with ChangeNotifier
+class AdvancedFieldController<T, E extends Object>
+    with ChangeNotifier
     implements ValueListenable<AdvancedFieldState<T, E>> {
   /// Creates a new [AdvancedFieldController] with an initial value and a validator.
   AdvancedFieldController({
@@ -74,7 +75,9 @@ class AdvancedFieldController<T, E extends Object> with ChangeNotifier
   /// Subscribes to the [fields] and revalidates this field whenever any of
   /// their values change. Only fires on value changes — status changes on the
   /// observed fields are ignored.
-  void subscribeToFields(List<AdvancedFieldController<dynamic, dynamic>> fields) {
+  void subscribeToFields(
+    List<AdvancedFieldController<dynamic, dynamic>> fields,
+  ) {
     _fieldsSubscriptionCleanup?.call();
 
     final lastValues = <dynamic>[for (final f in fields) f.value.value];
@@ -119,16 +122,17 @@ class AdvancedFieldController<T, E extends Object> with ChangeNotifier
       return;
     }
 
-    _setState(AdvancedFieldState<T, E>(
-      value: newValue,
-      validationError: validationError,
-      asyncError: value.asyncError,
-      autovalidate: value.autovalidate,
-      readOnly: value.readOnly,
-      status: validationError == null
-          ? FieldStatus.valid
-          : FieldStatus.invalid,
-    ),);
+    _setState(
+      AdvancedFieldState<T, E>(
+        value: newValue,
+        validationError: validationError,
+        asyncError: value.asyncError,
+        autovalidate: value.autovalidate,
+        readOnly: value.readOnly,
+        status:
+            validationError == null ? FieldStatus.valid : FieldStatus.invalid,
+      ),
+    );
   }
 
   Future<void> _runAsyncValidator(T newValue) async {
@@ -137,24 +141,28 @@ class AdvancedFieldController<T, E extends Object> with ChangeNotifier
 
     final completer = Completer<E?>();
 
-    _setState(AdvancedFieldState<T, E>(
-      value: newValue,
-      validationError: value.validationError,
-      asyncError: value.asyncError,
-      autovalidate: value.autovalidate,
-      readOnly: value.readOnly,
-      status: FieldStatus.pending,
-    ),);
-
-    _debounceTimer = Timer(_asyncValidationDebounce, () async {
-      _setState(AdvancedFieldState<T, E>(
+    _setState(
+      AdvancedFieldState<T, E>(
         value: newValue,
         validationError: value.validationError,
         asyncError: value.asyncError,
         autovalidate: value.autovalidate,
         readOnly: value.readOnly,
-        status: FieldStatus.validating,
-      ),);
+        status: FieldStatus.pending,
+      ),
+    );
+
+    _debounceTimer = Timer(_asyncValidationDebounce, () async {
+      _setState(
+        AdvancedFieldState<T, E>(
+          value: newValue,
+          validationError: value.validationError,
+          asyncError: value.asyncError,
+          autovalidate: value.autovalidate,
+          readOnly: value.readOnly,
+          status: FieldStatus.validating,
+        ),
+      );
 
       _asyncValidationFuture = CancelableFuture(
         future: _asyncValidator!(newValue),
@@ -164,13 +172,15 @@ class AdvancedFieldController<T, E extends Object> with ChangeNotifier
 
     final error = await completer.future;
 
-    _setState(AdvancedFieldState<T, E>(
-      value: newValue,
-      asyncError: error,
-      autovalidate: value.autovalidate,
-      readOnly: value.readOnly,
-      status: error == null ? FieldStatus.valid : FieldStatus.invalid,
-    ),);
+    _setState(
+      AdvancedFieldState<T, E>(
+        value: newValue,
+        asyncError: error,
+        autovalidate: value.autovalidate,
+        readOnly: value.readOnly,
+        status: error == null ? FieldStatus.valid : FieldStatus.invalid,
+      ),
+    );
   }
 
   /// Returns `null` if field is readonly. Otherwise returns [setValue].
@@ -186,13 +196,15 @@ class AdvancedFieldController<T, E extends Object> with ChangeNotifier
 
   /// Sets a new [error] and marks the field as invalid.
   void setError(E? error) {
-    _setState(AdvancedFieldState<T, E>(
-      value: value.value,
-      validationError: error,
-      autovalidate: value.autovalidate,
-      readOnly: value.readOnly,
-      status: FieldStatus.invalid,
-    ),);
+    _setState(
+      AdvancedFieldState<T, E>(
+        value: value.value,
+        validationError: error,
+        autovalidate: value.autovalidate,
+        readOnly: value.readOnly,
+        status: FieldStatus.invalid,
+      ),
+    );
   }
 
   /// Runs the sync validator. Returns true if there are no errors.
@@ -206,14 +218,16 @@ class AdvancedFieldController<T, E extends Object> with ChangeNotifier
     final error = _validator(value.value);
 
     if (error != value.validationError) {
-      _setState(AdvancedFieldState<T, E>(
-        value: value.value,
-        validationError: error,
-        asyncError: value.asyncError,
-        autovalidate: value.autovalidate,
-        readOnly: value.readOnly,
-        status: error == null ? FieldStatus.valid : FieldStatus.invalid,
-      ),);
+      _setState(
+        AdvancedFieldState<T, E>(
+          value: value.value,
+          validationError: error,
+          asyncError: value.asyncError,
+          autovalidate: value.autovalidate,
+          readOnly: value.readOnly,
+          status: error == null ? FieldStatus.valid : FieldStatus.invalid,
+        ),
+      );
     }
 
     return value.validationError == null;
@@ -221,46 +235,54 @@ class AdvancedFieldController<T, E extends Object> with ChangeNotifier
 
   /// When autovalidate is true, setting a new value will trigger a validation.
   void setAutovalidate(bool autovalidate) {
-    _setState(AdvancedFieldState<T, E>(
-      value: value.value,
-      validationError: value.validationError,
-      asyncError: value.asyncError,
-      autovalidate: autovalidate,
-      readOnly: value.readOnly,
-      status: value.status,
-    ),);
+    _setState(
+      AdvancedFieldState<T, E>(
+        value: value.value,
+        validationError: value.validationError,
+        asyncError: value.asyncError,
+        autovalidate: autovalidate,
+        readOnly: value.readOnly,
+        status: value.status,
+      ),
+    );
   }
 
   /// Prevents further changes of value [T].
   void markReadOnly() {
-    _setState(AdvancedFieldState<T, E>(
-      value: value.value,
-      validationError: value.validationError,
-      asyncError: value.asyncError,
-      autovalidate: value.autovalidate,
-      readOnly: true,
-      status: value.status,
-    ),);
+    _setState(
+      AdvancedFieldState<T, E>(
+        value: value.value,
+        validationError: value.validationError,
+        asyncError: value.asyncError,
+        autovalidate: value.autovalidate,
+        readOnly: true,
+        status: value.status,
+      ),
+    );
   }
 
   /// Allows further changes of value [T].
   void unmarkReadOnly() {
-    _setState(AdvancedFieldState<T, E>(
-      value: value.value,
-      validationError: value.validationError,
-      asyncError: value.asyncError,
-      autovalidate: value.autovalidate,
-      status: value.status,
-    ),);
+    _setState(
+      AdvancedFieldState<T, E>(
+        value: value.value,
+        validationError: value.validationError,
+        asyncError: value.asyncError,
+        autovalidate: value.autovalidate,
+        status: value.status,
+      ),
+    );
   }
 
   /// Clears all errors on this field.
   void clearErrors() {
-    _setState(AdvancedFieldState<T, E>(
-      value: value.value,
-      autovalidate: value.autovalidate,
-      readOnly: value.readOnly,
-    ),);
+    _setState(
+      AdvancedFieldState<T, E>(
+        value: value.value,
+        autovalidate: value.autovalidate,
+        readOnly: value.readOnly,
+      ),
+    );
   }
 
   /// Resets the field to its initial value.
