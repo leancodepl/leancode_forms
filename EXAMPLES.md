@@ -1,23 +1,23 @@
 # Examples
 
-## Using `FieldBuilder` (recommended)
+## Using `AdvancedFieldBuilder` (recommended)
 
-Common form scenarios using `FieldBuilder` — a thin wrapper around `ValueListenableBuilder` that saves typing the `<FieldState<T, E>>` type argument and reads as "build for a field" at call sites.
+Common form scenarios using `AdvancedFieldBuilder` — a thin wrapper around `ValueListenableBuilder` that saves typing the `<AdvancedFieldState<T, E>>` type argument and reads as "build for a field" at call sites.
 
 ### 1. A simple text field with an error message
 
 ```dart
 class _MyError {}
 
-final field = TextFieldController<_MyError>(
+final field = AdvancedTextFieldController<_MyError>(
   initialValue: '',
   validator: filled(_MyError()),
 );
 
 // In the widget tree:
-FieldBuilder<String, _MyError>(
+AdvancedFieldBuilder<String, _MyError>(
   field: field,
-  builder: (context, state) {
+  builder: (context, state, _) {
     return TextFormField(
       controller: field.textController,           // <-- no manual wiring
       decoration: InputDecoration(
@@ -28,22 +28,22 @@ FieldBuilder<String, _MyError>(
 );
 ```
 
-Note the `controller: field.textController` — `TextFieldController` owns its own `TextEditingController`, kept in two-way sync with the field value. Programmatic resets (`field.reset()`, `field.clear()`) propagate to the visible text automatically.
+Note the `controller: field.textController` — `AdvancedTextFieldController` owns its own `TextEditingController`, kept in two-way sync with the field value. Programmatic changes (`field.reset()`, `field.setValue(...)`) propagate to the visible text automatically.
 
 ### 2. A form with submit-time validation
 
 ```dart
-class SimpleFormController extends FormController {
+class SimpleFormController extends AdvancedFormController {
   SimpleFormController() {
     registerFields([firstName, email]);
   }
 
-  final firstName = TextFieldController(
+  final firstName = AdvancedTextFieldController(
     initialValue: 'John',
     validator: filled(ValidationError.empty),
   );
 
-  final email = TextFieldController(
+  final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
   );
 
@@ -73,12 +73,12 @@ ElevatedButton(
 ### 3. Async email validation
 
 ```dart
-class SignupController extends FormController {
+class SignupController extends AdvancedFormController {
   SignupController() {
     registerFields([email]);
   }
 
-  final email = TextFieldController(
+  final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
     asyncValidator: _checkEmail,
     asyncValidationDebounce: const Duration(milliseconds: 500),
@@ -92,13 +92,13 @@ class SignupController extends FormController {
 }
 
 // Let's select field reference
-final email = context.select<SignupController, TextFieldController<ValidationError>>(
+final email = context.select<SignupController, AdvancedTextFieldController<ValidationError>>(
   (c) => c.email,
 );
 
-return FieldBuilder<String, ValidationError>(
+return AdvancedFieldBuilder<String, ValidationError>(
   field: email,
-  builder: (context, state) => TextFormField(
+  builder: (context, state, _) => TextFormField(
     controller: email.textController,
     decoration: InputDecoration(
       errorText: state.error?.toString(),
@@ -116,27 +116,27 @@ return FieldBuilder<String, ValidationError>(
 ### 4. Cross-field validation (password / repeat-password)
 
 ```dart
-class PasswordFormController extends FormController {
+class PasswordFormController extends AdvancedFormController {
   PasswordFormController() {
     registerFields([password, repeatPassword]);
   }
 
-  final password = TextFieldController(
+  final password = AdvancedTextFieldController(
     validator: atLeastLength(8, ValidationError.toShort),
   );
 
-  late final repeatPassword = TextFieldController<ValidationError>(
+  late final repeatPassword = AdvancedTextFieldController<ValidationError>(
     validator: (value) =>
         value == password.value.value ? null : ValidationError.doesNotMatch,
   )..subscribeToFields([password]);
 }
 ```
 
-`subscribeToFields` listens to the given fields and re-runs this field's validator whenever any of their values change.
+`subscribeToFields` listens to the given fields and re-runs this field's validator whenever any of their values change. It only revalidates — it does not update this field's *value* in response to another field. For a value dependency ("when B changes, set A"), use `addListener` on the source field and `setValue` on the target (or the `onValueChange` migration helper).
 
 ### 5. A reusable custom form widget
 
-Wrap `FieldBuilder` in a `StatelessWidget` to keep call sites tidy across a real app:
+Wrap `AdvancedFieldBuilder` in a `StatelessWidget` to keep call sites tidy across a real app:
 
 ```dart
 class FormTextField<E extends Object> extends StatelessWidget {
@@ -147,15 +147,15 @@ class FormTextField<E extends Object> extends StatelessWidget {
     this.labelText,
   });
 
-  final TextFieldController<E> field;
+  final AdvancedTextFieldController<E> field;
   final ErrorTranslator<E> translateError;
   final String? labelText;
 
   @override
   Widget build(BuildContext context) {
-    return FieldBuilder<String, E>(
+    return AdvancedFieldBuilder<String, E>(
       field: field,
-      builder: (context, state) => TextFormField(
+      builder: (context, state, _) => TextFormField(
         controller: field.textController,
         decoration: InputDecoration(
           labelText: labelText,
@@ -180,18 +180,17 @@ FormTextField(
 
 ## Using `ValueListenableBuilder` directly
 
-`FieldBuilder` is shorthand. When you want the SDK primitive instead, drop down to `ValueListenableBuilder`. Reasons to reach for it:
+`AdvancedFieldBuilder` is shorthand. When you want the SDK primitive instead, drop down to `ValueListenableBuilder`. Reasons to reach for it:
 
-- **The `child:` optimization** — keep an expensive subtree out of the rebuild path.
-- **No extra import** beyond `flutter/widgets.dart` (`FieldBuilder` adds a dependency on `package:leancode_forms`).
+- **No extra import** beyond `flutter/widgets.dart` (`AdvancedFieldBuilder` adds a dependency on `package:leancode_forms`).
 - **Consistency with other notifier-based code** in your codebase.
 
-Trade-off: you have to type the `<FieldState<T, E>>` type argument explicitly.
+Trade-off: you have to type the `<AdvancedFieldState<T, E>>` type argument explicitly.
 
 ### 1. A simple text field — explicit form
 
 ```dart
-ValueListenableBuilder<FieldState<String, _MyError>>(
+ValueListenableBuilder<AdvancedFieldState<String, _MyError>>(
   valueListenable: field,
   builder: (context, state, _) => TextFormField(
     controller: field.textController,
@@ -202,14 +201,14 @@ ValueListenableBuilder<FieldState<String, _MyError>>(
 );
 ```
 
-Same output as the `FieldBuilder` version. Six extra characters of type argument, one extra `_` for the unused `child` slot.
+Same output as the `AdvancedFieldBuilder` version — the only difference is the spelled-out type argument.
 
 ### 2. Using the `child:` optimization
 
 If part of the subtree is expensive but invariant in the field state, pass it as `child:` so it's built once and reused on every rebuild:
 
 ```dart
-ValueListenableBuilder<FieldState<String, _MyError>>(
+ValueListenableBuilder<AdvancedFieldState<String, _MyError>>(
   valueListenable: field,
   child: const _ExpensiveLeadingIcon(),       // built once
   builder: (context, state, child) {
@@ -230,14 +229,14 @@ ValueListenableBuilder<FieldState<String, _MyError>>(
 );
 ```
 
-`FieldBuilder` doesn't expose `child:` (the goal there is brevity, not knobs). If you need this optimization, `ValueListenableBuilder` is the right tool.
+`AdvancedFieldBuilder` forwards `child:` to `ValueListenableBuilder`, so the same optimization works there too — pick whichever reads better.
 
 ### 3. Watching only a derived slice — combine with `ValueListenable` adapters
 
-`FieldController` is a full `ValueListenable<FieldState<T, E>>`. If a part of your UI cares only about, say, `state.isValidating`, you can wrap it once and listen to the derived notifier directly. (Pattern using `ValueListenableBuilder.builder` with a small selector helper.)
+`AdvancedFieldController` is a full `ValueListenable<AdvancedFieldState<T, E>>`. If a part of your UI cares only about, say, `state.isValidating`, you can wrap it once and listen to the derived notifier directly. (Pattern using `ValueListenableBuilder.builder` with a small selector helper.)
 
 ```dart
-ValueListenableBuilder<FieldState<String, _MyError>>(
+ValueListenableBuilder<AdvancedFieldState<String, _MyError>>(
   valueListenable: field,
   builder: (context, state, _) {
     // Only this subtree rebuilds; surrounding widgets can subscribe separately.
@@ -252,11 +251,11 @@ ValueListenableBuilder<FieldState<String, _MyError>>(
 );
 ```
 
-You could of course do the same inside a `FieldBuilder`. The point is that with `ValueListenableBuilder` you stay on SDK types end to end — useful if you're already composing with other `ValueListenable`s elsewhere in the screen (animations, scroll positions, theme observers).
+You could of course do the same inside an `AdvancedFieldBuilder`. The point is that with `ValueListenableBuilder` you stay on SDK types end to end — useful if you're already composing with other `ValueListenable`s elsewhere in the screen (animations, scroll positions, theme observers).
 
 ### 4. Listening outside a widget tree
 
-Both `FieldBuilder` and `ValueListenableBuilder` are widgets. If you need to react to changes from a non-widget context (a service, another controller, a `late final` initializer), skip both and use `addListener` directly:
+Both `AdvancedFieldBuilder` and `ValueListenableBuilder` are widgets. If you need to react to changes from a non-widget context (a service, another controller, a `late final` initializer), skip both and use `addListener` directly:
 
 ```dart
 void _onChange() {
@@ -268,9 +267,9 @@ field.addListener(_onChange);
 field.removeListener(_onChange);
 ```
 
-Same primitive `FieldBuilder` and `ValueListenableBuilder` use internally — just without the widget plumbing.
+Same primitive `AdvancedFieldBuilder` and `ValueListenableBuilder` use internally — just without the widget plumbing.
 
-If you're used to `leancode_forms` way of listening, use `onValueChange` and `stream` migration helpers. See [Migrating a rich custom field](./MIGRATION.md#9-migrating-a-rich-custom-field) in the migration guide.
+Coming from 0.1.x and its cubit streams? The `onValueChange` and `stream` migration helpers bridge the gap — see [Migrating a rich custom field](./MIGRATION.md#9-migrating-a-rich-custom-field) in the migration guide.
 
 ---
 
@@ -278,10 +277,10 @@ If you're used to `leancode_forms` way of listening, use `onValueChange` and `st
 
 | Situation | Use |
 | --- | --- |
-| Most form widgets | `FieldBuilder` |
-| Migrating from 0.1.x code that already used `FieldBuilder` | `FieldBuilder` (just rename the field type) |
-| Need the `child:` optimization for a static subtree | `ValueListenableBuilder` |
+| Most form widgets | `AdvancedFieldBuilder` |
+| Migrating from 0.1.x code that used `FieldBuilder` | `AdvancedFieldBuilder` (rename, add `, _` to the builder) |
+| Need the `child:` optimization for a static subtree | Either — both expose `child:` |
 | Already composing with other `ValueListenable`s on the screen | `ValueListenableBuilder` |
 | Reacting outside a widget tree | `field.addListener(...)` directly |
 
-There's no behavioral difference between `FieldBuilder` and `ValueListenableBuilder` — the first is the second wrapped in 30 lines. Pick whichever reads better at the call site.
+There's no behavioral difference between `AdvancedFieldBuilder` and `ValueListenableBuilder` — the first is the second wrapped in 30 lines. Pick whichever reads better at the call site.
