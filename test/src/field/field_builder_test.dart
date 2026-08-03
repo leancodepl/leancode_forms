@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
 void main() {
-  testWidgets('AdvancedFieldBuilder rebuilds when the field changes', (tester) async {
+  testWidgets('AdvancedFieldBuilder rebuilds when the field changes',
+      (tester) async {
     final field = AdvancedTextFieldController<String>(initialValue: 'first');
     addTearDown(field.dispose);
 

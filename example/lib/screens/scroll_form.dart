@@ -36,7 +36,8 @@ class _ScrollFormState extends State<ScrollForm> {
     super.didChangeDependencies();
     _eventSubscription ??= context.read<ScrollFormController>().events.listen(
       (event) {
-        if (event is SubmitFailedWithErrors) {
+        final context = this.context;
+        if (event is SubmitFailedWithErrors && context.mounted) {
           _scrollToFirstError(context.read<ScrollFormController>());
         }
       },

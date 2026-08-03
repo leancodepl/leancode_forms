@@ -42,10 +42,34 @@ class AdvancedFieldController<T, E extends Object>
 
   final T _initialValue;
 
-  ///Private getter
+  final Validator<T, E> _validator;
+
+  final AsyncValidator<T, E>? _asyncValidator;
+
+  final Duration _asyncValidationDebounce;
+
   AdvancedFieldState<T, E> _value;
 
-  ///Private setter
+  Timer? _debounceTimer;
+
+  CancelableFuture<E?>? _asyncValidationFuture;
+
+  VoidCallback? _fieldsSubscriptionCleanup;
+
+  @override
+  AdvancedFieldState<T, E> get value => _value;
+
+  /// The current field value — shortcut for `value.value`.
+  ///
+  /// Useful in subclasses with composite values, where `value.value.currency`
+  /// would otherwise stack up (state -> record -> component).
+  T get fieldValue => value.value;
+
+  /// The current error — shortcut for `value.error`
+  /// ([AdvancedFieldState.validationError] falling back to
+  /// [AdvancedFieldState.asyncError]).
+  E? get error => value.error;
+
   void _setState(AdvancedFieldState<T, E> newValue) {
     if (newValue == _value) {
       return;
@@ -59,18 +83,6 @@ class AdvancedFieldController<T, E extends Object>
   /// which only the async-validator pipeline can produce).
   @visibleForTesting
   void debugSetState(AdvancedFieldState<T, E> state) => _setState(state);
-
-  final Validator<T, E> _validator;
-
-  final AsyncValidator<T, E>? _asyncValidator;
-
-  final Duration _asyncValidationDebounce;
-
-  Timer? _debounceTimer;
-
-  CancelableFuture<E?>? _asyncValidationFuture;
-
-  VoidCallback? _fieldsSubscriptionCleanup;
 
   /// Subscribes to the [fields] and revalidates this field whenever any of
   /// their values change. Only fires on value changes — status changes on the
@@ -123,12 +135,9 @@ class AdvancedFieldController<T, E extends Object>
     }
 
     _setState(
-      AdvancedFieldState<T, E>(
+      value.copyWithNullable(
         value: newValue,
         validationError: validationError,
-        asyncError: value.asyncError,
-        autovalidate: value.autovalidate,
-        readOnly: value.readOnly,
         status:
             validationError == null ? FieldStatus.valid : FieldStatus.invalid,
       ),
@@ -141,27 +150,11 @@ class AdvancedFieldController<T, E extends Object>
 
     final completer = Completer<E?>();
 
-    _setState(
-      AdvancedFieldState<T, E>(
-        value: newValue,
-        validationError: value.validationError,
-        asyncError: value.asyncError,
-        autovalidate: value.autovalidate,
-        readOnly: value.readOnly,
-        status: FieldStatus.pending,
-      ),
-    );
+    _setState(value.copyWithNullable(value: newValue, status: FieldStatus.pending));
 
     _debounceTimer = Timer(_asyncValidationDebounce, () async {
       _setState(
-        AdvancedFieldState<T, E>(
-          value: newValue,
-          validationError: value.validationError,
-          asyncError: value.asyncError,
-          autovalidate: value.autovalidate,
-          readOnly: value.readOnly,
-          status: FieldStatus.validating,
-        ),
+        value.copyWithNullable(value: newValue, status: FieldStatus.validating),
       );
 
       _asyncValidationFuture = CancelableFuture(
@@ -173,11 +166,10 @@ class AdvancedFieldController<T, E extends Object>
     final error = await completer.future;
 
     _setState(
-      AdvancedFieldState<T, E>(
+      value.copyWithNullable(
         value: newValue,
+        validationError: null,
         asyncError: error,
-        autovalidate: value.autovalidate,
-        readOnly: value.readOnly,
         status: error == null ? FieldStatus.valid : FieldStatus.invalid,
       ),
     );
@@ -197,11 +189,9 @@ class AdvancedFieldController<T, E extends Object>
   /// Sets a new [error] and marks the field as invalid.
   void setError(E? error) {
     _setState(
-      AdvancedFieldState<T, E>(
-        value: value.value,
+      value.copyWithNullable(
         validationError: error,
-        autovalidate: value.autovalidate,
-        readOnly: value.readOnly,
+        asyncError: null,
         status: FieldStatus.invalid,
       ),
     );
@@ -219,12 +209,8 @@ class AdvancedFieldController<T, E extends Object>
 
     if (error != value.validationError) {
       _setState(
-        AdvancedFieldState<T, E>(
-          value: value.value,
+        value.copyWithNullable(
           validationError: error,
-          asyncError: value.asyncError,
-          autovalidate: value.autovalidate,
-          readOnly: value.readOnly,
           status: error == null ? FieldStatus.valid : FieldStatus.invalid,
         ),
       );
@@ -235,52 +221,26 @@ class AdvancedFieldController<T, E extends Object>
 
   /// When autovalidate is true, setting a new value will trigger a validation.
   void setAutovalidate(bool autovalidate) {
-    _setState(
-      AdvancedFieldState<T, E>(
-        value: value.value,
-        validationError: value.validationError,
-        asyncError: value.asyncError,
-        autovalidate: autovalidate,
-        readOnly: value.readOnly,
-        status: value.status,
-      ),
-    );
+    _setState(value.copyWithNullable(autovalidate: autovalidate));
   }
 
   /// Prevents further changes of value [T].
   void markReadOnly() {
-    _setState(
-      AdvancedFieldState<T, E>(
-        value: value.value,
-        validationError: value.validationError,
-        asyncError: value.asyncError,
-        autovalidate: value.autovalidate,
-        readOnly: true,
-        status: value.status,
-      ),
-    );
+    _setState(value.copyWithNullable(readOnly: true));
   }
 
   /// Allows further changes of value [T].
   void unmarkReadOnly() {
-    _setState(
-      AdvancedFieldState<T, E>(
-        value: value.value,
-        validationError: value.validationError,
-        asyncError: value.asyncError,
-        autovalidate: value.autovalidate,
-        status: value.status,
-      ),
-    );
+    _setState(value.copyWithNullable(readOnly: false));
   }
 
   /// Clears all errors on this field.
   void clearErrors() {
     _setState(
-      AdvancedFieldState<T, E>(
-        value: value.value,
-        autovalidate: value.autovalidate,
-        readOnly: value.readOnly,
+      value.copyWithNullable(
+        validationError: null,
+        asyncError: null,
+        status: FieldStatus.valid,
       ),
     );
   }
@@ -298,20 +258,6 @@ class AdvancedFieldController<T, E extends Object>
     _fieldsSubscriptionCleanup = null;
     super.dispose();
   }
-
-  @override
-  AdvancedFieldState<T, E> get value => _value;
-
-  /// The current field value — shortcut for `value.value`.
-  ///
-  /// Useful in subclasses with composite values, where `value.value.currency`
-  /// would otherwise stack up (state -> record -> component).
-  T get fieldValue => value.value;
-
-  /// The current error — shortcut for `value.error`
-  /// ([AdvancedFieldState.validationError] falling back to
-  /// [AdvancedFieldState.asyncError]).
-  E? get error => value.error;
 }
 
 /// The status of a [AdvancedFieldController].
@@ -329,15 +275,12 @@ enum FieldStatus {
   validating,
 }
 
-/// The state of a [AdvancedFieldController].
+/// An immutable snapshot of an [AdvancedFieldController] — its current value,
+/// any validation errors, whether autovalidate and readonly are on, and where
+/// validation currently stands.
 ///
-/// Value-equal: two [AdvancedFieldState]s are equal when every field matches. This
-/// is required for [ValueNotifier]'s built-in dedup — without it, every
-/// [AdvancedFieldController.setValue] call would notify listeners even when the new
-/// state is identical to the old one.
-// Maintainer note: when adding a new field below, you MUST also add it
-// to both `operator ==` and `hashCode` at the bottom of the class, otherwise
-// the new field is silently invisible to dedup and structural comparisons.
+/// Obtain it from [AdvancedFieldController.value], or listen to the controller
+/// to be notified whenever it changes.
 class AdvancedFieldState<T, E extends Object> {
   /// Creates a new [AdvancedFieldState].
   const AdvancedFieldState({
@@ -397,7 +340,32 @@ class AdvancedFieldState<T, E extends Object> {
   /// The current status of the field.
   final FieldStatus status;
 
-  // ⚠️ Maintainer: keep these in sync with the fields declared above.
+  /// Returns a copy of this state with the given fields replaced.
+  ///
+  /// Omitting an argument keeps the current value. [validationError] and
+  /// [asyncError] accept `null` to clear the error, so they are only left
+  /// untouched when the argument is omitted entirely.
+  AdvancedFieldState<T, E> copyWithNullable({
+    Object? value = _unset,
+    Object? validationError = _unset,
+    Object? asyncError = _unset,
+    bool? autovalidate,
+    bool? readOnly,
+    FieldStatus? status,
+  }) =>
+      AdvancedFieldState<T, E>(
+        value: identical(value, _unset) ? this.value : value as T,
+        validationError: identical(validationError, _unset)
+            ? this.validationError
+            : validationError as E?,
+        asyncError:
+            identical(asyncError, _unset) ? this.asyncError : asyncError as E?,
+        autovalidate: autovalidate ?? this.autovalidate,
+        readOnly: readOnly ?? this.readOnly,
+        status: status ?? this.status,
+      );
+
+  // ⚠️ Maintainer: keep these and `copyWith` in sync with the fields above.
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -419,3 +387,8 @@ class AdvancedFieldState<T, E extends Object> {
         status,
       );
 }
+
+class _Unset {
+  const _Unset();
+}
+const _unset = _Unset();
