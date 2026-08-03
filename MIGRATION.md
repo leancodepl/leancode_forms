@@ -1,43 +1,59 @@
 # Migrating from 0.1.x to 0.2.0
 
-This guide is for anyone upgrading a form built on `leancode_forms` 0.1.x to 0.2.0.
+You have an app full of forms built on `leancode_forms` 0.1.x and you're wondering how much of your week this upgrade will eat. Short answer: for most codebases it's an afternoon, and most of that is search-and-replace.
 
-At a high level, **0.2.0 keeps the same form-building model** — `FieldX` + `FormGroup` + validators + subforms — but rebuilds the foundation underneath:
+The headline: **0.2.0 keeps the form-building model you already know** — fields, form groups, validators, subforms — and swaps the machinery underneath:
 
-- The library no longer depends on `flutter_bloc` or `rxdart`. Everything runs on `ValueNotifier` / `ChangeNotifier` from the Flutter SDK.
-- Every `*Cubit` class is renamed to `*Controller`. The public API on each is otherwise nearly identical.
-- Lifecycle is now synchronous (`dispose()` instead of `Future<void> close()`).
-- `TextFieldController` now owns a `TextEditingController` and keeps it bidirectionally synced with the field value — killing a class of widget-level bugs.
+- `flutter_bloc` and `rxdart` are gone from the dependency tree. Everything runs on `ValueNotifier`/`ChangeNotifier`, straight from the Flutter SDK — so this library no longer dictates your state-management stack. Use bloc, provider, riverpod, or nothing at all; your forms won't care.
+- Every `*Cubit` class is now an `Advanced*Controller` (e.g. `FieldCubit` → `AdvancedFieldController`). Same methods, same behavior, different name.
+- Lifecycle is synchronous: `dispose()` instead of `Future<void> close()`.
+- `AdvancedTextFieldController` now owns its `TextEditingController` and keeps it in sync with the field value — which kills a whole family of "the text on screen doesn't match the field" bugs you used to have to handle in widget code.
 
-Most call sites need only a class rename and an import cleanup.
+The whole migration, as a checklist:
+
+1. Search-and-replace the class names ([section 1](#1-rename-reference) has the full table).
+2. Replace `.state` reads with `.value` / `fieldValue` ([section 2](#2-migrating-your-form-classes)).
+3. Add `, _` to your `FieldBuilder` builders ([section 3](#3-migrating-your-widgets--fieldbuilder-becomes-advancedfieldbuilder)).
+4. Turn `close()` overrides into `dispose()` ([section 4](#4-lifecycle-close--dispose)).
+5. Delete the `TextEditingController` plumbing from text widgets — the field owns it now ([section 5](#5-advancedtextfieldcontroller-now-owns-its-texteditingcontroller)).
+6. Swap form-level stream subscriptions for listeners ([section 6](#6-advancedformcontroller-exposes-listenables-not-streams)).
+7. If you had custom cubit-stream patterns, wire them to their named replacements ([section 9](#9-migrating-a-rich-custom-field)).
+
+Steps 1–4 are mechanical; 5 deletes code; 6 and 7 usually touch a handful of files. Everything not on this list didn't change ([section 7](#7-what-didnt-change) is the reassurance checklist).
+
+Below is each step in detail, roughly in the order you'll hit it.
 
 ---
 
 ## 1. Rename reference
 
+Start here — for most files, this table *is* the migration:
+
 | 0.1.x | 0.2.0 |
 | --- | --- |
-| `FieldCubit<T, E>` | `FieldController<T, E>` |
-| `TextFieldCubit<E>` | `TextFieldController<E>` |
-| `BooleanFieldCubit<E>` | `BooleanFieldController<E>` |
-| `SingleSelectFieldCubit<V, E>` | `SingleSelectFieldController<V, E>` |
-| `MultiSelectFieldCubit<V, E>` | `MultiSelectFieldController<V, E>` |
-| `FormGroupCubit` | `FormController` |
-| `FieldBuilder<T, E>` | **Kept** — now a wrapper around `ValueListenableBuilder`; `field:` param re-typed to `FieldController<T, E>` |
+| `FieldCubit<T, E>` | `AdvancedFieldController<T, E>` |
+| `TextFieldCubit<E>` | `AdvancedTextFieldController<E>` |
+| `BooleanFieldCubit<E>` | `AdvancedBooleanFieldController<E>` |
+| `SingleSelectFieldCubit<V, E>` | `AdvancedSingleSelectFieldController<V, E>` |
+| `MultiSelectFieldCubit<V, E>` | `AdvancedMultiSelectFieldController<V, E>` |
+| `FormGroupCubit` | `AdvancedFormController` |
+| `FieldBuilder<T, E>` | `AdvancedFieldBuilder<T, E>` — now a wrapper around `ValueListenableBuilder`; `field:` re-typed to `AdvancedFieldController<T, E>`, `builder` gains a third `child` param |
 | `form.onValuesChangedStream` (`Stream<void>`) | `form.onValuesChanged` (`Listenable`) |
 | `form.onStatusChangedStream` (`Stream<FieldStatus>`) | `form.onStatusChanged` (`Listenable`) |
 | `Future<void> close()` | `void dispose()` |
 
-Dependency changes for your `pubspec.yaml`:
+And in your `pubspec.yaml`:
 
-- **Drop:** `flutter_bloc`, `rxdart`
-- (Example/test only — not the library itself.) **Drop:** `bloc_test`, `bloc_presentation`, `flutter_hooks` if you used them; **add:** `provider` if you want a drop-in replacement for `BlocProvider` / `context.read`
+- You can **drop `flutter_bloc` and `rxdart`** — unless something else in your app still needs them, of course.
+- If your tests or DI used **`bloc_test`, `bloc_presentation`, or `flutter_hooks`** just for forms, those can go too. **Add `provider`** if you want a drop-in replacement for `BlocProvider`/`context.read` (see [section 8](#8-migrating-exampletest-code-that-used-flutter_bloc-directly)).
+
+Fewer dependencies is the point, not a side effect: a forms library shouldn't be the reason your lockfile has a stream toolkit in it.
 
 ---
 
 ## 2. Migrating your form classes
 
-For most forms, the change is a search-and-replace of class names.
+Your form classes — the ones declaring fields and calling `registerFields` — migrate with a class rename and nothing else. Compare:
 
 **0.1.x:**
 ```dart
@@ -62,17 +78,17 @@ class SimpleFormCubit extends FormGroupCubit {
 
 **0.2.0:**
 ```dart
-class SimpleFormController extends FormController {
+class SimpleFormController extends AdvancedFormController {
   SimpleFormController() {
     registerFields([firstName, lastName, email]);
   }
 
-  final firstName = TextFieldController(
+  final firstName = AdvancedTextFieldController(
     initialValue: 'John',
     validator: filled(ValidationError.empty),
   );
-  final lastName = TextFieldController(initialValue: 'Foo');
-  final email = TextFieldController(
+  final lastName = AdvancedTextFieldController(initialValue: 'Foo');
+  final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
     asyncValidator: _onEmailChanged,
   );
@@ -81,7 +97,7 @@ class SimpleFormController extends FormController {
 }
 ```
 
-Reading the current state goes through `.value` (inherited from `ValueNotifier`):
+The one thing you'll actually have to touch by hand: reading the current state. The bloc-era `.state` getter is gone; state lives under `.value` now, because that's what `ValueListenable` calls it:
 
 ```dart
 // 0.1.x:
@@ -89,31 +105,43 @@ controller.firstName.state.value;
 
 // 0.2.0:
 controller.firstName.value.value;
+
+// or, nicer:
+controller.firstName.fieldValue;
 ```
 
-The bloc-era `.state` getter has been removed — `.value` is the only access path on both `FieldController` and `FormController`.
+Yes, `value.value` looks silly — that's why `fieldValue` exists as a shortcut to the inner value (and `error` for the current error). Prefer those in anything you write by hand.
 
-> **Why the rebuild?** `ValueNotifier` is a synchronous state container: when you assign a new value, listeners run in the same call stack — no broadcast stream, no microtask hop. Same observable behavior in real apps, simpler mental model, no `rxdart` plumbing, and the whole library now sits on Flutter SDK primitives only.
+> **Why the rebuild at all?** `ValueNotifier` is a synchronous state container: assign a new value and listeners run right there, in the same call stack — no broadcast stream, no microtask hop, nothing to await in tests. Your forms behave the same; there's just far less machinery between "value changed" and "widget rebuilt".
 
 ---
 
-## 3. Migrating your widgets — `FieldBuilder` stays
+## 3. Migrating your widgets — `FieldBuilder` becomes `AdvancedFieldBuilder`
 
-`FieldBuilder` is still here. We re-implemented it as a thin wrapper around the SDK's `ValueListenableBuilder` instead of `flutter_bloc`'s `BlocBuilder`. The constructor and builder signature are unchanged; only the `field:` parameter's static type went from `FieldCubit<T, E>` to `FieldController<T, E>` — and your specialized field types (`TextFieldController`, etc.) automatically satisfy that.
+Good news first: your widget code barely changes. `FieldBuilder` lives on as `AdvancedFieldBuilder` — now a thin wrapper around the SDK's `ValueListenableBuilder` instead of `flutter_bloc`'s `BlocBuilder`. Beyond the rename, two small differences:
+
+- The `field:` parameter's static type went from `FieldCubit<T, E>` to `AdvancedFieldController<T, E>` — your specialized field types (`AdvancedTextFieldController`, etc.) satisfy that automatically.
+- The `builder` callback gained a third parameter, `child` (it's a `ValueWidgetBuilder` now). Add a `, _` to each builder's parameter list and you're done — or actually use it, see below.
 
 ```dart
-// Identical in 0.1.x and 0.2.0:
+// 0.1.x:
 FieldBuilder<String, MyError>(
   field: controller.email,
   builder: (context, state) => Text(state.value),
 )
+
+// 0.2.0 — note the extra builder parameter:
+AdvancedFieldBuilder<String, MyError>(
+  field: controller.email,
+  builder: (context, state, _) => Text(state.value),
+)
 ```
 
-If you want the SDK's `child:` optimization for a static subtree, drop down to `ValueListenableBuilder`:
+That third parameter is the `child:` optimization for expensive static subtrees, which `BlocBuilder` never gave you — pass a subtree that doesn't depend on the field state and it's built once, then reused across rebuilds:
 
 ```dart
-ValueListenableBuilder<FieldState<String, MyError>>(
-  valueListenable: controller.email,
+AdvancedFieldBuilder<String, MyError>(
+  field: controller.email,
   child: const ExpensiveStaticIcon(),
   builder: (context, state, child) => Row(
     children: [child!, Text(state.value)],
@@ -121,11 +149,15 @@ ValueListenableBuilder<FieldState<String, MyError>>(
 )
 ```
 
-> **Why a wrapper, not removal?** Strictly speaking, `FieldBuilder` is now redundant — the SDK ships an equivalent. But keeping the name lets your existing widget code compile after a class rename and saves typing the `<FieldState<T, E>>` argument at every call site. Pure DX sugar.
+And because fields are plain `ValueListenable`s now, you can also skip the wrapper entirely and use the SDK's `ValueListenableBuilder` — same thing, just with the `<AdvancedFieldState<String, MyError>>` type argument spelled out.
+
+> **Why keep the builder at all if the SDK has an equivalent?** So your existing widget code compiles after a rename instead of a rewrite — and so you don't have to spell out `<AdvancedFieldState<T, E>>` at every call site. Pure convenience, kept deliberately.
 
 ---
 
 ## 4. Lifecycle: `close()` → `dispose()`
+
+Cleanup code gets shorter — the `async` ceremony around closing cubits is gone:
 
 **0.1.x:**
 ```dart
@@ -145,22 +177,22 @@ void dispose() {
 }
 ```
 
-> **Why synchronous?** `Cubit.close()` returns a `Future` because it closes an underlying broadcast `StreamController`. `ChangeNotifier.dispose()` is synchronous — it just nulls out the listener list. No `await` needed in consumer code.
+> **Why was `close()` async in the first place?** Because it closed a broadcast `StreamController` under the hood. `ChangeNotifier.dispose()` just clears a listener list — nothing to await, in the library or in your code.
 
-### Watch out — `dispose()` is not idempotent
+### One thing to actually watch out for
 
-Calling `dispose()` twice on a `ValueNotifier`/`ChangeNotifier` throws `'A ValueNotifier was used after being disposed'` in debug mode. The old `Cubit.close()` was idempotent and tolerated re-close silently — so 0.1.x code that disposed a field by hand *and* let `FormGroupCubit.close()` dispose it again worked by accident.
+`dispose()` is not idempotent: call it twice on a notifier and debug mode throws `'A ValueNotifier was used after being disposed'`. The old `Cubit.close()` silently tolerated a re-close — so if your 0.1.x code disposed a field by hand *and* let `FormGroupCubit.close()` dispose it again, that worked purely by accident, and 0.2.0 will call you out on it.
 
-In 0.2.0:
+The fix is to pick one owner, and the easy pick is the form:
 
-- Let `FormController` own field disposal via `registerFields(...)`. Don't call `dispose()` on owned fields yourself.
-- If you registered the same field twice (multi-`registerFields` patterns), it's still safe — the library tracks ownership with a `Set` and disposes each owned controller exactly once.
+- Register fields with `registerFields(...)` and let `AdvancedFormController` dispose them. Don't call `dispose()` on registered fields yourself.
+- Registering the same field twice (multi-`registerFields` patterns) is fine — ownership is tracked with a `Set`, so each field is disposed exactly once.
 
 ---
 
-## 5. `TextFieldController` now owns its `TextEditingController`
+## 5. `AdvancedTextFieldController` now owns its `TextEditingController`
 
-In 0.1.x, every consumer widget had to own its own `TextEditingController`, seed it from `field.state.value`, and wire `onChanged: field.setValue` back the other way. That setup silently dropped any programmatic changes (`field.reset()`, `field.setValue('foo')`, cross-field updates) — the on-screen text didn't update because the widget's controller had already been seeded once.
+This is the change you'll be happiest about. In 0.1.x, every text widget had to allocate its own `TextEditingController`, seed it from `field.state.value`, and wire `onChanged: field.setValue` back the other way. And that setup had a hole in it: programmatic changes — `field.reset()`, `field.setValue('foo')`, one field updating another — never reached the screen, because the widget's controller was seeded once and then lived its own life. If you've ever had a "Reset" button that cleared the state but not the text boxes, this was why.
 
 **0.1.x widget code:**
 ```dart
@@ -178,19 +210,21 @@ TextField(
 );
 ```
 
-That's it. The widget no longer needs `useTextEditingController`, `useEffect`, or an `onChanged` callback. `TextFieldController` allocates the `TextEditingController` internally, sets up bidirectional listeners on construction, and disposes everything in `dispose()`.
+That's the whole widget. No `useTextEditingController`, no `useEffect`, no `onChanged` callback. The field allocates the `TextEditingController` itself, keeps the two in sync in both directions, and disposes everything in `dispose()`.
 
-To migrate a custom text widget:
+Migrating a custom text widget is deleting code:
 
-1. Remove the `useTextEditingController` (or any manually-allocated `TextEditingController`).
-2. Remove `initialValue: state.value` and `onChanged: field.setValue` plumbing.
+1. Delete the `useTextEditingController` (or manually-allocated `TextEditingController`).
+2. Delete the `initialValue: state.value` and `onChanged: field.setValue` plumbing.
 3. Pass `controller: field.textController` to the underlying `TextField`/`TextFormField`.
 
-> **Why this changed.** `TextEditingController` is itself a `ValueNotifier<TextEditingValue>`. Letting both the widget and the field own a copy of the same string was the root cause of cursor jumps and "set-to-initial doesn't reset the text" bugs. Now there's one source of truth, owned at the field level where it belongs.
+> **Why this works now.** `TextEditingController` is itself a `ValueNotifier<TextEditingValue>` — the same primitive the field is built on. Having both the widget and the field hold their own copy of the string was the root cause of cursor jumps and "reset doesn't reset" bugs. Now there's one source of truth, owned at the field level where it belongs.
 
 ---
 
-## 6. `FormController` exposes `Listenable`s, not `Stream`s
+## 6. `AdvancedFormController` exposes `Listenable`s, not `Stream`s
+
+If you listened to form-level changes, the swap is mechanical — subscription objects become listener callbacks:
 
 **0.1.x:**
 ```dart
@@ -208,32 +242,32 @@ form.onValuesChanged.removeListener(doSomething);
 
 Same swap for `onStatusChanged` (was `onStatusChangedStream`).
 
-If you used `StreamSubscription` cancellation in `dispose`, replace it with `removeListener` paired to the original named callback. That means you can't use an inline closure for the listener — name it.
+One practical note: where you used to cancel a `StreamSubscription` in `dispose`, you now call `removeListener` with the same callback you added — which means the listener can't be an inline closure. Give it a name.
 
-> **Why this changed.** The dual broadcast `StreamController`s in `FormGroupCubit` had to be re-merged with `Rx.merge` every time fields or subforms changed. We replaced them with per-field listeners plus closure-captured `lastValue`/`lastStatus` caches: pull-style reads, no rxdart, easier to read in source. The trade-off is the public API switches from `Stream<…>` to `Listenable` — close enough to be a mechanical change at most call sites.
+> **Why this changed.** The old implementation kept two broadcast `StreamController`s inside `FormGroupCubit` and had to `Rx.merge` them back together every time a field or subform was added. That's a lot of moving parts for "tell me when something changed". The new implementation is per-field listeners with a couple of cached values — you can read it top to bottom in the source and actually follow it. The cost is this rename at your call sites.
 
 ---
 
 ## 7. What didn't change
 
-Everything not listed above. Quick reassurance checklist — if your call site only uses these surfaces, the migration is "rename `*Cubit` to `*Controller`" and you're done:
+Everything not listed above — which is most of the library. This is the part that makes the migration an afternoon instead of a rewrite. If your code only touches these surfaces, "rename `*Cubit` to `Advanced*Controller`" is the entire job:
 
-- **Validators:** `Validator<T, E>` / `AsyncValidator<T, E>` typedefs unchanged. All ready-to-use validators (`filled`, `atLeastLength`, `notLongerThan`, `notNull`, `notEmpty`, `or`, `and`, `&`, `|`, etc.) have the same names and signatures.
-- **Field methods:** `setValue`, `validate`, `setAutovalidate`, `markReadOnly`, `unmarkReadOnly`, `clearErrors`, `reset`, `setError`, `getValueSetter`, `subscribeToFields` — all unchanged on `FieldController`.
-- **Form-group methods:** `registerFields`, `addSubform`, `removeSubform`, `setValidationEnabled`, `validateWithAutovalidate`, `resetAll`, `markReadOnly`, `clearErrors` — all unchanged on `FormController`.
-- **Async validation flow:** `pending` → `validating` → `valid`/`invalid` sequence, debounce timer, cancel-on-new-value semantics — bit-for-bit identical.
-- **`wasModified` / `validating` aggregate flags:** still tracked the same way. `DeepCollectionEquality` is still the baseline.
-- **`subscribeToFields`:** still filters out status-only changes. Implementation switched from `Rx.combineLatest + distinct` to a manual `lastValues` cache; observable behavior is the same.
+- **Validators.** The `Validator<T, E>` / `AsyncValidator<T, E>` typedefs are unchanged, and every ready-to-use validator (`filled`, `atLeastLength`, `notLongerThan`, `notNull`, `notEmpty`, `or`, `and`, `&`, `|`, …) keeps its name and signature. Your custom validators compile as-is.
+- **Field methods.** `setValue`, `validate`, `setAutovalidate`, `markReadOnly`, `unmarkReadOnly`, `clearErrors`, `reset`, `setError`, `getValueSetter`, `subscribeToFields` — all still there, all behaving the same.
+- **Form-group methods.** `registerFields`, `addSubform`, `removeSubform`, `setValidationEnabled`, `validateWithAutovalidate`, `resetAll`, `markReadOnly`, `clearErrors` — same story.
+- **Async validation.** The `pending` → `validating` → `valid`/`invalid` sequence, the debounce timer, cancel-on-new-value — bit-for-bit identical. If you tuned debounce timings, they still mean what they meant.
+- **`wasModified` / `validating` aggregate flags.** Tracked the same way, with `DeepCollectionEquality` still the baseline for "did the value actually change".
+- **`subscribeToFields`.** Still filters out status-only changes so your dependent fields don't revalidate for nothing. The implementation moved from `Rx.combineLatest + distinct` to a plain cache, but you can't tell from the outside.
 
 ---
 
 ## 8. Migrating example/test code that used `flutter_bloc` directly
 
-If your app uses `flutter_bloc`'s `BlocProvider` to inject the form controller, you have two options:
+If `BlocProvider` was how the form controller got into your widget tree, you have two options — and neither is a redesign.
 
 ### Option A — switch to `provider`
 
-`ChangeNotifierProvider` from the `provider` package is a near-drop-in replacement, and `context.read` / `context.watch` / `context.select` keep working the same way:
+`ChangeNotifierProvider` is a near-drop-in replacement, and `context.read` / `context.watch` / `context.select` keep working exactly as before:
 
 ```dart
 // 0.1.x
@@ -251,7 +285,7 @@ ChangeNotifierProvider<SimpleFormController>(
 
 ### Option B — plain Flutter, no DI dep
 
-Hoist the controller into a `StatefulWidget` and pass it down through constructor args. Slightly more boilerplate per screen, zero deps.
+Since controllers are plain `ChangeNotifier`s now, you don't strictly need a DI package at all. Hoist the controller into a `StatefulWidget` and pass it down through constructor args — a bit more typing per screen, zero dependencies:
 
 ```dart
 class SimpleFormScreen extends StatefulWidget {
@@ -271,23 +305,23 @@ class _SimpleFormScreenState extends State<SimpleFormScreen> {
 
 ### Other example-side deps
 
-- **`bloc_test`** has no direct replacement. Rewrite tests as plain `test(...)` blocks. Capture emissions with `addListener` if you need to assert sequences:
+- **`bloc_test`** — you won't miss it. Since notifiers are synchronous, a form test is a plain `test(...)` block with no `blocTest` DSL, no `wait:`, no async choreography. To assert a sequence of states, collect them with a listener:
+
   ```dart
-  final emissions = <FieldState<int, MyError>>[];
+  final emissions = <AdvancedFieldState<int, MyError>>[];
   field.addListener(() => emissions.add(field.value));
   field.setValue(10);
-  expect(emissions, [const FieldState(value: 10)]);
+  expect(emissions, [const AdvancedFieldState(value: 10)]);
   ```
-- **`bloc_presentation`** (for "submit failed → emit a UI event") has no direct replacement. The example replaces it with a plain `Stream` exposed by the controller (see `example/lib/screens/scroll_form.dart`).
-- **`flutter_hooks`** only matters if you used it for `useTextEditingController` / `useFocusNode` — both are unnecessary once `TextFieldController` owns the text controller. Drop if it was the only reason you had it.
+
+- **`bloc_presentation`** (the "submit failed → fire a one-off UI event" pattern) has no direct equivalent, but the pattern is a one-liner without it: expose a plain `Stream` from your controller. The example app does exactly this — see `example/lib/screens/scroll_form.dart`.
+- **`flutter_hooks`** — if `useTextEditingController` / `useFocusNode` were the only reason you had it, you can drop it. `AdvancedTextFieldController` owns both now (see [section 5](#5-advancedtextfieldcontroller-now-owns-its-texteditingcontroller)).
 
 ---
 
 ## 9. Migrating a rich custom field
 
-> Class names in this section use the current `Advanced*` prefix from the codebase.
-
-If you've been using `leancode_lint` library for a while, you probably have a folder full of custom fields: `FieldCubit` subclasses with a business-typed value (a `Decimal`, a record, a DTO, basically not a raw string), their own error types, and a couple of domain methods. That's the intended way to use the library, and it's usually the part people worry about most before migrating: "do I have to rewrite 30 of these?"
+If you've been using this library for a while, you probably have a folder full of custom fields: `FieldCubit` subclasses with a business-typed value (a `Decimal`, a record, a DTO, basically not a raw string), their own error types, and a couple of domain methods. That's the intended way to use the library, and it's usually the part people worry about most before migrating: "do I have to rewrite 30 of these?"
 
 You don't. Your field logic doesn't care whether it sits on a cubit or a `ChangeNotifier` — validators, error hierarchies, and domain methods carry over as-is. The migration is a rename plus one accessor change, and it's the same two edits in every file, so it's easy to knock out mechanically.
 
@@ -416,7 +450,7 @@ class QuantityFieldController
 
 A few things worth knowing while you do this:
 
-- **You won't get extra rebuilds after the migration.** Previously, `Equatable` made sure that emitting an identical state didn't notify anyone. The new `FieldState` does the same through its `operator ==`, and Dart records compare by content — so calling `setValue` with an unchanged record is still a no-op for your listeners. No behavioral surprises hiding here.
+- **You won't get extra rebuilds after the migration.** Previously, `Equatable` made sure that emitting an identical state didn't notify anyone. The new `AdvancedFieldState` does the same through its `operator ==`, and Dart records compare by content — so calling `setValue` with an unchanged record is still a no-op for your listeners. No behavioral surprises hiding here.
 - **`fieldValue` exists so you don't have to write `value.value.unit`.** With a record-valued field, the "official" path to a component is state → record → component, which stacks up as `value.value.unit`. `fieldValue.unit` reads like `state.value.unit` used to. Same deal with `error` vs `value.error`. Small thing, but you'll hit it in every method of every custom field, so it's worth adopting from the start.
 - **`name` is new and optional.** Give a field a name and it shows up in logs and `FocusNode` debug labels, which helps when you're staring at a form with fifteen fields and one of them misbehaves. Skip it if you don't need it — it changes nothing about behavior.
 
@@ -450,6 +484,8 @@ The old cubits exposed a `stream`, and if your project is anything like ours, yo
 
 ## Reference
 
-- The new architecture is documented in [`README.md`](./README.md).
-- The full breaking-change summary is in [`CHANGELOG.md`](./CHANGELOG.md) under the 0.2.0 entry.
-- The `example/` app demonstrates every pattern in the new shape.
+Stuck on something this guide doesn't cover?
+
+- [`README.md`](./README.md) documents the new architecture from scratch — useful when you'd rather understand the model than pattern-match the diff.
+- [`CHANGELOG.md`](./CHANGELOG.md) has the terse, complete breaking-change list under the 0.2.0 entry.
+- The `example/` app shows every pattern in its migrated shape — when in doubt, crib from there.
