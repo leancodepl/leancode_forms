@@ -8,7 +8,8 @@ import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 /// [textController] and [focusNode]; programmatic changes via [setValue] /
 /// [reset] / [clearErrors] propagate to the text controller, and user input on
 /// the text controller propagates back to the field state.
-class AdvancedTextFieldController<E extends Object> extends AdvancedFieldController<String, E> {
+class AdvancedTextFieldController<E extends Object>
+    extends AdvancedFieldController<String, E> {
   /// Creates a new [AdvancedTextFieldController].
   AdvancedTextFieldController({
     super.initialValue = '',

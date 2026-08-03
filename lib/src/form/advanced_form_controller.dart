@@ -38,13 +38,6 @@ class AdvancedFormController
     notifyListeners();
   }
 
-  /// Flag about whether controller has been disposed. Once true it stays true.
-  /// Disposed controllers are not to be reused
-  bool _isDisposed = false;
-
-  /// Getter for the isDisposed flag
-  bool get isDisposed => _isDisposed;
-
   /// A label for this form used for logging, or tracing
   /// across nested subforms. Has no effect on form behavior.
   final String debugName;
@@ -52,6 +45,13 @@ class AdvancedFormController
   /// When true, whenever any field changes, all other fields get
   /// their validator called if they have autovalidate enabled.
   final bool validateAll;
+
+  /// Flag about whether controller has been disposed. Once true it stays true.
+  /// Disposed controllers are not to be reused
+  bool _isDisposed = false;
+
+  /// Getter for the isDisposed flag
+  bool get isDisposed => _isDisposed;
 
   /// Fires when any leaf field's value changes (recursively through subforms),
   /// or when fields are registered.
@@ -73,15 +73,7 @@ class AdvancedFormController
   void registerFields(List<AdvancedFieldController<dynamic, dynamic>> fields) {
     _runChildCleanups();
 
-    _setState(
-      AdvancedFormState(
-        wasModified: value.wasModified,
-        fields: fields,
-        subforms: value.subforms,
-        validationEnabled: value.validationEnabled,
-        validating: value.validating,
-      ),
-    );
+    _setState(value.copyWith(fields: fields));
 
     _ownedFields.addAll(fields);
     _initialFieldsState = getFieldValues();
@@ -97,7 +89,7 @@ class AdvancedFormController
 
   /// Recursively calls validate on all subforms/fields if
   /// `state.validationEnabled` is true.
-  /// [enableAutovalidate] can enable autovalidate on this form.
+  /// [enableAutovalidate] can enable autovalidate on all leaf fields.
   ///
   /// Returns the result of validate calls, or always `true` if
   /// `state.validationEnabled` is false.
@@ -170,7 +162,8 @@ class AdvancedFormController
   /// Adds a subform to the current form.
   /// If [form] was already added as a subform this is a noop.
   ///
-  /// Throws a dedicated [StateError] if this controller has been disposed
+  /// Throws a [StateError] if either controller has already been disposed —
+  /// disposed controllers cannot be reused.
   void addSubform(AdvancedFormController form) {
     if (isDisposed) {
       throw StateError(
@@ -188,20 +181,13 @@ class AdvancedFormController
 
     _runChildCleanups();
 
-    _setState(
-      AdvancedFormState(
-        wasModified: value.wasModified,
-        fields: value.fields,
-        subforms: {...value.subforms, form},
-        validationEnabled: value.validationEnabled,
-        validating: value.validating,
-      ),
-    );
+    _setState(value.copyWith(subforms: {...value.subforms, form}));
 
     _wireChildren();
   }
 
-  /// Removes and disposes an owned subform.
+  /// Removes an owned subform.
+  /// If [close] is true, the subform will be disposed.
   /// If [form] was not a subform this is a noop.
   Future<void> removeSubform(
     AdvancedFormController form, {
@@ -212,15 +198,7 @@ class AdvancedFormController
     }
     _runChildCleanups();
 
-    _setState(
-      AdvancedFormState(
-        wasModified: value.wasModified,
-        fields: value.fields,
-        subforms: {...value.subforms}..remove(form),
-        validationEnabled: value.validationEnabled,
-        validating: value.validating,
-      ),
-    );
+    _setState(value.copyWith(subforms: {...value.subforms}..remove(form)));
 
     if (close) {
       form.dispose();
@@ -229,7 +207,7 @@ class AdvancedFormController
     _wireChildren();
   }
 
-  /// Calls validate on all fields with autovalidate on.
+  /// Calls validate on all leaf fields with autovalidate on.
   void validateWithAutovalidate() {
     for (final field in value.fields) {
       if (field.value.autovalidate) {
@@ -247,15 +225,7 @@ class AdvancedFormController
     if (validationEnabled == value.validationEnabled) {
       return;
     }
-    _setState(
-      AdvancedFormState(
-        wasModified: value.wasModified,
-        fields: value.fields,
-        subforms: value.subforms,
-        validationEnabled: validationEnabled,
-        validating: value.validating,
-      ),
-    );
+    _setState(value.copyWith(validationEnabled: validationEnabled));
     if (validationEnabled) {
       validateWithAutovalidate();
     } else {
@@ -309,18 +279,13 @@ class AdvancedFormController
     final fieldsWereModified = !const DeepCollectionEquality()
         .equals(_initialFieldsState, getFieldValues());
 
+    // FIXME: Analyze if this won't replace wasModified `true` with a fresh value that can resolve to `false` , and replace `wasModified`
     if (validateAll) {
       validateWithAutovalidate();
     }
 
     _setState(
-      AdvancedFormState(
-        wasModified: subformsWereModified || fieldsWereModified,
-        fields: value.fields,
-        subforms: value.subforms,
-        validationEnabled: value.validationEnabled,
-        validating: value.validating,
-      ),
+      value.copyWith(wasModified: subformsWereModified || fieldsWereModified),
     );
     _onValuesChanged.notifyListeners();
   }
@@ -334,13 +299,7 @@ class AdvancedFormController
     );
 
     _setState(
-      AdvancedFormState(
-        wasModified: value.wasModified,
-        fields: value.fields,
-        subforms: value.subforms,
-        validationEnabled: value.validationEnabled,
-        validating: fieldsValidating || subformsValidating,
-      ),
+      value.copyWith(validating: fieldsValidating || subformsValidating),
     );
     _onStatusChanged.notifyListeners();
   }
@@ -362,16 +321,12 @@ class AdvancedFormController
   }
 }
 
-/// The state of a [AdvancedFormController].
+/// An immutable snapshot of an [AdvancedFormController] — which fields and
+/// subforms it owns, whether the user has changed anything, whether validation
+/// applies, and whether async validation is still running.
 ///
-/// Value-equal: two [AdvancedFormState]s are equal when every field matches.
-/// This is required for [ValueNotifier]'s built-in dedup — without it,
-/// every internal state recompute (`_handleValuesChanged`,
-/// `_handleStatusChanged`, etc.) would notify listeners even when the
-/// recomputed state is identical to the previous one.
-// Maintainer note: when adding a new field below, you MUST also add it
-// to both `operator ==` and `hashCode` at the bottom of the class, otherwise
-// the new field is silently invisible to dedup and structural comparisons.
+/// Obtain it from [AdvancedFormController.value], or listen to the controller
+/// to be notified whenever it changes.
 class AdvancedFormState {
   /// Creates a new [AdvancedFormState].
   const AdvancedFormState({
@@ -409,10 +364,23 @@ class AdvancedFormState {
               if (field.value.validationError case final error?) field: error,
           };
 
-  // ⚠️ Maintainer: keep these in sync with the fields declared above. `fields`
-  // and `subforms` compare element-wise via Flutter's listEquals/setEquals
-  // (identity-based, since AdvancedFieldController/AdvancedFormController don't override
-  // `==`).
+  /// Returns a copy of this state with the given fields replaced.
+  AdvancedFormState copyWith({
+    bool? wasModified,
+    List<AdvancedFieldController<dynamic, dynamic>>? fields,
+    Set<AdvancedFormController>? subforms,
+    bool? validationEnabled,
+    bool? validating,
+  }) =>
+      AdvancedFormState(
+        wasModified: wasModified ?? this.wasModified,
+        fields: fields ?? this.fields,
+        subforms: subforms ?? this.subforms,
+        validationEnabled: validationEnabled ?? this.validationEnabled,
+        validating: validating ?? this.validating,
+      );
+
+  // ⚠️ Maintainer: keep these and `copyWith` in sync with the fields above.
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
