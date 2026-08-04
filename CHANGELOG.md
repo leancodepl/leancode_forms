@@ -18,6 +18,7 @@
 * `FieldController` gained an optional `String? name` parameter for debugging, logging, and serialization.
 * `Disposable` mixin removed (lifecycle is handled by `ChangeNotifier.dispose`).
 * Internal `distinctWithFirst` stream extension and `CancelableFuture` are no longer exported.
+* **Deprecated:** `FieldController.stream` replaces the `stream` that `FieldCubit` inherited from `Cubit`, so stream-based code keeps compiling through the migration. It ships deprecated and will be removed in 0.3.0 — use `addListener`, `subscribeToFields`, or the builder widgets instead.
 * Dropped the `equatable` dependency. `FieldState` and `FormState` now manual `==` / `hashCode`. No behavioral change — value-equality semantics are identical.
 
 ## 0.1.2

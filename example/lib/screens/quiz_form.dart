@@ -14,7 +14,7 @@ class QuizFormScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<QuizController>(
-      create: (_) => QuizController(),
+      create: (context) => QuizController(),
       child: const QuizForm(),
     );
   }
@@ -26,9 +26,7 @@ class QuizForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<QuizController>();
-    final formStatus = context.select<QuizController, ValidationStatus>(
-      (c) => c.validationStatus,
-    );
+    final formStatus = controller.validationStatus;
 
     return FormPage(
       title: 'Quiz Form',

@@ -1,3 +1,6 @@
+// The stream bridge is deprecated, but stays under test until it is removed.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
@@ -32,48 +35,6 @@ void main() {
       field.setError(_Error.malformed);
       expect(field.error, _Error.malformed);
       expect(field.error, field.value.error);
-    });
-  });
-
-  group('onValueChange', () {
-    test('fires when the selected part changes', () {
-      final changes = <int?>[];
-      field
-        ..onValueChange((value) => value.amount, changes.add)
-        ..setValue((unit: 'kg', amount: 2))
-        ..setValue((unit: 'kg', amount: 3));
-
-      expect(changes, [2, 3]);
-    });
-
-    test('does not fire when a non-selected part changes', () {
-      final changes = <int?>[];
-      field
-        ..onValueChange((value) => value.amount, changes.add)
-        ..setValue((unit: 'lb', amount: 1));
-
-      expect(changes, isEmpty);
-    });
-
-    test('does not fire for state changes without a value change', () {
-      final changes = <int?>[];
-      field
-        ..onValueChange((value) => value.amount, changes.add)
-        ..setAutovalidate(true)
-        ..markReadOnly();
-
-      expect(changes, isEmpty);
-    });
-
-    test('stops firing after cleanup is called', () {
-      final changes = <int?>[];
-      final cleanup = field.onValueChange((value) => value.amount, changes.add);
-
-      field.setValue((unit: 'kg', amount: 2));
-      cleanup();
-      field.setValue((unit: 'kg', amount: 3));
-
-      expect(changes, [2]);
     });
   });
 

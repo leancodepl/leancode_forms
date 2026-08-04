@@ -14,7 +14,7 @@ class DeliveryListFormScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<DeliveryListFormController>(
-      create: (_) => DeliveryListFormController(),
+      create: (context) => DeliveryListFormController(),
       child: const DeliveryListForm(),
     );
   }

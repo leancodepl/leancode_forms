@@ -47,8 +47,6 @@ And in your `pubspec.yaml`:
 - You can **drop `flutter_bloc` and `rxdart`** — unless something else in your app still needs them, of course.
 - If your tests or DI used **`bloc_test`, `bloc_presentation`, or `flutter_hooks`** just for forms, those can go too. **Add `provider`** if you want a drop-in replacement for `BlocProvider`/`context.read` (see [section 8](#8-migrating-exampletest-code-that-used-flutter_bloc-directly)).
 
-Fewer dependencies is the point, not a side effect: a forms library shouldn't be the reason your lockfile has a stream toolkit in it.
-
 ---
 
 ## 2. Migrating your form classes
@@ -181,7 +179,7 @@ void dispose() {
 
 ### One thing to actually watch out for
 
-`dispose()` is not idempotent: call it twice on a notifier and debug mode throws `'A ValueNotifier was used after being disposed'`. The old `Cubit.close()` silently tolerated a re-close — so if your 0.1.x code disposed a field by hand *and* let `FormGroupCubit.close()` dispose it again, that worked purely by accident, and 0.2.0 will call you out on it.
+`dispose()` is not idempotent: call it twice on a notifier in debug mode throws `'A ValueNotifier was used after being disposed'`. The old `Cubit.close()` silently tolerated a re-close — so if your 0.1.x code disposed a field by hand *and* let `FormGroupCubit.close()` dispose it again, that worked purely by accident, and 0.2.0 will call you out on it.
 
 The fix is to pick one owner, and the easy pick is the form:
 

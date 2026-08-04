@@ -132,7 +132,7 @@ class PasswordFormController extends AdvancedFormController {
 }
 ```
 
-`subscribeToFields` listens to the given fields and re-runs this field's validator whenever any of their values change. It only revalidates — it does not update this field's *value* in response to another field. For a value dependency ("when B changes, set A"), use `addListener` on the source field and `setValue` on the target (or the `onValueChange` migration helper).
+`subscribeToFields` listens to the given fields and re-runs this field's validator whenever any of their values change. It only revalidates — it does not update this field's *value* in response to another field. For a value dependency ("when B changes, set A"), use `addListener` on the source field and `setValue` on the target.
 
 ### 5. A reusable custom form widget
 
@@ -269,7 +269,7 @@ field.removeListener(_onChange);
 
 Same primitive `AdvancedFieldBuilder` and `ValueListenableBuilder` use internally — just without the widget plumbing.
 
-Coming from 0.1.x and its cubit streams? The `onValueChange` and `stream` migration helpers bridge the gap — see [Migrating a rich custom field](./MIGRATION.md#9-migrating-a-rich-custom-field) in the migration guide.
+Coming from 0.1.x and its cubit streams? The deprecated `stream` helper bridges the gap while you migrate — see [Migrating a rich custom field](./MIGRATION.md#9-migrating-a-rich-custom-field) in the migration guide.
 
 ---
 

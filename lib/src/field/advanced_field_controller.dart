@@ -37,9 +37,9 @@ class AsyncValidation<T, E extends Object> {
   /// rather than once per change.
   final Duration debounce;
 
-  /// Called when [validator] throws. If ommitted, error is reported through   
+  /// Called when [validator] throws. If omitted, error is reported through
   /// [FlutterError.reportError].
-  /// 
+  ///
   /// The field moves to [FieldStatus.failed] either way — a handler cannot
   /// turn a failed validation into a passing one.
   final AsyncValidationErrorHandler? onError;
@@ -67,9 +67,41 @@ class AdvancedFieldController<T, E extends Object>
         _validator = validator ?? ((_) => null),
         _asyncValidation = asyncValidation;
 
-  /// Optional name for the field. Useful for debugging, logging, and
-  /// serialization. Not used for identity — fields are still identified by
-  /// reference.
+  /// Optional name for the field. Not used for identity — fields are still
+  /// identified by reference.
+  ///
+  /// Used as the `debugLabel` of the `FocusNode` owned by
+  /// `AdvancedTextFieldController`, and as a handle for logging and
+  /// serialization, where a field's identity has to survive leaving Dart:
+  ///
+  /// ```dart
+  /// class SignUpFormController extends AdvancedFormController {
+  ///   SignUpFormController() {
+  ///     registerFields([email, password]);
+  ///   }
+  ///
+  ///   final email = AdvancedTextFieldController<ValidationError>(
+  ///     name: 'email',
+  ///   );
+  ///   final password = AdvancedTextFieldController<ValidationError>(
+  ///     name: 'password',
+  ///   );
+  ///
+  ///   List<AdvancedTextFieldController<ValidationError>> get _named =>
+  ///       [email, password];
+  ///
+  ///   /// Server errors arrive keyed by field name.
+  ///   void applyServerErrors(Map<String, ValidationError> errors) {
+  ///     for (final field in _named) {
+  ///       field.setError(errors[field.name]);
+  ///     }
+  ///   }
+  ///
+  ///   Map<String, String> toJson() => {
+  ///         for (final field in _named) field.name!: field.fieldValue,
+  ///       };
+  /// }
+  /// ```
   final String? name;
 
   final T _initialValue;
@@ -491,8 +523,4 @@ class AdvancedFieldState<T, E extends Object> {
       );
 }
 
-class _Unset {
-  const _Unset();
-}
-
-const _unset = _Unset();
+const _unset = Object();
