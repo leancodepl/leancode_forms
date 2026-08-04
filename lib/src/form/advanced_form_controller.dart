@@ -279,7 +279,6 @@ class AdvancedFormController
     final fieldsWereModified = !const DeepCollectionEquality()
         .equals(_initialFieldsState, getFieldValues());
 
-    // FIXME: Analyze if this won't replace wasModified `true` with a fresh value that can resolve to `false` , and replace `wasModified`
     if (validateAll) {
       validateWithAutovalidate();
     }

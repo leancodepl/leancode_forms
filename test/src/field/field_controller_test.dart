@@ -312,7 +312,7 @@ void main() {
 
       expect(reported, hasLength(1));
       expect(reported.single.exception, isStateError);
-      expect(reported.single.library, 'leancode_forms');
+      expect(reported.single.library, 'advanced_forms');
     });
 
     test('leaves the form unsubmittable rather than silently passing',
@@ -396,7 +396,7 @@ void main() {
 
         expect(reported, hasLength(1));
         expect(reported.single.exception, isArgumentError);
-        expect(reported.single.library, 'leancode_forms');
+        expect(reported.single.library, 'advanced_forms');
         expect(
           reported.single.context.toString(),
           contains('onError handler of field handled'),
