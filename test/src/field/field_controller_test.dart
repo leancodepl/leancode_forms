@@ -87,14 +87,16 @@ void main() {
 
   group('reset', () {
     test('resets state to initial state', () {
-      field.debugSetState(const _State(
-        value: 10,
-        validationError: _Error.malformed,
-        asyncError: _Error.malformed,
-        autovalidate: true,
-        readOnly: true,
-        status: FieldStatus.invalid,
-      ),);
+      field.debugSetState(
+        const _State(
+          value: 10,
+          validationError: _Error.malformed,
+          asyncError: _Error.malformed,
+          autovalidate: true,
+          readOnly: true,
+          status: FieldStatus.invalid,
+        ),
+      );
       final emissions = _record(field);
       field.reset();
       expect(emissions, const [_State(value: 0)]);
@@ -103,11 +105,13 @@ void main() {
 
   group('clearErrors', () {
     test('clears validationError and asyncError. Sets status to valid', () {
-      field.debugSetState(const _State(
-        value: 1,
-        validationError: _Error.valueRequired,
-        asyncError: _Error.malformed,
-      ),);
+      field.debugSetState(
+        const _State(
+          value: 1,
+          validationError: _Error.valueRequired,
+          asyncError: _Error.malformed,
+        ),
+      );
       final emissions = _record(field);
       field.clearErrors();
       expect(emissions, const [_State(value: 1)]);
@@ -175,10 +179,12 @@ void main() {
     setUp(() {
       asyncField = AdvancedFieldController<int, _Error>(
         initialValue: _initialValue,
-        asyncValidator: (value) async {
-          await Future<void>.delayed(const Duration(milliseconds: 100));
-          return validator.validationResult;
-        },
+        asyncValidation: AsyncValidation(
+          validator: (value) async {
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+            return validator.validationResult;
+          },
+        ),
       );
     });
 
@@ -250,6 +256,155 @@ void main() {
     });
   });
 
+  group('async validation failure', () {
+    late _Field throwingField;
+    late List<FlutterErrorDetails> reported;
+    void Function(FlutterErrorDetails)? previousOnError;
+
+    setUp(() {
+      reported = [];
+      previousOnError = FlutterError.onError;
+      FlutterError.onError = reported.add;
+
+      throwingField = AdvancedFieldController<int, _Error>(
+        name: 'throwing',
+        initialValue: _initialValue,
+        asyncValidation: AsyncValidation(
+          validator: (value) async {
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+            throw StateError('validator exploded');
+          },
+        ),
+      );
+    });
+
+    tearDown(() {
+      FlutterError.onError = previousOnError;
+      throwingField.dispose();
+    });
+
+    test('marks the field failed instead of leaving it validating', () async {
+      final emissions = _record(throwingField);
+
+      throwingField.setValue(10);
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      expect(emissions, const [
+        _State(value: 10, status: FieldStatus.pending),
+        _State(value: 10, status: FieldStatus.validating),
+        _State(value: 10, status: FieldStatus.failed),
+      ]);
+      expect(throwingField.value.isInProgress, isFalse);
+      expect(throwingField.value.isValid, isFalse);
+      expect(throwingField.error, isNull);
+    });
+
+    test('validate returns false for a failed field', () async {
+      throwingField.setValue(10);
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      expect(throwingField.validate(), isFalse);
+    });
+
+    test('reports the exception through FlutterError', () async {
+      throwingField.setValue(10);
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      expect(reported, hasLength(1));
+      expect(reported.single.exception, isStateError);
+      expect(reported.single.library, 'leancode_forms');
+    });
+
+    test('leaves the form unsubmittable rather than silently passing',
+        () async {
+      // A dedicated field, since the form takes ownership and disposes it.
+      final ownedField = AdvancedFieldController<int, _Error>(
+        initialValue: _initialValue,
+        asyncValidation: AsyncValidation(
+          validator: (value) async {
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+            throw StateError('validator exploded');
+          },
+        ),
+      );
+      final form = AdvancedFormController()..registerFields([ownedField]);
+      addTearDown(form.dispose);
+
+      ownedField.setValue(10);
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      expect(form.validate(), isFalse);
+    });
+
+    group('AsyncValidation.onError', () {
+      _Field fieldWithHandler(AsyncValidationErrorHandler onError) {
+        final field = AdvancedFieldController<int, _Error>(
+          name: 'handled',
+          initialValue: _initialValue,
+          asyncValidation: AsyncValidation(
+            validator: (value) async {
+              await Future<void>.delayed(const Duration(milliseconds: 100));
+              throw StateError('validator exploded');
+            },
+            onError: onError,
+          ),
+        );
+        addTearDown(field.dispose);
+        return field;
+      }
+
+      test('receives the exception instead of FlutterError', () async {
+        final handled = <Object>[];
+        fieldWithHandler((error, stackTrace) async {
+          handled.add(error);
+        }).setValue(10);
+
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+
+        expect(handled, hasLength(1));
+        expect(handled.single, isStateError);
+        expect(reported, isEmpty);
+      });
+
+      test('still moves the field to failed', () async {
+        final field = fieldWithHandler((error, stackTrace) async {})
+          ..setValue(10);
+
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+
+        expect(field.value.status, FieldStatus.failed);
+        expect(field.validate(), isFalse);
+      });
+
+      test('does not delay the field resolving when it is slow', () async {
+        final field = fieldWithHandler((error, stackTrace) async {
+          await Future<void>.delayed(const Duration(seconds: 5));
+        })
+          ..setValue(10);
+
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+
+        expect(field.value.status, FieldStatus.failed);
+      });
+
+      test('is itself reported through FlutterError when it throws', () async {
+        fieldWithHandler((error, stackTrace) async {
+          throw ArgumentError('handler exploded');
+        }).setValue(10);
+
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+
+        expect(reported, hasLength(1));
+        expect(reported.single.exception, isArgumentError);
+        expect(reported.single.library, 'leancode_forms');
+        expect(
+          reported.single.context.toString(),
+          contains('onError handler of field handled'),
+        );
+      });
+    });
+  });
+
   group('setError', () {
     test('sets error and changes field status to invalid', () {
       final emissions = _record(field);
@@ -288,7 +443,9 @@ void main() {
       final field2 = AdvancedFieldController<int, _Error>(initialValue: 0);
       final field1 = AdvancedFieldController<int, _Error>(
         initialValue: 0,
-        asyncValidator: (_) async => validator.validationResult,
+        asyncValidation: AsyncValidation(
+          validator: (_) async => validator.validationResult,
+        ),
       )
         ..setAutovalidate(true)
         ..subscribeToFields([field2]);
@@ -337,11 +494,13 @@ void main() {
     testWidgets('focus() requests focus on the focusNode', (tester) async {
       final tf = AdvancedTextFieldController<_Error>();
       addTearDown(tf.dispose);
-      await tester.pumpWidget(MaterialApp(
-        home: Material(
-          child: TextField(focusNode: tf.focusNode),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: TextField(focusNode: tf.focusNode),
+          ),
         ),
-      ),);
+      );
       tf.focus();
       await tester.pump();
       expect(tf.focusNode.hasFocus, true);

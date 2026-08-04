@@ -7,11 +7,43 @@ import 'package:leancode_forms/src/utils/cancelable_future.dart';
 /// If null is returned, the value is considered valid.
 typedef Validator<T, E extends Object> = E? Function(T);
 
-/// An async validate function receiving the current value and returning an error code.
+/// An async validate function receiving the current value and returning an
+/// error code. If null is returned, the value is considered valid.
 typedef AsyncValidator<T, E extends Object> = Future<E?> Function(T);
+
+/// Handles an exception thrown by an [AsyncValidator].
+typedef AsyncValidationErrorHandler = Future<void> Function(
+  Object error,
+  StackTrace? stackTrace,
+);
 
 /// Translates an error to a string.
 typedef ErrorTranslator<E extends Object> = String Function(E);
+
+/// Everything a field needs to validate its value asynchronously.
+class AsyncValidation<T, E extends Object> {
+  /// Creates a new [AsyncValidation].
+  const AsyncValidation({
+    required this.validator,
+    this.debounce = const Duration(milliseconds: 300),
+    this.onError,
+  });
+
+  /// Validates the field's value. Returning null means valid.
+  final AsyncValidator<T, E> validator;
+
+  /// How long to wait after a value change before running [validator]. Each
+  /// new value restarts the wait, so a burst of changes runs [validator] once
+  /// rather than once per change.
+  final Duration debounce;
+
+  /// Called when [validator] throws. If ommitted, error is reported through   
+  /// [FlutterError.reportError].
+  /// 
+  /// The field moves to [FieldStatus.failed] either way — a handler cannot
+  /// turn a failed validation into a passing one.
+  final AsyncValidationErrorHandler? onError;
+}
 
 /// A single form field which can be validated.
 /// Stores the current value, error text, and whether autovalidate is on.
@@ -22,18 +54,18 @@ typedef ErrorTranslator<E extends Object> = String Function(E);
 class AdvancedFieldController<T, E extends Object>
     with ChangeNotifier
     implements ValueListenable<AdvancedFieldState<T, E>> {
-  /// Creates a new [AdvancedFieldController] with an initial value and a validator.
+  /// Creates a new [AdvancedFieldController] with an initial value and a
+  /// validator. Pass [asyncValidation] to also validate the value
+  /// asynchronously.
   AdvancedFieldController({
     required T initialValue,
     Validator<T, E>? validator,
-    AsyncValidator<T, E>? asyncValidator,
-    Duration asyncValidationDebounce = const Duration(milliseconds: 300),
+    AsyncValidation<T, E>? asyncValidation,
     this.name,
   })  : _value = AdvancedFieldState<T, E>(value: initialValue),
         _initialValue = initialValue,
         _validator = validator ?? ((_) => null),
-        _asyncValidator = asyncValidator,
-        _asyncValidationDebounce = asyncValidationDebounce;
+        _asyncValidation = asyncValidation;
 
   /// Optional name for the field. Useful for debugging, logging, and
   /// serialization. Not used for identity — fields are still identified by
@@ -44,9 +76,7 @@ class AdvancedFieldController<T, E extends Object>
 
   final Validator<T, E> _validator;
 
-  final AsyncValidator<T, E>? _asyncValidator;
-
-  final Duration _asyncValidationDebounce;
+  final AsyncValidation<T, E>? _asyncValidation;
 
   AdvancedFieldState<T, E> _value;
 
@@ -129,48 +159,17 @@ class AdvancedFieldController<T, E extends Object>
     final validationError =
         value.autovalidate ? _validator(newValue) : value.validationError;
 
-    if (validationError == null && _asyncValidator != null) {
+    if (validationError == null && _asyncValidation != null) {
       _runAsyncValidator(newValue);
       return;
     }
 
     _setState(
-      value.copyWithNullable(
+      value._copyWithNullable(
         value: newValue,
         validationError: validationError,
         status:
             validationError == null ? FieldStatus.valid : FieldStatus.invalid,
-      ),
-    );
-  }
-
-  Future<void> _runAsyncValidator(T newValue) async {
-    _debounceTimer?.cancel();
-    _asyncValidationFuture?.cancel();
-
-    final completer = Completer<E?>();
-
-    _setState(value.copyWithNullable(value: newValue, status: FieldStatus.pending));
-
-    _debounceTimer = Timer(_asyncValidationDebounce, () async {
-      _setState(
-        value.copyWithNullable(value: newValue, status: FieldStatus.validating),
-      );
-
-      _asyncValidationFuture = CancelableFuture(
-        future: _asyncValidator!(newValue),
-        onComplete: completer.complete,
-      );
-    });
-
-    final error = await completer.future;
-
-    _setState(
-      value.copyWithNullable(
-        value: newValue,
-        validationError: null,
-        asyncError: error,
-        status: error == null ? FieldStatus.valid : FieldStatus.invalid,
       ),
     );
   }
@@ -189,7 +188,7 @@ class AdvancedFieldController<T, E extends Object>
   /// Sets a new [error] and marks the field as invalid.
   void setError(E? error) {
     _setState(
-      value.copyWithNullable(
+      value._copyWithNullable(
         validationError: error,
         asyncError: null,
         status: FieldStatus.invalid,
@@ -201,7 +200,7 @@ class AdvancedFieldController<T, E extends Object>
   /// If the validator returns a different error than the current one, the
   /// state is updated.
   bool validate() {
-    if (value.asyncError != null || value.isInProgress) {
+    if (value.asyncError != null || value.isInProgress || value.isFailed) {
       return false;
     }
 
@@ -209,7 +208,7 @@ class AdvancedFieldController<T, E extends Object>
 
     if (error != value.validationError) {
       _setState(
-        value.copyWithNullable(
+        value._copyWithNullable(
           validationError: error,
           status: error == null ? FieldStatus.valid : FieldStatus.invalid,
         ),
@@ -221,23 +220,23 @@ class AdvancedFieldController<T, E extends Object>
 
   /// When autovalidate is true, setting a new value will trigger a validation.
   void setAutovalidate(bool autovalidate) {
-    _setState(value.copyWithNullable(autovalidate: autovalidate));
+    _setState(value._copyWithNullable(autovalidate: autovalidate));
   }
 
   /// Prevents further changes of value [T].
   void markReadOnly() {
-    _setState(value.copyWithNullable(readOnly: true));
+    _setState(value._copyWithNullable(readOnly: true));
   }
 
   /// Allows further changes of value [T].
   void unmarkReadOnly() {
-    _setState(value.copyWithNullable(readOnly: false));
+    _setState(value._copyWithNullable(readOnly: false));
   }
 
   /// Clears all errors on this field.
   void clearErrors() {
     _setState(
-      value.copyWithNullable(
+      value._copyWithNullable(
         validationError: null,
         asyncError: null,
         status: FieldStatus.valid,
@@ -258,6 +257,106 @@ class AdvancedFieldController<T, E extends Object>
     _fieldsSubscriptionCleanup = null;
     super.dispose();
   }
+
+  Future<void> _runAsyncValidator(T newValue) async {
+    final asyncValidation = _asyncValidation!;
+
+    _debounceTimer?.cancel();
+    _asyncValidationFuture?.cancel();
+
+    final completer = Completer<E?>();
+
+    // Set when the async validator throws
+    var validatorFailed = false;
+
+    _setState(
+      value._copyWithNullable(value: newValue, status: FieldStatus.pending),
+    );
+
+    _debounceTimer = Timer(asyncValidation.debounce, () {
+      _setState(
+        value._copyWithNullable(
+          value: newValue,
+          status: FieldStatus.validating,
+        ),
+      );
+
+      _asyncValidationFuture = CancelableFuture(
+        future: asyncValidation.validator(newValue),
+        onComplete: completer.complete,
+        onError: (error, stackTrace) {
+          validatorFailed = true;
+          // Resolve the state first — surfacing the error must not hold the
+          // field in `validating`, however slow the handler is.
+          completer.complete(null);
+          unawaited(
+            _handleAsyncValidationError(asyncValidation, error, stackTrace),
+          );
+        },
+      );
+    });
+
+    final asyncValidationError = await completer.future;
+
+    _setState(
+      value._copyWithNullable(
+        value: newValue,
+        validationError: null,
+        asyncError: asyncValidationError,
+        status: switch ((validatorFailed, asyncValidationError)) {
+          (true, _) => FieldStatus.failed,
+          (false, null) => FieldStatus.valid,
+          (false, _) => FieldStatus.invalid,
+        },
+      ),
+    );
+  }
+  
+
+  Future<void> _handleAsyncValidationError(
+    AsyncValidation<T, E> asyncValidation,
+    Object error,
+    StackTrace stackTrace,
+  ) async {
+    final onError = asyncValidation.onError;
+
+    if (onError == null) {
+      _reportAsyncValidationError(
+        error,
+        stackTrace,
+        'running the async validator',
+      );
+      return;
+    }
+
+    try {
+      await onError(error, stackTrace);
+    } catch (handlerError, handlerStackTrace) {
+      _reportAsyncValidationError(
+        handlerError,
+        handlerStackTrace,
+        'running the async validation onError handler',
+      );
+    }
+  }
+
+  void _reportAsyncValidationError(
+    Object error,
+    StackTrace? stackTrace,
+    String action,
+  ) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'advanced_forms',
+        context: ErrorDescription(
+          '$action of field ${name ?? '<unnamed>'}',
+        ),
+      ),
+    );
+  }
+
 }
 
 /// The status of a [AdvancedFieldController].
@@ -273,6 +372,11 @@ enum FieldStatus {
 
   /// The field is being async validated.
   validating,
+
+  /// The async validator threw, so validation could not be completed. There is
+  /// no error code to show, but the field does not count as valid — setting a
+  /// new value re-runs the validator and leaves this status.
+  failed,
 }
 
 /// An immutable snapshot of an [AdvancedFieldController] — its current value,
@@ -307,6 +411,9 @@ class AdvancedFieldState<T, E extends Object> {
   /// Returns true if field status is invalid.
   bool get isInvalid => status == FieldStatus.invalid;
 
+  /// Returns true if the async validator threw and validation never completed.
+  bool get isFailed => status == FieldStatus.failed;
+
   /// The current value.
   /// Can be set manually by calling [AdvancedFieldController.setValue].
   final T value;
@@ -340,12 +447,7 @@ class AdvancedFieldState<T, E extends Object> {
   /// The current status of the field.
   final FieldStatus status;
 
-  /// Returns a copy of this state with the given fields replaced.
-  ///
-  /// Omitting an argument keeps the current value. [validationError] and
-  /// [asyncError] accept `null` to clear the error, so they are only left
-  /// untouched when the argument is omitted entirely.
-  AdvancedFieldState<T, E> copyWithNullable({
+  AdvancedFieldState<T, E> _copyWithNullable({
     Object? value = _unset,
     Object? validationError = _unset,
     Object? asyncError = _unset,
@@ -365,7 +467,8 @@ class AdvancedFieldState<T, E extends Object> {
         status: status ?? this.status,
       );
 
-  // ⚠️ Maintainer: keep these and `copyWith` in sync with the fields above.
+  // ⚠️ Maintainer: keep these and `_copyWithNullable` in sync with the fields
+  // above.
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -391,4 +494,5 @@ class AdvancedFieldState<T, E extends Object> {
 class _Unset {
   const _Unset();
 }
+
 const _unset = _Unset();

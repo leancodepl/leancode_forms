@@ -289,7 +289,9 @@ void main() {
         validator1.validationResult = null;
         final asyncField = AdvancedTextFieldController<_Error1>(
           initialValue: _initialValue1,
-          asyncValidator: (_) async => validator1.validationResult,
+          asyncValidation: AsyncValidation(
+            validator: (_) async => validator1.validationResult,
+          ),
         );
         form.registerFields([asyncField]);
 
@@ -308,7 +310,9 @@ void main() {
         validator1.validationResult = _Error1.valueRequired;
         final asyncField = AdvancedTextFieldController<_Error1>(
           initialValue: _initialValue1,
-          asyncValidator: (_) async => validator1.validationResult,
+          asyncValidation: AsyncValidation(
+            validator: (_) async => validator1.validationResult,
+          ),
         );
         form.registerFields([asyncField]);
 
@@ -329,7 +333,9 @@ void main() {
         validator2.validationResult = null;
         final asyncSubformField = AdvancedFieldController<int, _Error2>(
           initialValue: 0,
-          asyncValidator: (_) async => validator2.validationResult,
+          asyncValidation: AsyncValidation(
+            validator: (_) async => validator2.validationResult,
+          ),
         );
         final asyncSubform = AdvancedFormController()
           ..registerFields([asyncSubformField]);
