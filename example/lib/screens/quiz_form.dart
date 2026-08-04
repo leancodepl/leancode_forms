@@ -42,7 +42,7 @@ class QuizForm extends StatelessWidget {
             plain(' the user presses Submit — the controller calls '),
             code('setError'),
             plain(' directly on each field once the async check returns. '
-                'The status text at the bottom reflects the controller\'s '
+                "The status text at the bottom reflects the controller's "
                 'own '),
             code('ValueNotifier'),
             plain('-backed state.'),
