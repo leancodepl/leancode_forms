@@ -56,7 +56,8 @@ class ComplexForm extends StatelessWidget {
             ),
             Builder(
               builder: (context) {
-                final type = context.select<ComplexFormController, SubformType?>(
+                final type =
+                    context.select<ComplexFormController, SubformType?>(
                   (c) => c.subformType,
                 );
                 return switch (type) {
@@ -144,7 +145,8 @@ class ComplexFormController extends AdvancedFormController {
     type.addListener(_onTypeListenerFired);
   }
 
-  final type = AdvancedSingleSelectFieldController<SubformType?, ValidationError>(
+  final type =
+      AdvancedSingleSelectFieldController<SubformType?, ValidationError>(
     options: SubformType.values,
     initialValue: null,
   );
