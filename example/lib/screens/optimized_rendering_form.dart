@@ -239,8 +239,10 @@ class OptimizedRenderingFormController extends AdvancedFormController {
 
   late final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
-    asyncValidator: _onEmailChanged,
-    asyncValidationDebounce: const Duration(milliseconds: 500),
+    asyncValidation: AsyncValidation(
+      validator: _onEmailChanged,
+      debounce: const Duration(milliseconds: 500),
+    ),
   );
 
   Future<ValidationError?> _onEmailChanged(String value) async {

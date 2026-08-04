@@ -7,8 +7,7 @@ class AdvancedBooleanFieldController<E extends Object>
   AdvancedBooleanFieldController({
     super.initialValue = false,
     super.validator,
-    super.asyncValidator,
-    super.asyncValidationDebounce,
+    super.asyncValidation,
     super.name,
   });
 }
