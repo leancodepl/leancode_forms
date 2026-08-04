@@ -70,14 +70,14 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       routes: <String, WidgetBuilder>{
-        Routes.home: (_) => const HomePage(),
-        Routes.simple: (_) => const SimpleFormScreen(),
-        Routes.password: (_) => const PasswordFormScreen(),
-        Routes.delivery: (_) => const DeliveryListFormScreen(),
-        Routes.quiz: (_) => const QuizFormScreen(),
-        Routes.complex: (_) => const ComplexFormScreen(),
-        Routes.scroll: (_) => const ScrollFormScreen(),
-        Routes.optimized: (_) => const OptimizedRenderingFormScreen(),
+        Routes.home: (context) => const HomePage(),
+        Routes.simple: (context) => const SimpleFormScreen(),
+        Routes.password: (context) => const PasswordFormScreen(),
+        Routes.delivery: (context) => const DeliveryListFormScreen(),
+        Routes.quiz: (context) => const QuizFormScreen(),
+        Routes.complex: (context) => const ComplexFormScreen(),
+        Routes.scroll: (context) => const ScrollFormScreen(),
+        Routes.optimized: (context) => const OptimizedRenderingFormScreen(),
       },
     );
   }

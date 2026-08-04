@@ -14,7 +14,7 @@ class SimpleFormScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<SimpleFormController>(
-      create: (_) => SimpleFormController(),
+      create: (context) => SimpleFormController(),
       child: const SimpleForm(),
     );
   }

@@ -17,7 +17,7 @@ class PasswordFormScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<PasswordFormController>(
-      create: (_) => PasswordFormController(),
+      create: (context) => PasswordFormController(),
       child: const PasswordForm(),
     );
   }

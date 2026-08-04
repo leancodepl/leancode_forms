@@ -15,7 +15,7 @@ class ScrollFormScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<ScrollFormController>(
-      create: (_) => ScrollFormController(),
+      create: (context) => ScrollFormController(),
       child: const ScrollForm(),
     );
   }

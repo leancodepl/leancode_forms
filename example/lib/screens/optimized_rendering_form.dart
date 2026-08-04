@@ -21,7 +21,7 @@ class OptimizedRenderingFormScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<OptimizedRenderingFormController>(
-      create: (_) => OptimizedRenderingFormController(),
+      create: (context) => OptimizedRenderingFormController(),
       child: const _OptimizedRenderingForm(),
     );
   }

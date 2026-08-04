@@ -17,7 +17,7 @@ class ComplexFormScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<ComplexFormController>(
-      create: (_) => ComplexFormController(),
+      create: (context) => ComplexFormController(),
       child: const ComplexForm(),
     );
   }
@@ -142,7 +142,7 @@ class DogSubform extends StatelessWidget {
 class ComplexFormController extends AdvancedFormController {
   ComplexFormController() {
     registerFields([type]);
-    type.addListener(_onTypeListenerFired);
+    type.addListener(_onTypeChanged);
   }
 
   final type =
@@ -159,7 +159,7 @@ class ComplexFormController extends AdvancedFormController {
   Timer? _typeDebounce;
   SubformType? _lastSeenType;
 
-  void _onTypeListenerFired() {
+  void _onTypeChanged() {
     final current = type.value.value;
     if (current == _lastSeenType) {
       return;
@@ -201,7 +201,7 @@ class ComplexFormController extends AdvancedFormController {
   @override
   void dispose() {
     _typeDebounce?.cancel();
-    type.removeListener(_onTypeListenerFired);
+    type.removeListener(_onTypeChanged);
     humanSubform.dispose();
     dogSubform.dispose();
     super.dispose();

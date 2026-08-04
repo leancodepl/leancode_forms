@@ -16,7 +16,7 @@ class AdvancedMultiSelectFieldController<V, E extends Object>
 
   /// Toggles the given [value].
   void toggleElement(V value) {
-    if (this.value.value.contains(value)) {
+    if (fieldValue.contains(value)) {
       removeValue(value);
     } else {
       addValue(value);
@@ -25,11 +25,11 @@ class AdvancedMultiSelectFieldController<V, E extends Object>
 
   /// Adds the given [value].
   void addValue(V value) {
-    setValue(Set<V>.from(this.value.value)..add(value));
+    setValue({...fieldValue}..add(value));
   }
 
   /// Removes the given [value].
   void removeValue(V value) {
-    setValue(Set<V>.from(this.value.value)..remove(value));
+    setValue({...fieldValue}..remove(value));
   }
 }
