@@ -269,7 +269,7 @@ field.removeListener(_onChange);
 
 Same primitive `AdvancedFieldBuilder` and `ValueListenableBuilder` use internally — just without the widget plumbing.
 
-Coming from 0.1.x and its cubit streams? The deprecated `stream` helper bridges the gap while you migrate — see [Migrating a rich custom field](./MIGRATION.md#9-migrating-a-rich-custom-field) in the migration guide.
+Coming from 0.1.x and its cubit streams? The deprecated `stream` helper bridges the gap while you migrate — see [Migrating a custom field](./MIGRATION.md#9-migrating-a-custom-field) in the migration guide.
 
 ---
 

@@ -338,7 +338,7 @@ For a fully working example, see `PasswordFormScreen` in the example app.
 - `AdvancedSingleSelectFieldController` — one choice from a list of `options` (dropdowns, radio groups),
 - `AdvancedMultiSelectFieldController` — a set of choices, with `toggleElement` / `addValue` / `removeValue` helpers.
 
-All of them support `reset()` (back to the initial value), `markReadOnly()` / `unmarkReadOnly()`, and sync validation; `AdvancedTextFieldController` and `AdvancedBooleanFieldController` also take an `asyncValidator`. All accept an optional `name`, which shows up in logs and `FocusNode` debug labels — worth setting on forms big enough to make "which field is misbehaving?" a real question.
+All of them support `reset()` (back to the initial value), `markReadOnly()` / `unmarkReadOnly()`, and sync validation; `AdvancedTextFieldController` and `AdvancedBooleanFieldController` also take an `asyncValidation`. All accept an optional `name`, which shows up in logs and `FocusNode` debug labels — worth setting on forms big enough to make "which field is misbehaving?" a real question.
 
 ### Reading the current state
 
@@ -360,8 +360,7 @@ class IntegerFieldController<E extends Object> extends AdvancedFieldController<i
   IntegerFieldController({
     super.initialValue = 0,
     super.validator,
-    super.asyncValidator,
-    super.asyncValidationDebounce,
+    super.asyncValidation,
     super.name,
   });
 
@@ -371,7 +370,7 @@ class IntegerFieldController<E extends Object> extends AdvancedFieldController<i
 }
 ```
 
-This is the intended way to use the library, not an escape hatch — real apps end up with `MoneyFieldController`, `PhoneNumberFieldController`, `QuantityFieldController`, each a small class that's trivial to unit-test. For a richer example (record-valued field, custom error hierarchy, server-side errors), see [MIGRATION.md, section 9](./MIGRATION.md#9-migrating-a-rich-custom-field).
+This is the intended way to use the library, not an escape hatch — real apps end up with `MoneyFieldController`, `PhoneNumberFieldController`, `QuantityFieldController`, each a small class that's trivial to unit-test. `example/lib/controllers/` has a record-valued field with a custom error hierarchy and server-side errors.
 
 ## Reusable field widgets
 

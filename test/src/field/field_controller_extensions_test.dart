@@ -45,7 +45,7 @@ void main() {
       // Broadcast stream attaches its listener on onListen, which is
       // synchronous here, but events are delivered asynchronously.
       field.setValue((unit: 'kg', amount: 2));
-      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue();
 
       expect(emissions, [
         const AdvancedFieldState<_Value, _Error>(
