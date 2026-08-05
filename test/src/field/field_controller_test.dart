@@ -431,7 +431,7 @@ void main() {
         ..subscribeToFields([field2]);
 
       field2.setValue(10);
-      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue();
       expect(field1.value.error, _Error.malformed);
 
       field1.dispose();
