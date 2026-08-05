@@ -8,7 +8,7 @@ import 'package:leancode_forms_example/widgets/form_text_field_with_icon.dart';
 import 'package:leancode_forms_example/widgets/screen_description.dart';
 import 'package:provider/provider.dart';
 
-/// Demonstrates `ValueListenableBuilder`'s `child:` optimization across
+/// Demonstrates `AdvancedFieldBuilder`'s `child:` optimization across
 /// three layouts of increasing visual weight: a small leading icon, a
 /// profile-card with avatar, and a large decorative banner.
 ///
@@ -41,7 +41,7 @@ class _OptimizedRenderingForm extends StatelessWidget {
           ScreenDescription([
             bold('Optimized rebuilds. '),
             plain('Demonstrates '),
-            code('ValueListenableBuilder.child'),
+            code('AdvancedFieldBuilder.child'),
             plain(' across three layouts of increasing visual weight — '),
             bold('leading icon'),
             plain(', '),

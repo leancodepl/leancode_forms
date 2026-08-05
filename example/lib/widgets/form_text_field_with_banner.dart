@@ -4,7 +4,7 @@ import 'package:leancode_forms/leancode_forms.dart';
 /// A form text field with a large decorative banner header. The [banner] is
 /// the static subtree — it never depends on the field's state, so it's
 /// built once when this widget mounts and reused on every rebuild via
-/// `ValueListenableBuilder`'s `child:` parameter.
+/// [AdvancedFieldBuilder]'s `child:` parameter.
 ///
 /// The banner is intentionally the largest "static" content of the three
 /// variants in this example — pairing it with an async-validated field
@@ -24,7 +24,7 @@ class FormTextFieldWithBanner<E extends Object> extends StatelessWidget {
   final ErrorTranslator<E> translateError;
 
   /// Built once when this widget is mounted and reused on every rebuild via
-  /// `ValueListenableBuilder`'s `child:` parameter.
+  /// [AdvancedFieldBuilder]'s `child:` parameter.
   final Widget banner;
 
   final String? labelText;
@@ -35,8 +35,8 @@ class FormTextFieldWithBanner<E extends Object> extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       clipBehavior: Clip.antiAlias,
-      child: ValueListenableBuilder<AdvancedFieldState<String, E>>(
-        valueListenable: field,
+      child: AdvancedFieldBuilder<String, E>(
+        field: field,
         child: banner, // <-- built once, reused on every rebuild
         builder: (context, state, child) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

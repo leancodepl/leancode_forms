@@ -80,8 +80,10 @@ class SignupController extends AdvancedFormController {
 
   final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
-    asyncValidator: _checkEmail,
-    asyncValidationDebounce: const Duration(milliseconds: 500),
+    asyncValidation: AsyncValidation(
+      validator: _checkEmail,
+      debounce: const Duration(milliseconds: 500),
+    ),
   );
 
   Future<ValidationError?> _checkEmail(String value) async {

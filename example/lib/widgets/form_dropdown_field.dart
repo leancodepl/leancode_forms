@@ -22,8 +22,8 @@ class FormDropdownField<T, E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AdvancedFieldState<T?, E>>(
-      valueListenable: field,
+    return AdvancedFieldBuilder<T?, E>(
+      field: field,
       builder: (context, state, _) => AppDropdownField<T>(
         value: state.value,
         options: field.options,

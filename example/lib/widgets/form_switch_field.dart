@@ -13,8 +13,8 @@ class FormSwitchField<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AdvancedFieldState<bool, E>>(
-      valueListenable: field,
+    return AdvancedFieldBuilder<bool, E>(
+      field: field,
       builder: (context, state, _) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
