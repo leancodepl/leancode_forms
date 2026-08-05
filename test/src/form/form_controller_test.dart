@@ -121,10 +121,10 @@ void main() {
           ..addSubform(subform)
           ..registerFields([field1, field2]);
 
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final emissions = _record<AdvancedFormState>(form);
         subformField.setValue(123);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
 
         expect(emissions, [
           AdvancedFormState(
@@ -139,10 +139,10 @@ void main() {
       test('is true if field1 changes', () async {
         form.registerFields([field1, field2]);
 
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final emissions = _record<AdvancedFormState>(form);
         field1.setValue('value');
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
 
         expect(emissions, [
           AdvancedFormState(wasModified: true, fields: [field1, field2]),
@@ -153,10 +153,10 @@ void main() {
       test('is true if field2 changes', () async {
         form.registerFields([field1, field2]);
 
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final emissions = _record<AdvancedFormState>(form);
         field2.setValue(0xb0b);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
 
         expect(emissions, [
           AdvancedFormState(wasModified: true, fields: [field1, field2]),
@@ -169,10 +169,10 @@ void main() {
           ..registerFields([field1, field2])
           ..registerFields([]);
 
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final emissions = _record<AdvancedFormState>(form);
         field2.setValue(0xb0b);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
 
         expect(emissions, isEmpty);
         form.dispose();
@@ -356,11 +356,11 @@ void main() {
     group('onValuesChanged', () {
       test('fires on field change', () async {
         form.registerFields([field1, field2]);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final getCount = _countCalls(form.onValuesChanged);
 
         field1.setValue('value');
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
 
         expect(getCount(), greaterThanOrEqualTo(1));
         form.dispose();
@@ -372,10 +372,10 @@ void main() {
           ..registerFields([field1, field2])
           ..addSubform(subform);
 
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final getCount = _countCalls(form.onValuesChanged);
         subformField.setValue(123);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
 
         expect(getCount(), greaterThanOrEqualTo(1));
         form.dispose();
@@ -383,11 +383,11 @@ void main() {
 
       test('fires when new fields are registered', () async {
         form.registerFields([field1]);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final getCount = _countCalls(form.onValuesChanged);
 
         form.registerFields([field1, field2]);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
 
         expect(getCount(), greaterThanOrEqualTo(1));
         form.dispose();
@@ -399,11 +399,11 @@ void main() {
         form
           ..registerFields([field1])
           ..addSubform(subform);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final getCount = _countCalls(form.onValuesChanged);
 
         subform.registerFields([subformField]);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
 
         expect(getCount(), greaterThanOrEqualTo(1));
         form.dispose();
@@ -412,7 +412,7 @@ void main() {
 
       test('does not fire on validation error', () async {
         form.registerFields([field1, field2]);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final getCount = _countCalls(form.onValuesChanged);
 
         field1.setError(_Error1.valueRequired);
@@ -426,7 +426,7 @@ void main() {
 
       test('does not fire on enabling autovalidate', () async {
         form.registerFields([field1, field2]);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final getCount = _countCalls(form.onValuesChanged);
 
         field1.setAutovalidate(true);
@@ -441,7 +441,7 @@ void main() {
       test('does not fire on same value', () async {
         form.registerFields([field1, field2]);
         field1.setValue('value');
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
         final getCount = _countCalls(form.onValuesChanged);
 
         field1.setValue('value');
@@ -558,7 +558,7 @@ void main() {
         validator1.validationResult = _Error1.valueRequired;
 
         field2.setValue(42);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
 
         expect(field1.value.error, _Error1.valueRequired);
         expect(field2.value.error, null);
@@ -575,7 +575,7 @@ void main() {
         validator2.validationResult = _Error2.malformed;
 
         field2.setValue(42);
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue();
 
         expect(field1.value.error, null);
         expect(field2.value.error, null);
