@@ -2,49 +2,27 @@
 
 0.2.0 keeps the form-building model of 0.1.x — fields, form groups, validators, subforms — and replaces the state-management machinery underneath it:
 
-- `flutter_bloc` and `rxdart` are no longer dependencies. Fields and forms are built on `ValueNotifier`/`ChangeNotifier` from the Flutter SDK, so the library no longer constrains the app's state-management stack.
-- Every `*Cubit` class is now an `Advanced*Controller` (`FieldCubit` → `AdvancedFieldController`). Methods and behavior are unchanged.
+- `flutter_bloc` and `rxdart` are no longer dependencies. Fields and forms mix in `ChangeNotifier` and implement `ValueListenable`, both from the Flutter SDK, so the library no longer constrains the app's state-management stack.
+- Every `*Cubit` class is now an `Advanced*Controller` (`FieldCubit` → `AdvancedFieldController`). Most members carry over unchanged; [section 3](#3-behavior-changes-that-are-not-renames) covers the ones that don't.
 - Lifecycle is synchronous: `void dispose()` replaces `Future<void> close()`.
-- `AdvancedTextFieldController` owns its `TextEditingController` and keeps it in sync with the field value in both directions.
+- `AdvancedTextFieldController` owns its `TextEditingController` and `FocusNode`.
 
-## Migration steps
+## 1. Migration checklist
 
-1. Rename the classes ([section 1](#1-rename-reference)).
-2. Replace `.state` reads with `.value` / `fieldValue` ([section 2](#2-migrating-your-form-classes)).
-3. Move `asyncValidator:` and `asyncValidationDebounce:` into `asyncValidation:` ([section 2](#2-migrating-your-form-classes)).
-4. Add a third parameter to `FieldBuilder` builders ([section 3](#3-migrating-your-widgets--fieldbuilder-becomes-advancedfieldbuilder)).
-5. Convert `close()` overrides to `dispose()` ([section 4](#4-lifecycle-close--dispose)).
-6. Delete `TextEditingController` plumbing from text widgets ([section 5](#5-advancedtextfieldcontroller-now-owns-its-texteditingcontroller)).
-7. Replace form-level stream subscriptions with listeners ([section 6](#6-advancedformcontroller-exposes-listenables-not-streams)).
-8. Handle the new `FieldStatus.failed` value if you switch over `FieldStatus` ([behavior changes](#behavior-changes-that-are-not-renames)).
-9. Rewire custom cubit-stream patterns ([section 9](#9-migrating-a-rich-custom-field)).
-
-Steps 1–5 are mechanical. Step 6 removes code. Steps 7–9 typically touch a handful of files. [Section 7](#7-what-didnt-change) lists the API surface that did not change.
-
----
-
-## Behavior changes that are not renames
-
-Two changes are not covered by renaming, and both are worth checking before you start.
-
-**A throwing async validator no longer hangs the field.** In 0.1.x, an exception from `asyncValidator` left the internal `Completer` uncompleted, so the field stayed in `FieldStatus.validating` indefinitely and the exception surfaced as an uncaught async error. In 0.2.0 the field moves to `FieldStatus.failed`, and the exception is reported through `FlutterError.reportError` — or through `AsyncValidation.onError` if you supply a handler:
-
-```dart
-AdvancedTextFieldController<ValidationError>(
-  asyncValidation: AsyncValidation(
-    validator: _checkEmailAvailable,
-    onError: (error, stackTrace) async => _log.warning('email check failed', error, stackTrace),
-  ),
-);
-```
-
-A `failed` field is not valid: `validate()` returns `false` for it, so a failed availability check cannot let a submit through. Setting a new value re-runs the validator.
-
-**`FieldStatus` gained a `failed` value.** Non-exhaustive `switch` statements over `FieldStatus` in your code will stop compiling. Map `failed` to the same branch as `invalid` unless you want to distinguish "check could not run" from "check returned an error" in the UI.
+1. Update `pubspec.yaml`: remove `flutter_bloc` and `rxdart`, plus `bloc_test`, `bloc_presentation`, and `flutter_hooks` if forms were the only reason for them. Add `provider` if you used `BlocProvider` ([section 8](#8-dropping-flutter_bloc-and-friends)).
+2. Rename the classes ([section 2](#2-rename-reference)).
+3. Replace `.state` reads with `.value` / `fieldValue` ([section 4](#4-form-classes-and-state-reads)).
+4. Move `asyncValidator:` and `asyncValidationDebounce:` into `asyncValidation:` ([section 4](#4-form-classes-and-state-reads)).
+5. Replace `clear()` with `reset()` ([section 2](#2-rename-reference)).
+6. Migrate widgets: a third builder parameter, and delete `TextEditingController` plumbing ([section 5](#5-migrating-your-widgets)).
+7. Convert `close()` overrides to `dispose()`, and `addDisposable(...)` registrations to explicit cleanup ([section 7](#7-lifecycle-close--dispose)).
+8. Replace form-level stream subscriptions with listeners ([section 6](#6-form-listenables-instead-of-streams)).
+9. Rewire custom cubit-stream patterns ([section 9](#9-migrating-a-custom-field)).
+10. Check the behavior changes in [section 3](#3-behavior-changes-that-are-not-renames) against your code — they compile but behave differently.
 
 ---
 
-## 1. Rename reference
+## 2. Rename reference
 
 | 0.1.x | 0.2.0 |
 | --- | --- |
@@ -54,183 +32,101 @@ A `failed` field is not valid: `validate()` returns `false` for it, so a failed 
 | `SingleSelectFieldCubit<V, E>` | `AdvancedSingleSelectFieldController<V, E>` |
 | `MultiSelectFieldCubit<V, E>` | `AdvancedMultiSelectFieldController<V, E>` |
 | `FormGroupCubit` | `AdvancedFormController` |
-| `FieldBuilder<T, E>` | `AdvancedFieldBuilder<T, E>` — wraps `ValueListenableBuilder`; `field:` re-typed to `AdvancedFieldController<T, E>`, `builder` gains a third `child` param |
+| `FieldState<T, E>` | `AdvancedFieldState<T, E>` |
+| `FormGroupState` | `AdvancedFormState` (same members) |
+| `FieldBuilder<T, E>` | `AdvancedFieldBuilder<T, E>` — wraps `ValueListenableBuilder`; `builder` gains a third `child` param |
 | `cubit.state` | `controller.value` (plus the `fieldValue` and `error` shortcuts) |
+| `field.clear()` | **Removed** — call `field.reset()` |
 | `asyncValidator:`, `asyncValidationDebounce:` | `asyncValidation: AsyncValidation(validator:, debounce:, onError:)` |
 | `form.onValuesChangedStream` (`Stream<void>`) | `form.onValuesChanged` (`Listenable`) |
-| `form.onStatusChangedStream` (`Stream<FieldStatus>`) | `form.onStatusChanged` (`Listenable`) |
-| `FieldCubit.stream` (inherited from `Cubit`) | `AdvancedFieldController.stream` — deprecated migration bridge, removed in 0.3.0 ([section 9](#9-migrating-a-rich-custom-field)) |
+| `form.onStatusChangedStream` (`Stream<FieldStatus>`) | `form.onStatusChanged` (`Listenable`, no payload) |
+| `BlocBuilder<FormGroupCubit, FormGroupState>` | `ValueListenableBuilder<AdvancedFormState>` — there is no `AdvancedFormBuilder` |
+| `FieldCubit.stream` (inherited from `Cubit`) | `AdvancedFieldController.stream` — deprecated extension, removed in 0.3.0 ([section 9](#9-migrating-a-custom-field)) |
 | `Future<void> close()` | `void dispose()` |
-
-In `pubspec.yaml`:
-
-- Remove `flutter_bloc` and `rxdart` unless other code depends on them.
-- Remove `bloc_test`, `bloc_presentation`, and `flutter_hooks` if forms were the only reason they were there.
-- Add `provider` if you want a drop-in replacement for `BlocProvider` and `context.read` (see [section 8](#8-migrating-exampletest-code-that-used-flutter_bloc-directly)).
+| `addDisposable(...)`, the `Disposable` mixin | **Removed** — override `dispose()` ([section 7](#7-lifecycle-close--dispose)) |
 
 ---
 
-## 2. Migrating your form classes
+## 3. Behavior changes that are not renames
 
-Form classes — those declaring fields and calling `registerFields` — need the class renames and the async-validation parameter change.
+These compile after the renames but behave differently.
 
-**0.1.x:**
+**A throwing async validator no longer hangs the field.** In 0.1.x an exception from `asyncValidator` left the internal `Completer` uncompleted, so the field stayed in `FieldStatus.validating` indefinitely and the exception surfaced as an uncaught async error. In 0.2.0 the field moves to `FieldStatus.failed` and the exception is reported through `FlutterError.reportError`, or through `AsyncValidation.onError` if you supply a handler. A `failed` field is not valid — `validate()` returns `false`, so a failed availability check cannot let a submit through. Setting a new value re-runs the validator.
+
+**`FieldStatus` gained a `failed` value.** Previously exhaustive `switch`es over `FieldStatus` stop compiling until you add a `failed` arm. Map it alongside `invalid` unless you want to distinguish "the check could not run" from "the check returned an error".
+
+**`subscribeToFields` fires more eagerly.** 0.1.x combined the observed fields with `Rx.combineLatest`, so nothing fired until *every* observed field had emitted at least once, and the first emission always passed `.distinct()` even for a status-only change. 0.2.0 compares each observed field's value against a cached baseline: it fires on the first value change to any one field, and never on a status-only change. Dependent fields that appeared not to revalidate in 0.1.x now will.
+
+**Value equality is no longer deep.** `equatable` is gone, and `AdvancedFieldState.operator ==` compares members with `==`. For scalars and records this matches 0.1.x. For `List`/`Set`/`Map` values or error types, two equal-content-but-distinct instances now compare unequal, so `setValue` notifies where 0.1.x deduplicated. Most visible on `AdvancedMultiSelectFieldController`, whose value *is* a `Set` and whose `addValue` / `removeValue` allocate a new set on every call.
+
+**`addSubform` throws instead of failing quietly.** It raises a `StateError` if either the parent or the subform has already been disposed.
+
+**Form state settles synchronously.** 0.1.x routed field changes through a `.distinct()` subscription, so `wasModified` and `validating` updated a microtask later. They now update in the same call stack as the field change.
+
+**Debounce timers and in-flight async validations are cancelled on dispose.** 0.1.x `close()` cancelled only the field subscription, so a timer could fire after close.
+
+---
+
+## 4. Form classes and state reads
+
+Form classes — those declaring fields and calling `registerFields` — need the renames and the async-validation change:
+
 ```dart
-class SimpleFormCubit extends FormGroupCubit {
-  SimpleFormCubit() {
-    registerFields([firstName, lastName, email]);
-  }
-
-  final firstName = TextFieldCubit(
-    initialValue: 'John',
-    validator: filled(ValidationError.empty),
-  );
-  final lastName = TextFieldCubit(initialValue: 'Foo');
-  final email = TextFieldCubit(
-    validator: filled(ValidationError.empty),
-    asyncValidator: _onEmailChanged,
-    asyncValidationDebounce: Duration(milliseconds: 500),
-  );
-
-  Future<ValidationError?> _onEmailChanged(String value) async { /* ... */ }
-}
-```
-
-**0.2.0:**
-```dart
-class SimpleFormController extends AdvancedFormController {
+class SimpleFormController extends AdvancedFormController {   // was: extends FormGroupCubit
   SimpleFormController() {
-    registerFields([firstName, lastName, email]);
+    registerFields([firstName, email]);                       // unchanged
   }
 
-  final firstName = AdvancedTextFieldController(
+  final firstName = AdvancedTextFieldController(              // was: TextFieldCubit(
     initialValue: 'John',
-    validator: filled(ValidationError.empty),
+    validator: filled(ValidationError.empty),                 // unchanged
   );
-  final lastName = AdvancedTextFieldController(initialValue: 'Foo');
+
   final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
-    asyncValidation: AsyncValidation(
-      validator: _onEmailChanged,
+    asyncValidation: AsyncValidation(                          // was: asyncValidator: _check,
+      validator: _check,                                       //      asyncValidationDebounce: …,
       debounce: Duration(milliseconds: 500),
     ),
   );
-
-  Future<ValidationError?> _onEmailChanged(String value) async { /* ... */ }
 }
 ```
 
-`debounce` defaults to 300 ms, the same default `asyncValidationDebounce` had, so it can be omitted if you never set it.
+`debounce` defaults to 300 ms, matching the old `asyncValidationDebounce` default, so it can be omitted if you never set it.
 
-### Reading state
+State reads change as follows:
 
-The `.state` getter is gone. State lives under `.value`, the name `ValueListenable` uses:
+| 0.1.x | 0.2.0 |
+| --- | --- |
+| `field.state` | `field.value` |
+| `field.state.value` | `field.fieldValue` (or `field.value.value`) |
+| `field.state.error` | `field.error` (or `field.value.error`) |
+| `field.state.validationError` | `field.value.validationError` |
+| `form.state.wasModified` | `form.value.wasModified` |
 
-```dart
-// 0.1.x:
-controller.firstName.state.value;
-
-// 0.2.0:
-controller.firstName.value.value;
-
-// or, via the shortcut:
-controller.firstName.fieldValue;
-```
-
-`fieldValue` returns the inner value and `error` returns the current error, so hand-written code can avoid `value.value` and `value.error`.
-
-Notification is synchronous: assigning a new value runs listeners in the same call stack, with no broadcast stream and no microtask hop. Tests do not need to await a state change.
+Notification is synchronous for `setValue`, `setError`, `reset`, and the other setters — no broadcast stream and no microtask hop, so tests can assert immediately after the call. Async validation is unchanged: you still have to wait out the debounce plus the validator.
 
 ---
 
-## 3. Migrating your widgets — `FieldBuilder` becomes `AdvancedFieldBuilder`
+## 5. Migrating your widgets
 
-`FieldBuilder` becomes `AdvancedFieldBuilder`, a wrapper around `ValueListenableBuilder` rather than `BlocBuilder`. Two differences beyond the rename:
+### Builders
 
-- The `field:` parameter is typed `AdvancedFieldController<T, E>`. Specialized field types such as `AdvancedTextFieldController` satisfy it without changes.
-- `builder` is a `ValueWidgetBuilder`, so it takes a third `child` parameter. Add `, _` to each builder's parameter list.
+`AdvancedFieldBuilder` replaces `FieldBuilder`. Its `builder` is a `ValueWidgetBuilder`, so it takes a third `child` parameter:
 
 ```dart
-// 0.1.x:
-FieldBuilder<String, MyError>(
-  field: controller.email,
-  builder: (context, state) => Text(state.value),
-)
-
-// 0.2.0:
-AdvancedFieldBuilder<String, MyError>(
-  field: controller.email,
-  builder: (context, state, _) => Text(state.value),
-)
+builder: (context, state) => Text(state.value)      // 0.1.x
+builder: (context, state, _) => Text(state.value)   // 0.2.0
 ```
 
-The third parameter carries the `child:` optimization: a subtree that does not depend on field state is built once and reused across rebuilds.
+If your widgets **subclassed** `FieldBuilder` — `class FormTextField<E> extends FieldBuilder<String, E>` — that pattern no longer carries its weight, because fields are `ValueListenable`s. Rewrite them as plain `StatelessWidget`s over `ValueListenableBuilder<AdvancedFieldState<T, E>>`, which is what every widget in `example/lib/widgets/` does.
+
+### Text fields
+
+In 0.1.x each text widget allocated its own `TextEditingController` and seeded it from `field.state.value`, so programmatic changes — `reset()`, `setValue('foo')`, one field updating another — never reached the screen. The field owns the controller now:
 
 ```dart
-AdvancedFieldBuilder<String, MyError>(
-  field: controller.email,
-  child: const ExpensiveStaticIcon(),
-  builder: (context, state, child) => Row(
-    children: [child!, Text(state.value)],
-  ),
-)
-```
-
-Fields are `ValueListenable`s, so `ValueListenableBuilder<AdvancedFieldState<String, MyError>>` works directly as well. `AdvancedFieldBuilder` exists so that existing widget code compiles after a rename and so that call sites do not have to spell out the state type argument.
-
----
-
-## 4. Lifecycle: `close()` → `dispose()`
-
-**0.1.x:**
-```dart
-@override
-Future<void> close() async {
-  await field.close();
-  return super.close();
-}
-```
-
-**0.2.0:**
-```dart
-@override
-void dispose() {
-  field.dispose();
-  super.dispose();
-}
-```
-
-`close()` was asynchronous because it closed a broadcast `StreamController`. `ChangeNotifier.dispose()` clears a listener list, so there is nothing to await.
-
-### Disposing twice
-
-`dispose()` is not idempotent: calling it twice on a notifier in debug mode throws `'A ValueNotifier was used after being disposed'`. `Cubit.close()` tolerated a second call, so 0.1.x code that disposed a field by hand *and* let `FormGroupCubit.close()` dispose it again worked by accident and now fails.
-
-Assign each field a single owner. The form is the straightforward choice:
-
-- Register fields with `registerFields(...)` and let `AdvancedFormController` dispose them. Do not call `dispose()` on registered fields yourself.
-- Registering the same field more than once is safe — ownership is tracked in a `Set`, so each field is disposed exactly once.
-
----
-
-## 5. `AdvancedTextFieldController` now owns its `TextEditingController`
-
-In 0.1.x, each text widget allocated its own `TextEditingController`, seeded it from `field.state.value`, and wired `onChanged: field.setValue` back. Programmatic changes — `field.reset()`, `field.setValue('foo')`, one field updating another — did not reach the widget, because its controller was seeded once and then held its own copy of the string.
-
-**0.1.x widget code:**
-```dart
-final c = useTextEditingController(text: field.state.value);
-TextField(
-  controller: c,
-  onChanged: field.setValue,
-);
-```
-
-**0.2.0 widget code:**
-```dart
-TextField(
-  controller: field.textController,
-);
+TextField(controller: field.textController);
 ```
 
 To migrate a custom text widget:
@@ -238,279 +134,168 @@ To migrate a custom text widget:
 1. Delete the `useTextEditingController` call or the manually allocated `TextEditingController`.
 2. Delete the `initialValue: state.value` and `onChanged: field.setValue` plumbing.
 3. Pass `controller: field.textController` to the underlying `TextField` or `TextFormField`.
+4. Delete any `FocusNode`-adding field subclass — `AdvancedTextFieldController` owns a `focusNode` and a `focus()` shortcut, so a separate "focusable" variant of the widget is no longer needed.
 
-`AdvancedTextFieldController` allocates the `TextEditingController` and a `FocusNode`, keeps the text controller and the field value in sync in both directions, and disposes both in `dispose()`. Do not dispose them externally.
-
----
-
-## 6. `AdvancedFormController` exposes `Listenable`s, not `Stream`s
-
-Subscriptions become listener callbacks:
-
-**0.1.x:**
-```dart
-final sub = form.onValuesChangedStream.listen((_) => doSomething());
-// ...
-await sub.cancel();
-```
-
-**0.2.0:**
-```dart
-form.onValuesChanged.addListener(doSomething);
-// ...
-form.onValuesChanged.removeListener(doSomething);
-```
-
-`onStatusChanged` replaces `onStatusChangedStream` the same way.
-
-`removeListener` needs the same callback instance that was passed to `addListener`, so where you previously cancelled a `StreamSubscription` in `dispose`, the listener has to be a named function or a stored closure rather than an inline one.
+`AdvancedTextFieldController` disposes both the text controller and the focus node in its own `dispose()`. Do not dispose them externally.
 
 ---
 
-## 7. What didn't change
+## 6. Form listenables instead of streams
 
-The following API surface is unchanged. Code that only touches it needs the renames and nothing else.
+| 0.1.x | 0.2.0 |
+| --- | --- |
+| `form.onValuesChangedStream.listen(f)` | `form.onValuesChanged.addListener(f)` |
+| `form.onStatusChangedStream.listen(f)` | `form.onStatusChanged.addListener(f)` |
+| `await subscription.cancel()` | `form.onValuesChanged.removeListener(f)` |
 
-- **Validators.** The `Validator<T, E>` and `AsyncValidator<T, E>` typedefs, and every built-in validator (`filled`, `atLeastLength`, `notLongerThan`, `notNull`, `notEmpty`, `or`, `and`, `&`, `|`, …), keep their names and signatures. Custom validators compile as-is.
-- **Field methods.** `setValue`, `validate`, `setAutovalidate`, `markReadOnly`, `unmarkReadOnly`, `clearErrors`, `reset`, `setError`, `getValueSetter`, `subscribeToFields`.
-- **Form-group methods.** `registerFields`, `addSubform`, `removeSubform`, `setValidationEnabled`, `validateWithAutovalidate`, `resetAll`, `markReadOnly`, `clearErrors`.
-- **Async validation sequence.** The `pending` → `validating` → `valid`/`invalid` transitions, the debounce timer, and cancel-on-new-value are unchanged. Only the throwing case differs (see [behavior changes](#behavior-changes-that-are-not-renames)).
-- **`wasModified` and `validating` aggregate flags.** Computed as before, with `DeepCollectionEquality` comparing against the baseline values.
-- **`subscribeToFields`.** Still ignores status-only changes, so dependent fields do not revalidate without a value change. The implementation moved from `Rx.combineLatest` + `distinct` to a cached comparison; the observable behavior is the same.
+Two consequences:
 
----
+- `removeListener` needs the same callback instance that was passed to `addListener`, so a listener you intend to remove has to be a named function or a stored closure, not an inline one.
+- `onStatusChanged` carries no payload, where `onStatusChangedStream` emitted the changed `FieldStatus`. Read the status off the field, or `form.value.validating` for the aggregate.
 
-## 8. Migrating example/test code that used `flutter_bloc` directly
-
-If `BlocProvider` supplied the form controller to the widget tree, there are two options.
-
-### Option A — use `provider`
-
-`ChangeNotifierProvider` is a near-drop-in replacement, and `context.read` / `context.watch` / `context.select` behave as before:
+To rebuild on form state, `AdvancedFormController` is itself a `ValueListenable<AdvancedFormState>`:
 
 ```dart
-// 0.1.x
-BlocProvider<SimpleFormCubit>(
-  create: (context) => SimpleFormCubit(),
-  child: const SimpleForm(),
-)
-
-// 0.2.0 with `provider`
-ChangeNotifierProvider<SimpleFormController>(
-  create: (context) => SimpleFormController(),
-  child: const SimpleForm(),
+ValueListenableBuilder<AdvancedFormState>(
+  valueListenable: form,
+  builder: (context, state, _) => SubmitButton(enabled: state.wasModified),
 )
 ```
 
-### Option B — plain Flutter, no DI dependency
+---
 
-Controllers are `ChangeNotifier`s, so a `StatefulWidget` can own one and pass it down through constructor arguments:
+## 7. Lifecycle: `close()` → `dispose()`
 
 ```dart
-class SimpleFormScreen extends StatefulWidget {
-  const SimpleFormScreen({super.key});
-  @override
-  State<SimpleFormScreen> createState() => _SimpleFormScreenState();
+@override
+Future<void> close() async {   // 0.1.x
+  await field.close();
+  return super.close();
 }
 
-class _SimpleFormScreenState extends State<SimpleFormScreen> {
-  late final controller = SimpleFormController();
-  @override
-  void dispose() { controller.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) => SimpleForm(controller: controller);
+@override
+void dispose() {               // 0.2.0
+  field.dispose();
+  super.dispose();
 }
 ```
 
-### Other test-side dependencies
+The `Disposable` mixin is gone with it, so `addDisposable(subscription.cancel)` registrations become explicit cleanup in `dispose()`. Note that 0.1.x `FormGroupCubit` also exposed a public `Future<void> dispose()` through that mixin; `await form.dispose()` no longer compiles.
 
-- **`bloc_test`.** Because notifiers are synchronous, a form test is a plain `test(...)` block — no `blocTest` DSL and no `wait:`. To assert a sequence of states, collect them with a listener:
+### Disposing twice
 
-  ```dart
-  final emissions = <AdvancedFieldState<int, MyError>>[];
-  field.addListener(() => emissions.add(field.value));
-  field.setValue(10);
-  expect(emissions, [const AdvancedFieldState(value: 10)]);
-  ```
+`dispose()` is not idempotent: a second call throws in debug mode (`'A AdvancedTextFieldController<…> was used after being disposed.'`). `Cubit.close()` tolerated it, so 0.1.x code that disposed a field by hand *and* let `FormGroupCubit.close()` dispose it again worked by accident.
 
-- **`bloc_presentation`.** The "submit failed → fire a one-off UI event" pattern has no direct equivalent. Expose a plain `Stream` from the controller instead; `example/lib/screens/scroll_form.dart` shows this.
-- **`flutter_hooks`.** If `useTextEditingController` and `useFocusNode` were the only reason for the dependency, it can go — `AdvancedTextFieldController` owns both (see [section 5](#5-advancedtextfieldcontroller-now-owns-its-texteditingcontroller)).
+Give every field and subform a single owner, and let the form be it:
+
+- Fields registered with `registerFields(...)` are disposed by `AdvancedFormController`. Ownership is tracked in a `Set`, so registering the same field twice is safe.
+- Subforms attached with `addSubform(...)` are disposed by the parent too. Do not also dispose them in your own `dispose()` override, and note that `removeSubform(...)` disposes by default — pass `close: false` to keep the subform alive.
 
 ---
 
-## 9. Migrating a rich custom field
+## 8. Dropping `flutter_bloc` and friends
 
-Custom fields — `FieldCubit` subclasses with a domain-typed value, their own error type, and domain methods — migrate with two edits per file:
-
-1. Change the base class from `FieldCubit` to `AdvancedFieldController`.
-2. Change state reads: `state.value` → `fieldValue`, `state.validationError` → `value.validationError`.
-
-Validators, error hierarchies, and domain methods carry over unchanged.
-
-The example below holds an amount paired with a unit, validates against bounds recomputed on every pass (so they can depend on other app state), and accepts validation errors returned by a server.
-
-**OLD**
+**`BlocProvider` → `ChangeNotifierProvider`.** `context.read` / `context.watch` / `context.select` behave as before:
 
 ```dart
-typedef QuantityFieldValue = ({String unit, num? amount});
+BlocProvider<SimpleFormCubit>(create: (context) => SimpleFormCubit(), …)              // 0.1.x
+ChangeNotifierProvider<SimpleFormController>(create: (context) => SimpleFormController(), …)
+```
 
-sealed class QuantityFieldError {
-  const QuantityFieldError();
-}
+Two things to watch while converting screens:
 
-final class QuantityNotFilledError extends QuantityFieldError {
-  const QuantityNotFilledError();
-}
+- Prefer hoisting one `final controller = context.watch<SimpleFormController>();` at the top of `build` over repeated `context.read` calls.
+- State your controller holds *outside* `AdvancedFormState` — a selected tab, a list of dynamically added rows — needs an explicit `notifyListeners()` now. In 0.1.x, `emit(FormGroupState(...))` rebuilt watchers as a side effect.
 
-final class QuantityBelowMinError extends QuantityFieldError {
-  const QuantityBelowMinError({required this.min, required this.unit});
-  final num min;
-  final String unit;
-}
+Or drop the DI dependency entirely: controllers are `ChangeNotifier`s, so a `StatefulWidget` can own one and dispose it in `dispose()`.
 
-final class QuantityBackendError extends QuantityFieldError {
-  const QuantityBackendError(this.message);
-  final String message;
-}
+**`bloc_test`.** State setters are synchronous, so a form test is a plain `test(...)` block with no `blocTest` DSL. To assert a sequence of states, collect them with a listener:
 
-typedef QuantityBounds = ({num min, num max});
+```dart
+final emissions = <AdvancedFieldState<int, MyError>>[];
+field.addListener(() => emissions.add(field.value));
+field.setValue(10);
+expect(emissions, [const AdvancedFieldState(value: 10)]);
+```
 
-class QuantityFieldCubit
-    extends FieldCubit<QuantityFieldValue, QuantityFieldError> {
-  QuantityFieldCubit({
-    String initialUnit = 'kg',
-    num? initialAmount,
-    QuantityBounds? Function()? bounds,
-  }) : super(
-          initialValue: (unit: initialUnit, amount: initialAmount),
-          // Recomputed on every validation pass, so the bound can react
-          // to upstream state (e.g. the currently selected product).
+Async validation still needs a wait, since the debounce timer is unchanged.
+
+**`bloc_presentation`.** The "submit failed → fire a one-off UI event" pattern has no direct equivalent; expose a plain `Stream` from the controller instead, as `example/lib/screens/scroll_form.dart` does.
+
+**`flutter_hooks`.** If `useTextEditingController` and `useFocusNode` were the only reason for it, it can go — `AdvancedTextFieldController` owns both.
+
+---
+
+## 9. Migrating a custom field
+
+Custom fields — subclasses with a domain-typed value, their own error type, and domain methods — migrate with two edits. Validators, error hierarchies, and domain methods carry over unchanged.
+
+```dart
+class QuantityFieldController                                    // was: QuantityFieldCubit
+    extends AdvancedFieldController<QuantityValue, QuantityError> {   // was: extends FieldCubit<…>
+  QuantityFieldController({QuantityBounds? Function()? bounds})
+      : super(
+          initialValue: (unit: 'kg', amount: null),              // unchanged
           validator: (value) => _validate(value, bounds?.call()),
         );
 
-  static QuantityFieldError? _validate(
-    QuantityFieldValue value,
-    QuantityBounds? bounds,
-  ) {
-    final amount = value.amount;
-    if (amount == null) {
-      return const QuantityNotFilledError();
-    }
-    if (bounds != null && amount < bounds.min) {
-      return QuantityBelowMinError(min: bounds.min, unit: value.unit);
-    }
-    return null;
-  }
-
-  /// Replaces the numeric component while keeping the current unit.
   void setAmount(num? amount) =>
-      setValue((unit: state.value.unit, amount: amount));
+      setValue((unit: fieldValue.unit, amount: amount));         // was: state.value.unit
 
-  /// Pushes a server-side validation error into the field.
-  void setBackendError(String message) =>
-      setError(QuantityBackendError(message));
-
-  /// Clears a backend error by re-running the local validator.
   void clearBackendError() {
-    if (state.validationError is QuantityBackendError) {
+    if (value.validationError is QuantityBackendError) {         // was: state.validationError
       validate();
     }
   }
 }
 ```
 
-**NEW** — same value type, errors, bounds callback, and methods:
-
-```dart
-class QuantityFieldController
-    extends AdvancedFieldController<QuantityFieldValue, QuantityFieldError> {
-  QuantityFieldController({
-    String initialUnit = 'kg',
-    num? initialAmount,
-    QuantityBounds? Function()? bounds,
-    super.name, // optional: labels the field in diagnostics
-  }) : super(
-          initialValue: (unit: initialUnit, amount: initialAmount),
-          validator: (value) => _validate(value, bounds?.call()),
-        );
-
-  static QuantityFieldError? _validate(
-    QuantityFieldValue value,
-    QuantityBounds? bounds,
-  ) {
-    final amount = value.amount;
-    if (amount == null) {
-      return const QuantityNotFilledError();
-    }
-    if (bounds != null && amount < bounds.min) {
-      return QuantityBelowMinError(min: bounds.min, unit: value.unit);
-    }
-    return null;
-  }
-
-  /// Replaces the numeric component while keeping the current unit.
-  void setAmount(num? amount) =>
-      setValue((unit: fieldValue.unit, amount: amount));
-
-  /// Pushes a server-side validation error into the field.
-  void setBackendError(String message) =>
-      setError(QuantityBackendError(message));
-
-  /// Clears a backend error by re-running the local validator.
-  void clearBackendError() {
-    if (value.validationError is QuantityBackendError) {
-      validate();
-    }
-  }
-}
-```
-
-Notes:
-
-- **Rebuild counts do not change.** `Equatable` previously suppressed notifications for an identical state; `AdvancedFieldState.operator ==` does the same, and Dart records compare by content. Calling `setValue` with an unchanged record still notifies nobody.
-- **Use `fieldValue` for composite values.** The full path to a record component is state → record → component, which reads as `value.value.unit`. `fieldValue.unit` is the equivalent of the old `state.value.unit`. The same applies to `error` versus `value.error`.
-- **`name` is new and optional.** It labels the field in `FlutterError` reports from async validation and in the `debugLabel` of the `FocusNode` owned by `AdvancedTextFieldController`, and it gives serialization and logging code a stable handle. It does not affect behavior.
+If the field holds a `String` and its widget binds a text controller, extend `AdvancedTextFieldController<E>` rather than `AdvancedFieldController<String, E>` — you get `textController` and `focusNode` with it.
 
 ### Replacing cubit-stream patterns
 
-`FieldCubit` inherited `stream` from `Cubit`; notifiers have no stream. Each pattern maps as follows:
+`FieldCubit` inherited `stream` from `Cubit`; notifiers have no stream.
 
-- **Field B revalidates when field A changes** — `subscribeToFields([fieldA])`, as in 0.1.x. Nothing to migrate.
-- **React to part of a field's value changing** — add a listener and compare the selected part yourself:
+**Field B revalidates when field A changes** — `subscribeToFields([fieldA])`, as in 0.1.x, but note the timing change in [section 3](#3-behavior-changes-that-are-not-renames).
 
-  ```dart
-  var lastProductId = productField.fieldValue.productId;
+**React to part of a field's value changing** — add a listener and compare the part yourself:
 
-  void onProductChanged() {
-    final productId = productField.fieldValue.productId;
-    if (productId == lastProductId) {
-      return;
-    }
-    lastProductId = productId;
-    priceField.refreshFor(productId);
+```dart
+var lastProductId = productField.fieldValue.productId;
+
+void onProductChanged() {
+  final productId = productField.fieldValue.productId;
+  if (productId == lastProductId) {
+    return;
   }
+  lastProductId = productId;
+  priceField.refreshFor(productId);
+}
 
-  productField.addListener(onProductChanged);
-  // Later, e.g. in dispose():
-  productField.removeListener(onProductChanged);
-  ```
+productField.addListener(onProductChanged);   // removeListener in dispose()
+```
 
-- **Code that composes streams** — rxdart operators, `await for`, merging fields into a pipeline. The deprecated `stream` getter bridges a field to a broadcast `Stream<AdvancedFieldState<T, E>>` so helpers written against `FieldCubit.stream` keep compiling:
+**Code that composes streams** — rxdart operators, `await for`, merging fields into a pipeline. The deprecated `stream` extension bridges a field to a broadcast stream so helpers written against `FieldCubit.stream` keep compiling:
 
-  ```dart
-  final subscription = quantityField.stream
-      .map((state) => state.value.amount)
-      .listen(recalculateTotals);
-  ```
+```dart
+final subscription = quantityField.stream
+    .map((state) => state.value.amount)
+    .listen(recalculateTotals);
+```
 
-  Each read of `stream` allocates a new `StreamController`, so store the stream in a variable rather than reading the getter repeatedly.
-
-  The getter is deprecated from the day it ships: it exists so a migration does not stall on stream-heavy code, and it will be removed in 0.3.0. Treat the deprecation warnings as the to-do list for a follow-up pass, and use `addListener`, `subscribeToFields`, or the builder widgets in anything new.
+Three caveats: every read of `stream` allocates a new `StreamController`, so store it rather than reading the getter repeatedly; the controller is never closed, so unlike `Cubit.stream` it does not terminate an `await for` loop; and it is removed in 0.3.0, so treat the deprecation warnings as the to-do list for a follow-up pass.
 
 ---
 
-## Reference
+## 10. What didn't change
+
+Every validator and the `Validator` / `AsyncValidator` / `ErrorTranslator` typedefs, so custom validators compile as-is. Every field and form method not named in [section 2](#2-rename-reference) — including `setValue`, `validate`, `setAutovalidate`, `markReadOnly`, `setError`, `getValueSetter`, `registerFields`, `addSubform`, `resetAll`, `setValidationEnabled`, `validateWithAutovalidate`. The `pending` → `validating` → `valid`/`invalid` sequence, the debounce, and cancel-on-new-value. `wasModified` and `validating`, still computed with `DeepCollectionEquality` against the baseline values.
+
+---
+
+## 11. Reference
 
 - [`README.md`](./README.md) documents the 0.2.0 architecture from scratch.
-- [`CHANGELOG.md`](./CHANGELOG.md) has the complete breaking-change list under the 0.2.0 entry.
-- The `example/` app shows every pattern in its migrated form.
+- [`EXAMPLES.md`](./EXAMPLES.md) walks through the common form patterns.
+- [`CHANGELOG.md`](./CHANGELOG.md) has the terse breaking-change list under the 0.2.0 entry.
+- The `example/` app is fully migrated and is the best reference for what a real conversion looks like.

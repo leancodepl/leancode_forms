@@ -4,7 +4,7 @@ import 'package:leancode_forms/leancode_forms.dart';
 /// A profile-card form field: a static [CircleAvatar] with a caption sits
 /// on the left, the text field sits on the right. The whole left-hand
 /// presentation block is the "static subtree" — it doesn't depend on the
-/// field state, so it's built once and reused via `ValueListenableBuilder`'s
+/// field state, so it's built once and reused via [AdvancedFieldBuilder]'s
 /// `child:` parameter.
 class FormTextFieldAvatarCard<E extends Object> extends StatelessWidget {
   const FormTextFieldAvatarCard({
@@ -33,8 +33,8 @@ class FormTextFieldAvatarCard<E extends Object> extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: ValueListenableBuilder<AdvancedFieldState<String, E>>(
-          valueListenable: field,
+        child: AdvancedFieldBuilder<String, E>(
+          field: field,
           child: _AvatarBlock(
             caption: avatarCaption,
             icon: avatarIcon,

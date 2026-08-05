@@ -26,8 +26,8 @@ class FormTextField<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AdvancedFieldState<String, E>>(
-      valueListenable: field,
+    return AdvancedFieldBuilder<String, E>(
+      field: field,
       builder: (context, state, _) => AppTextField(
         controller: field.textController,
         focusNode: field.focusNode,

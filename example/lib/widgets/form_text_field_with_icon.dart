@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
-/// A form text field with a leading icon. Demonstrates the
-/// `ValueListenableBuilder.child:` optimization — the [icon] widget is built
+/// A form text field with a leading icon. Demonstrates
+/// [AdvancedFieldBuilder]'s `child:` optimization — the [icon] widget is built
 /// once when this widget is mounted, and reused on every subsequent rebuild
 /// instead of being constructed fresh on every keystroke.
 ///
-/// For most form fields you should reach for [AdvancedFieldBuilder] instead — it's
-/// shorter and equally correct. Use this pattern only when part of the
-/// subtree (here, the leading icon) is genuinely expensive AND doesn't
-/// depend on the field state.
+/// Reach for `child:` only when part of the subtree (here, the leading icon)
+/// is genuinely expensive AND doesn't depend on the field state. Otherwise a
+/// plain [AdvancedFieldBuilder] without it is shorter and equally correct.
 class FormTextFieldWithIcon<E extends Object> extends StatelessWidget {
   const FormTextFieldWithIcon({
     super.key,
@@ -23,7 +22,7 @@ class FormTextFieldWithIcon<E extends Object> extends StatelessWidget {
   final AdvancedTextFieldController<E> field;
   final ErrorTranslator<E> translateError;
 
-  /// Built once and reused on every rebuild via `ValueListenableBuilder`'s
+  /// Built once and reused on every rebuild via [AdvancedFieldBuilder]'s
   /// `child:` parameter.
   final Widget icon;
 
@@ -32,8 +31,8 @@ class FormTextFieldWithIcon<E extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AdvancedFieldState<String, E>>(
-      valueListenable: field,
+    return AdvancedFieldBuilder<String, E>(
+      field: field,
       child: icon, // <-- built once, reused on every rebuild
       builder: (context, state, child) => Row(
         children: [

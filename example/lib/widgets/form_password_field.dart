@@ -20,9 +20,8 @@ class FormPasswordField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<
-        AdvancedFieldState<String, List<ValidationError>>>(
-      valueListenable: field,
+    return AdvancedFieldBuilder<String, List<ValidationError>>(
+      field: field,
       builder: (context, state, _) => AppTextField(
         controller: field.textController,
         labelText: labelText,
