@@ -16,5 +16,13 @@ class AdvancedSingleSelectFieldController<V, E extends Object>
   final List<V> options;
 
   /// Sets the value of the field to the [option].
-  void select(V? option) => setValue(option);
+  ///
+  /// The [option] must be `null` (to clear the selection) or one of [options].
+  void select(V? option) {
+    assert(
+      option == null || options.contains(option),
+      'Cannot select $option because it is not one of the available options.',
+    );
+    setValue(option);
+  }
 }
