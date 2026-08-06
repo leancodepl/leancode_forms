@@ -25,6 +25,43 @@ List<_State> _record(_Field notifier) {
   return emissions;
 }
 
+/// Disposes [f] from inside one of its own listeners, swallowing the
+/// debug-only `ChangeNotifier` assertion that a release build would not throw.
+void _disposeFromListener(_Field f) {
+  try {
+    f.dispose();
+    // Catching the error is the point: release builds never throw it.
+    // ignore: avoid_catching_errors
+  } on AssertionError {
+    // Debug-only guard; the disposal itself already ran.
+  }
+}
+
+/// A field whose async validator records each value it is called with in
+/// `validated`, runs [onValidate], then resolves `null` after
+/// [validatorDelay].
+({_Field field, List<int> validated}) _asyncField({
+  Duration debounce = const Duration(milliseconds: 50),
+  Duration validatorDelay = Duration.zero,
+  void Function(_Field field)? onValidate,
+}) {
+  final validated = <int>[];
+  late _Field field;
+  field = AdvancedFieldController<int, _Error>(
+    initialValue: 0,
+    asyncValidation: AsyncValidation(
+      validator: (value) async {
+        validated.add(value);
+        onValidate?.call(field);
+        await Future<void>.delayed(validatorDelay);
+        return null;
+      },
+      debounce: debounce,
+    ),
+  );
+  return (field: field, validated: validated);
+}
+
 void main() {
   late _Field field;
   late _ValidatorMock validator;
@@ -252,6 +289,139 @@ void main() {
           status: FieldStatus.invalid,
           asyncError: _Error.malformed,
         ),
+      ]);
+    });
+
+    test(
+        'rapid setValue calls within debounce window: validator runs only once '
+        'with the final value', () async {
+      final (:field, :validated) = _asyncField(
+        debounce: const Duration(milliseconds: 200),
+        validatorDelay: const Duration(milliseconds: 50),
+      );
+      final f = field;
+      addTearDown(f.dispose);
+
+      f.setValue(1);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      f.setValue(2);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      f.setValue(3);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      f.setValue(4);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+
+      expect(validated, const [4]);
+    });
+
+    test('dispose during pending state does not crash or emit after dispose',
+        () async {
+      final f = _asyncField(
+        debounce: const Duration(milliseconds: 200),
+        validatorDelay: const Duration(milliseconds: 100),
+      ).field;
+      final emissions = _record(f);
+
+      f.setValue(10);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      // Field is in pending state, debounce not yet elapsed.
+      expect(emissions, const [_State(value: 10, status: FieldStatus.pending)]);
+
+      f.dispose();
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      // No further emissions after dispose.
+      expect(emissions, const [_State(value: 10, status: FieldStatus.pending)]);
+    });
+
+    test('dispose during validating state does not crash or emit after dispose',
+        () async {
+      final f = _asyncField(
+        validatorDelay: const Duration(milliseconds: 200),
+      ).field;
+      final emissions = _record(f);
+
+      f.setValue(10);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      // Debounce (50ms) has elapsed; validator (200ms) is running.
+      expect(emissions, const [
+        _State(value: 10, status: FieldStatus.pending),
+        _State(value: 10, status: FieldStatus.validating),
+      ]);
+
+      f.dispose();
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+
+      // Validator's natural completion arrives AFTER dispose; no emission.
+      expect(emissions, const [
+        _State(value: 10, status: FieldStatus.pending),
+        _State(value: 10, status: FieldStatus.validating),
+      ]);
+    });
+
+    // `testWidgets` on purpose: the binding fails a test that leaves a pending
+    // `Timer` behind, which is exactly the leak being guarded against.
+    testWidgets(
+        'disposing from a listener during the pending emission does not '
+        'schedule a debounce timer', (tester) async {
+      final (:field, :validated) = _asyncField(
+        debounce: const Duration(milliseconds: 200),
+      );
+      field
+        ..addListener(() => _disposeFromListener(field))
+        ..setValue(10);
+
+      expect(field.isDisposed, isTrue);
+      expect(validated, isEmpty);
+
+      // The test ends long before the 200ms debounce elapses, so a timer
+      // scheduled post-dispose is still pending when the binding checks.
+      await tester.pump(const Duration(milliseconds: 10));
+    });
+
+    testWidgets(
+        'disposing from a listener during the validating emission does not '
+        'start the async validator', (tester) async {
+      final (:field, :validated) = _asyncField(
+        validatorDelay: const Duration(milliseconds: 200),
+      );
+      field
+        ..addListener(() {
+          if (field.value.status == FieldStatus.validating) {
+            _disposeFromListener(field);
+          }
+        })
+        ..setValue(10);
+
+      expect(field.isDisposed, isFalse);
+
+      // Debounce elapses, `validating` is emitted, and the listener disposes.
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(field.isDisposed, isTrue);
+      expect(validated, isEmpty);
+    });
+
+    test('disposing while the validator is in flight does not emit when it '
+        'resolves', () async {
+      // Disposing inside the validator happens before `_asyncValidationFuture`
+      // is assigned, so `dispose()` has nothing to cancel.
+      final (:field, :validated) = _asyncField(
+        debounce: const Duration(milliseconds: 10),
+        onValidate: (f) => f.dispose(),
+      );
+      final emissions = _record(field);
+
+      field.setValue(10);
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(field.isDisposed, isTrue);
+      expect(validated, const [10]);
+      // The validator resolved against a disposed controller, so the final
+      // state is never emitted.
+      expect(emissions, const [
+        _State(value: 10, status: FieldStatus.pending),
+        _State(value: 10, status: FieldStatus.validating),
       ]);
     });
   });

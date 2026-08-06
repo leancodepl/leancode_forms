@@ -140,6 +140,12 @@ class AdvancedFieldController<T, E extends Object>
     notifyListeners();
   }
 
+  /// Whether this controller has been disposed. Once true it stays true.
+  bool _isDisposed = false;
+
+  /// Whether this controller has been disposed.
+  bool get isDisposed => _isDisposed;
+
   /// Test-only seeder for states the public API can't construct
   /// (notably any state including a non-null [AdvancedFieldState.asyncError],
   /// which only the async-validator pipeline can produce).
@@ -283,6 +289,7 @@ class AdvancedFieldController<T, E extends Object>
 
   @override
   void dispose() {
+    _isDisposed = true;
     _debounceTimer?.cancel();
     _asyncValidationFuture?.cancel();
     _fieldsSubscriptionCleanup?.call();
@@ -305,6 +312,12 @@ class AdvancedFieldController<T, E extends Object>
       value._copyWithNullable(value: newValue, status: FieldStatus.pending),
     );
 
+    // A listener may have disposed us during the `pending` emission; a timer
+    // scheduled now would outlive `dispose()` with nothing left to cancel it.
+    if (isDisposed) {
+      return;
+    }
+
     _debounceTimer = Timer(asyncValidation.debounce, () {
       _setState(
         value._copyWithNullable(
@@ -312,6 +325,12 @@ class AdvancedFieldController<T, E extends Object>
           status: FieldStatus.validating,
         ),
       );
+
+      // Same for the `validating` emission: `dispose()` has already cancelled
+      // the then-null async validation future.
+      if (isDisposed) {
+        return;
+      }
 
       _asyncValidationFuture = CancelableFuture(
         future: asyncValidation.validator(newValue),
@@ -330,6 +349,12 @@ class AdvancedFieldController<T, E extends Object>
 
     final asyncValidationError = await completer.future;
 
+    // `validator` runs before `_asyncValidationFuture` is assigned, so
+    // disposal from inside it leaves nothing for `dispose()` to cancel.
+    if (isDisposed) {
+      return;
+    }
+
     _setState(
       value._copyWithNullable(
         value: newValue,
@@ -343,7 +368,6 @@ class AdvancedFieldController<T, E extends Object>
       ),
     );
   }
-  
 
   Future<void> _handleAsyncValidationError(
     AsyncValidation<T, E> asyncValidation,
