@@ -5,7 +5,6 @@ import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_dropdown_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 import 'package:leancode_forms_example/widgets/screen_description.dart';
-import 'package:provider/provider.dart';
 
 /// This is an example of a form with dynamically added subforms.
 class DeliveryListFormScreen extends StatelessWidget {
@@ -13,7 +12,7 @@ class DeliveryListFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<DeliveryListFormController>(
+    return AdvancedFormScope<DeliveryListFormController>(
       create: (context) => DeliveryListFormController(),
       child: const DeliveryListForm(),
     );
@@ -25,7 +24,8 @@ class DeliveryListForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<DeliveryListFormController>();
+    final controller =
+        AdvancedFormScope.watch<DeliveryListFormController>(context);
     return FormPage(
       title: 'Delivery List Form',
       child: SingleChildScrollView(

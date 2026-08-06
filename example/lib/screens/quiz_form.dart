@@ -4,7 +4,6 @@ import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 import 'package:leancode_forms_example/widgets/screen_description.dart';
-import 'package:provider/provider.dart';
 
 /// This is an example of a form which is asynchronously validated after pressing the submit button.
 /// Errors on the fields are set/cleared manually after the validation is complete.
@@ -13,7 +12,7 @@ class QuizFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<QuizController>(
+    return AdvancedFormScope<QuizController>(
       create: (context) => QuizController(),
       child: const QuizForm(),
     );
@@ -25,7 +24,7 @@ class QuizForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<QuizController>();
+    final controller = AdvancedFormScope.watch<QuizController>(context);
     final formStatus = controller.validationStatus;
 
     return FormPage(
@@ -47,7 +46,7 @@ class QuizForm extends StatelessWidget {
           ]),
           const Text('What is the longest river in the world?'),
           FormTextField(
-            field: controller.formController.riverQuestion,
+            field: controller.riverQuestion,
             trimOnUnfocus: true,
             translateError: validatorTranslator,
             hintText: 'Answer here',
@@ -55,7 +54,7 @@ class QuizForm extends StatelessWidget {
           const SizedBox(height: 16),
           const Text('What is the highest mountain in the world?'),
           FormTextField(
-            field: controller.formController.mountQuestion,
+            field: controller.mountQuestion,
             trimOnUnfocus: true,
             translateError: validatorTranslator,
             hintText: 'Answer here',
@@ -80,10 +79,16 @@ enum ValidationStatus {
   none,
 }
 
-class QuizController extends ChangeNotifier {
-  QuizController();
+class QuizController extends AdvancedFormController {
+  QuizController() {
+    registerFields([
+      riverQuestion,
+      mountQuestion,
+    ]);
+  }
 
-  final QuizFormController formController = QuizFormController();
+  final riverQuestion = AdvancedTextFieldController<ValidationError>();
+  final mountQuestion = AdvancedTextFieldController<ValidationError>();
 
   ValidationStatus _validationStatus = ValidationStatus.none;
   ValidationStatus get validationStatus => _validationStatus;
@@ -97,13 +102,13 @@ class QuizController extends ChangeNotifier {
     _setStatus(ValidationStatus.inProgress);
     debugPrint('Validation in progress...');
     final result = await quizValidation(
-      formController.riverQuestion.value.value,
-      formController.mountQuestion.value.value,
+      riverQuestion.value.value,
+      mountQuestion.value.value,
     );
-    formController.riverQuestion.setError(
+    riverQuestion.setError(
       result.$1 ? null : ValidationError.invalidAnswer,
     );
-    formController.mountQuestion.setError(
+    mountQuestion.setError(
       result.$2 ? null : ValidationError.invalidAnswer,
     );
     if (result.$1 && result.$2) {
@@ -119,22 +124,4 @@ class QuizController extends ChangeNotifier {
     await Future<void>.delayed(const Duration(seconds: 1));
     return (answer1 == 'Nile', answer2 == 'Everest');
   }
-
-  @override
-  void dispose() {
-    formController.dispose();
-    super.dispose();
-  }
-}
-
-class QuizFormController extends AdvancedFormController {
-  QuizFormController() {
-    registerFields([
-      riverQuestion,
-      mountQuestion,
-    ]);
-  }
-
-  final riverQuestion = AdvancedTextFieldController<ValidationError>();
-  final mountQuestion = AdvancedTextFieldController<ValidationError>();
 }

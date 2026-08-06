@@ -55,17 +55,16 @@ class SimpleFormController extends AdvancedFormController {
   }
 }
 
-// Provider (using the `provider` package):
-ChangeNotifierProvider<SimpleFormController>(
+AdvancedFormScope<SimpleFormController>(
   create: (_) => SimpleFormController(),
   child: const SimpleForm(),
 )
 
-// Inside the SimpleForm widget — context.read is the right call here,
-// because we want a stable reference for the onPressed callback (no
+// Inside the SimpleForm widget — AdvancedFormScope.read is the right call
+// here, because we want a stable reference for the onPressed callback (no
 // subscription to rebuilds).
 ElevatedButton(
-  onPressed: () => context.read<SimpleFormController>().submit(),
+  onPressed: () => AdvancedFormScope.read<SimpleFormController>(context).submit(),
   child: const Text('Submit'),
 )
 ```
@@ -93,10 +92,10 @@ class SignupController extends AdvancedFormController {
   }
 }
 
-// Let's select field reference
-final email = context.select<SignupController, AdvancedTextFieldController<ValidationError>>(
-  (c) => c.email,
-);
+// Grab the field reference — no select equivalent, but a field reference is
+// stable across rebuilds, so a plain read is enough; AdvancedFieldBuilder
+// below is what actually subscribes to the field's own state.
+final email = AdvancedFormScope.read<SignupController>(context).email;
 
 return AdvancedFieldBuilder<String, ValidationError>(
   field: email,

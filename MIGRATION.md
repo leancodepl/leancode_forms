@@ -9,7 +9,7 @@
 
 ## 1. Migration checklist
 
-1. Update `pubspec.yaml`: remove `flutter_bloc` and `rxdart`, plus `bloc_test`, `bloc_presentation`, and `flutter_hooks` if forms were the only reason for them. Add `provider` if you used `BlocProvider` ([section 8](#8-dropping-flutter_bloc-and-friends)).
+1. Update `pubspec.yaml`: remove `flutter_bloc` and `rxdart`, plus `bloc_test`, `bloc_presentation`, and `flutter_hooks` if forms were the only reason for them. No new dependency is needed for DI — this package ships its own scope widget ([section 8](#8-dropping-flutter_bloc-and-friends)).
 2. Rename the classes ([section 2](#2-rename-reference)).
 3. Replace `.state` reads with `.value` / `fieldValue` ([section 4](#4-form-classes-and-state-reads)).
 4. Move `asyncValidator:` and `asyncValidationDebounce:` into `asyncValidation:` ([section 4](#4-form-classes-and-state-reads)).
@@ -195,19 +195,19 @@ Give every field and subform a single owner, and let the form be it:
 
 ## 8. Dropping `flutter_bloc` and friends
 
-**`BlocProvider` → `ChangeNotifierProvider`.** `context.read` / `context.watch` / `context.select` behave as before:
+**`BlocProvider` → `AdvancedFormScope`.** `AdvancedFormScope.read` / `.watch` behave like `context.read` / `context.watch` did — there is no `select` equivalent (see the "Form-level state" section of [README.md](./README.md)):
 
 ```dart
 BlocProvider<SimpleFormCubit>(create: (context) => SimpleFormCubit(), …)              // 0.1.x
-ChangeNotifierProvider<SimpleFormController>(create: (context) => SimpleFormController(), …)
+AdvancedFormScope<SimpleFormController>(create: (context) => SimpleFormController(), …)
 ```
 
 Two things to watch while converting screens:
 
-- Prefer hoisting one `final controller = context.watch<SimpleFormController>();` at the top of `build` over repeated `context.read` calls.
+- Prefer hoisting one `final controller = AdvancedFormScope.watch<SimpleFormController>(context);` at the top of `build` over repeated `.read` calls.
 - State your controller holds *outside* `AdvancedFormState` — a selected tab, a list of dynamically added rows — needs an explicit `notifyListeners()` now. In 0.1.x, `emit(FormGroupState(...))` rebuilt watchers as a side effect.
 
-Or drop the DI dependency entirely: controllers are `ChangeNotifier`s, so a `StatefulWidget` can own one and dispose it in `dispose()`.
+Or drop the scope widget entirely: controllers are `ChangeNotifier`s, so a `StatefulWidget` can own one and dispose it in `dispose()`.
 
 **`bloc_test`.** State setters are synchronous, so a form test is a plain `test(...)` block with no `blocTest` DSL. To assert a sequence of states, collect them with a listener:
 

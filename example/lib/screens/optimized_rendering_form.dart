@@ -6,7 +6,6 @@ import 'package:leancode_forms_example/widgets/form_text_field_avatar_card.dart'
 import 'package:leancode_forms_example/widgets/form_text_field_with_banner.dart';
 import 'package:leancode_forms_example/widgets/form_text_field_with_icon.dart';
 import 'package:leancode_forms_example/widgets/screen_description.dart';
-import 'package:provider/provider.dart';
 
 /// Demonstrates `AdvancedFieldBuilder`'s `child:` optimization across
 /// three layouts of increasing visual weight: a small leading icon, a
@@ -20,7 +19,7 @@ class OptimizedRenderingFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<OptimizedRenderingFormController>(
+    return AdvancedFormScope<OptimizedRenderingFormController>(
       create: (context) => OptimizedRenderingFormController(),
       child: const _OptimizedRenderingForm(),
     );
@@ -32,7 +31,8 @@ class _OptimizedRenderingForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<OptimizedRenderingFormController>();
+    final controller =
+        AdvancedFormScope.watch<OptimizedRenderingFormController>(context);
     return FormPage(
       title: 'Optimized Rendering',
       child: ListView(

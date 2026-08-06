@@ -7,14 +7,13 @@ import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/utils/extensions/iterable_extensions.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 import 'package:leancode_forms_example/widgets/screen_description.dart';
-import 'package:provider/provider.dart';
 
 class ScrollFormScreen extends StatelessWidget {
   const ScrollFormScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<ScrollFormController>(
+    return AdvancedFormScope<ScrollFormController>(
       create: (context) => ScrollFormController(),
       child: const ScrollForm(),
     );
@@ -34,11 +33,12 @@ class _ScrollFormState extends State<ScrollForm> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _eventSubscription ??= context.read<ScrollFormController>().events.listen(
+    _eventSubscription ??=
+        AdvancedFormScope.read<ScrollFormController>(context).events.listen(
       (event) {
         final context = this.context;
         if (event is SubmitFailedWithErrors && context.mounted) {
-          _scrollToFirstError(context.read<ScrollFormController>());
+          _scrollToFirstError(AdvancedFormScope.read<ScrollFormController>(context));
         }
       },
     );
@@ -61,7 +61,7 @@ class _ScrollFormState extends State<ScrollForm> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<ScrollFormController>();
+    final controller = AdvancedFormScope.watch<ScrollFormController>(context);
     return FormPage(
       title: 'Scroll Form',
       child: SingleChildScrollView(

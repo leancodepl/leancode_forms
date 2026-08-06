@@ -4,7 +4,6 @@ import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 import 'package:leancode_forms_example/widgets/screen_description.dart';
-import 'package:provider/provider.dart';
 
 /// This is an example of a simple form with two basic fields and one field with async validation.
 /// The form is validated ONLY when the submit button is pressed.
@@ -13,7 +12,7 @@ class SimpleFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<SimpleFormController>(
+    return AdvancedFormScope<SimpleFormController>(
       create: (context) => SimpleFormController(),
       child: const SimpleForm(),
     );
@@ -25,7 +24,7 @@ class SimpleForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<SimpleFormController>();
+    final controller = AdvancedFormScope.watch<SimpleFormController>(context);
     return FormPage(
       title: 'Simple Form',
       child: SingleChildScrollView(

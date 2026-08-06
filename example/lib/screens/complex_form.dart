@@ -7,7 +7,6 @@ import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_dropdown_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 import 'package:leancode_forms_example/widgets/screen_description.dart';
-import 'package:provider/provider.dart';
 
 /// This is an example of a simple form with two fields.
 /// The form is validated ONLY when the submit button is pressed.
@@ -16,7 +15,7 @@ class ComplexFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<ComplexFormController>(
+    return AdvancedFormScope<ComplexFormController>(
       create: (context) => ComplexFormController(),
       child: const ComplexForm(),
     );
@@ -28,7 +27,7 @@ class ComplexForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<ComplexFormController>();
+    final controller = AdvancedFormScope.watch<ComplexFormController>(context);
     return FormPage(
       title: 'Complex Form',
       child: SingleChildScrollView(
@@ -54,12 +53,11 @@ class ComplexForm extends StatelessWidget {
               labelText: 'Subform Type',
               hintText: 'Select subform type',
             ),
-            Builder(
+            Builder( 
               builder: (context) {
                 final type =
-                    context.select<ComplexFormController, SubformType?>(
-                  (c) => c.subformType,
-                );
+                    AdvancedFormScope.watch<ComplexFormController>(context)
+                        .subformType;
                 return switch (type) {
                   SubformType.human => HumanSubform(
                       controller: controller.humanSubform,

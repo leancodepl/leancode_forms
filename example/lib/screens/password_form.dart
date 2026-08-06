@@ -7,7 +7,6 @@ import 'package:leancode_forms_example/widgets/form_password_field.dart';
 import 'package:leancode_forms_example/widgets/form_switch_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 import 'package:leancode_forms_example/widgets/screen_description.dart';
-import 'package:provider/provider.dart';
 
 /// This is an example of a form with a password/repeat password fields.
 /// In this form repeatPassword field is validated according to value in the password field.
@@ -16,7 +15,7 @@ class PasswordFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<PasswordFormController>(
+    return AdvancedFormScope<PasswordFormController>(
       create: (context) => PasswordFormController(),
       child: const PasswordForm(),
     );
@@ -28,7 +27,8 @@ class PasswordForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<PasswordFormController>();
+    final controller =
+        AdvancedFormScope.watch<PasswordFormController>(context);
     return FormPage(
       title: 'Password Form',
       child: ListView(
