@@ -24,7 +24,13 @@ class AdvancedMultiSelectFieldController<V, E extends Object>
   }
 
   /// Adds the given [value].
+  ///
+  /// The [value] must be one of [options].
   void addValue(V value) {
+    assert(
+      options.contains(value),
+      'Cannot add $value because it is not one of the available options.',
+    );
     setValue({...fieldValue}..add(value));
   }
 
