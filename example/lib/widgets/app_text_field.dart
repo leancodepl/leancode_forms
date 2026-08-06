@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:leancode_forms/leancode_forms.dart';
 
-/// This is an example of custom text field created for an app.
-/// It's created in order to show how to use [FieldBuilder] with custom fields.
-class AppTextField extends HookWidget {
+/// A text field that renders an externally-owned [TextEditingController] and
+/// [FocusNode]. The widget never disposes the controller, and only disposes a
+/// fallback [FocusNode] it allocated itself.
+class AppTextField extends StatefulWidget {
   const AppTextField({
     super.key,
-    this.controller,
+    required this.controller,
     this.focusNode,
-    this.initialValue,
-    this.onChanged,
     this.onUnfocus,
     this.onFieldSubmitted,
-    required this.setValue,
     this.trimOnUnfocus = false,
     this.labelText,
     this.hintText,
@@ -22,75 +18,78 @@ class AppTextField extends HookWidget {
     this.onSetToInitial,
   });
 
-  final TextEditingController? controller;
+  final TextEditingController controller;
   final FocusNode? focusNode;
-  final String? initialValue;
-  final ValueChanged<String>? onChanged;
   final VoidCallback? onUnfocus;
   final ValueChanged<String>? onFieldSubmitted;
-  final ValueChanged<String> setValue;
   final bool trimOnUnfocus;
   final String? labelText;
   final String? hintText;
   final String? errorText;
   final Widget? suffix;
-  final String Function()? onSetToInitial;
+  final VoidCallback? onSetToInitial;
+
+  @override
+  State<AppTextField> createState() => _AppTextFieldState();
+}
+
+class _AppTextFieldState extends State<AppTextField> {
+  FocusNode? _ownedFocusNode;
+
+  FocusNode get _focusNode =>
+      widget.focusNode ?? (_ownedFocusNode ??= FocusNode());
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _ownedFocusNode?.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (_focusNode.hasFocus) {
+      return;
+    }
+    widget.onUnfocus?.call();
+    if (widget.trimOnUnfocus) {
+      widget.controller.text = widget.controller.text.trim();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final textEditingController =
-        controller ?? useTextEditingController(text: initialValue);
-    final focusNode = this.focusNode ?? useFocusNode();
-
-    useEffect(
-      () {
-        void listener() {
-          if (!focusNode.hasFocus) {
-            onUnfocus?.call();
-            if (trimOnUnfocus) {
-              final trimmedValue = textEditingController.text.trim();
-              textEditingController.text = trimmedValue;
-              setValue(trimmedValue);
-            }
-          }
-        }
-
-        focusNode.addListener(listener);
-        return () => focusNode.removeListener(listener);
-      },
-      [],
-    );
-
     return Row(
       children: [
         Flexible(
           child: TextFormField(
             autocorrect: false,
-            focusNode: focusNode,
-            controller: textEditingController,
-            onChanged: onChanged,
-            onTapOutside: (_) => focusNode.unfocus(),
-            onFieldSubmitted: onFieldSubmitted,
+            focusNode: _focusNode,
+            controller: widget.controller,
+            onTapOutside: (_) => _focusNode.unfocus(),
+            onFieldSubmitted: widget.onFieldSubmitted,
             decoration: InputDecoration(
-              labelText: labelText,
-              hintText: hintText,
-              errorText: errorText,
-              suffix: suffix,
+              labelText: widget.labelText,
+              hintText: widget.hintText,
+              errorText: widget.errorText,
+              suffix: widget.suffix,
             ),
           ),
         ),
         const SizedBox(width: 16),
         ElevatedButton(
-          onPressed: () {
-            textEditingController.clear();
-            setValue('');
-          },
+          onPressed: widget.controller.clear,
           child: const Text('Empty'),
         ),
-        if (onSetToInitial case final onSetToInitial?) ...[
+        if (widget.onSetToInitial case final onSetToInitial?) ...[
           const SizedBox(width: 16),
           ElevatedButton(
-            onPressed: () => textEditingController.text = onSetToInitial(),
+            onPressed: onSetToInitial,
             child: const Text('Set to initial'),
           ),
         ],

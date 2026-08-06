@@ -1,6 +1,6 @@
 name: leancode_forms
-description: A package for managing form state based on BLoC.
-version: 0.1.2
+description: A package for managing form state based on ValueNotifier and ChangeNotifier.
+version: 0.2.0
 homepage: https://github.com/leancodepl/leancode_forms.git
 
 environment:
@@ -9,14 +9,10 @@ environment:
 
 dependencies:
   collection: ^1.17.1
-  equatable: ^2.0.5
   flutter:
     sdk: flutter
-  flutter_bloc: ^9.0.0
-  rxdart: ^0.28.0
 
 dev_dependencies:
-  bloc_test: ^10.0.0
   flutter_test:
     sdk: flutter
   leancode_lint: ^15.0.0

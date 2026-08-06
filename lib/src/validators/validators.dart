@@ -1,5 +1,4 @@
-import 'package:leancode_forms/leancode_forms.dart';
-import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
+import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 
 /// Creates a new validator.
 ///

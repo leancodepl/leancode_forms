@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/leancode_forms.dart';
-import 'package:leancode_forms_example/cubits/password_field_cubit.dart';
+import 'package:leancode_forms_example/controllers/password_field_controller.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_password_field.dart';
 import 'package:leancode_forms_example/widgets/form_switch_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:leancode_forms_example/widgets/screen_description.dart';
+import 'package:provider/provider.dart';
 
 /// This is an example of a form with a password/repeat password fields.
 /// In this form repeatPassword field is validated according to value in the password field.
@@ -15,8 +16,8 @@ class PasswordFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<PasswordFormCubit>(
-      create: (context) => PasswordFormCubit(),
+    return ChangeNotifierProvider<PasswordFormController>(
+      create: (context) => PasswordFormController(),
       child: const PasswordForm(),
     );
   }
@@ -27,14 +28,26 @@ class PasswordForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = context.watch<PasswordFormController>();
     return FormPage(
       title: 'Password Form',
-      child: Column(
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
-          //This field starts to be validated as soon as it loses focus for the first time
+          ScreenDescription([
+            bold('Cross-field validation. '),
+            plain('The "Repeat Password" field listens to the password '
+                'field via '),
+            code('subscribeToFields'),
+            plain(' and re-validates whenever the password changes. The '
+                'username field demonstrates '),
+            bold('autovalidation'),
+            plain(': it only starts showing errors after losing focus '
+                'for the first time.'),
+          ]),
           FormTextField(
-            field: context.read<PasswordFormCubit>().username,
-            onUnfocus: () => context.read<PasswordFormCubit>().username
+            field: controller.username,
+            onUnfocus: () => controller.username
               ..setAutovalidate(true)
               ..validate(),
             translateError: validatorTranslator,
@@ -43,26 +56,26 @@ class PasswordForm extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           FormSwitchField(
-            field: context.read<PasswordFormCubit>().switchField,
+            field: controller.switchField,
             labelText: 'Repeat password should be 10 characters long',
           ),
           const SizedBox(height: 16),
           FormPasswordField(
-            field: context.read<PasswordFormCubit>().password,
+            field: controller.password,
             translateError: (error) => validatorTranslator(error.first),
             labelText: 'Password',
             hintText: 'Enter your password',
           ),
           const SizedBox(height: 16),
           FormTextField(
-            field: context.read<PasswordFormCubit>().repeatPassword,
+            field: controller.repeatPassword,
             translateError: validatorTranslator,
             labelText: 'Repeat Password',
             hintText: 'Repeat your password',
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: context.read<PasswordFormCubit>().submit,
+            onPressed: controller.submit,
             child: const Text('Submit'),
           ),
         ],
@@ -71,19 +84,19 @@ class PasswordForm extends StatelessWidget {
   }
 }
 
-Validator<String?, E> passwordMatch<E extends Object>(
-  PasswordFieldCubit passwordCubit,
+Validator<String, E> passwordMatch<E extends Object>(
+  PasswordFieldController passwordController,
   E message,
 ) =>
     (value) {
-      if (value != passwordCubit.state.value) {
+      if (value != passwordController.value.value) {
         return message;
       }
       return null;
     };
 
-class PasswordFormCubit extends FormGroupCubit {
-  PasswordFormCubit() {
+class PasswordFormController extends AdvancedFormController {
+  PasswordFormController() {
     registerFields([
       username,
       switchField,
@@ -92,36 +105,41 @@ class PasswordFormCubit extends FormGroupCubit {
     ]);
   }
 
-  final username = TextFieldCubit(
+  final username = AdvancedTextFieldController(
     validator: filled(ValidationError.empty) &
         atLeastLength(5, ValidationError.toShort),
   );
 
-  final switchField = BooleanFieldCubit();
+  final switchField = AdvancedBooleanFieldController();
 
-  final password = PasswordFieldCubit(
+  final password = PasswordFieldController(
     numberRequired: true,
     specialCharRequired: true,
     upperCaseRequired: true,
     lowerCaseRequired: true,
   );
 
-  late final repeatPassword = TextFieldCubit<ValidationError>(
+  // `subscribeToFields` + `autovalidate: true`:
+  // We expect: no validation fires until one of the subscribed fields' value
+  // actually changes (state-only changes, like status updates, are ignored).
+  late final repeatPassword = AdvancedTextFieldController<ValidationError>(
     validator: passwordMatch(password, ValidationError.doesNotMatch),
-  )..subscribeToFields([switchField, password]);
+  )
+    ..setAutovalidate(true)
+    ..subscribeToFields([switchField, password]);
 
   void submit() {
     if (validate()) {
-      debugPrint('Username: ${username.state.value}');
-      debugPrint('Switch field: ${switchField.state.value}');
-      debugPrint('Password: ${password.state.value}');
-      debugPrint('Repeated password: ${repeatPassword.state.value}');
+      debugPrint('Username: ${username.value.value}');
+      debugPrint('Switch field: ${switchField.value.value}');
+      debugPrint('Password: ${password.value.value}');
+      debugPrint('Repeated password: ${repeatPassword.value.value}');
     } else {
       debugPrint('Form is invalid');
-      debugPrint('Username: ${username.state.value}');
-      debugPrint('Switch field: ${switchField.state.value}');
-      debugPrint('Password: ${password.state.value}');
-      debugPrint('Repeated password: ${repeatPassword.state.value}');
+      debugPrint('Username: ${username.value.value}');
+      debugPrint('Switch field: ${switchField.value.value}');
+      debugPrint('Password: ${password.value.value}');
+      debugPrint('Repeated password: ${repeatPassword.value.value}');
     }
   }
 }

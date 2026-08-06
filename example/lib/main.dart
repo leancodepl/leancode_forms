@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:leancode_forms_example/screens/complex_form.dart';
 import 'package:leancode_forms_example/screens/delivery_form.dart';
 import 'package:leancode_forms_example/screens/home_page.dart';
+import 'package:leancode_forms_example/screens/optimized_rendering_form.dart';
 import 'package:leancode_forms_example/screens/password_form.dart';
 import 'package:leancode_forms_example/screens/quiz_form.dart';
 import 'package:leancode_forms_example/screens/scroll_form.dart';
@@ -19,6 +20,7 @@ class Routes {
   static const quiz = '/quiz';
   static const complex = '/complex';
   static const scroll = '/scroll';
+  static const optimized = '/optimized';
 }
 
 enum ValidationError {
@@ -68,13 +70,14 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       routes: <String, WidgetBuilder>{
-        Routes.home: (_) => const HomePage(),
-        Routes.simple: (_) => const SimpleFormScreen(),
-        Routes.password: (_) => const PasswordFormScreen(),
-        Routes.delivery: (_) => const DeliveryListFormScreen(),
-        Routes.quiz: (_) => const QuizFormScreen(),
-        Routes.complex: (_) => const ComplexFormScreen(),
-        Routes.scroll: (_) => const ScrollFormScreen(),
+        Routes.home: (context) => const HomePage(),
+        Routes.simple: (context) => const SimpleFormScreen(),
+        Routes.password: (context) => const PasswordFormScreen(),
+        Routes.delivery: (context) => const DeliveryListFormScreen(),
+        Routes.quiz: (context) => const QuizFormScreen(),
+        Routes.complex: (context) => const ComplexFormScreen(),
+        Routes.scroll: (context) => const ScrollFormScreen(),
+        Routes.optimized: (context) => const OptimizedRenderingFormScreen(),
       },
     );
   }

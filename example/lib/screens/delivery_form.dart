@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/widgets/form_dropdown_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:leancode_forms_example/widgets/screen_description.dart';
+import 'package:provider/provider.dart';
 
 /// This is an example of a form with dynamically added subforms.
 class DeliveryListFormScreen extends StatelessWidget {
@@ -12,8 +13,8 @@ class DeliveryListFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<DeliveryListFormCubit>(
-      create: (context) => DeliveryListFormCubit(),
+    return ChangeNotifierProvider<DeliveryListFormController>(
+      create: (context) => DeliveryListFormController(),
       child: const DeliveryListForm(),
     );
   }
@@ -24,27 +25,37 @@ class DeliveryListForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = context.watch<DeliveryListFormController>();
     return FormPage(
       title: 'Delivery List Form',
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ...context.watch<DeliveryListFormCubit>().deliveryList.map(
-                  (e) => ConsumerSubform(
-                    key: ValueKey(e.hashCode),
-                    form: e,
-                    onRemove:
-                        context.watch<DeliveryListFormCubit>().removeConsumer,
-                  ),
-                ),
+            ScreenDescription([
+              bold('Dynamic subforms. '),
+              plain('Each consumer is its own '),
+              code('AdvancedFormController'),
+              plain(" added as a subform to the parent. The parent's "),
+              code('validate()'),
+              plain(' recursively validates every consumer; disposing the '
+                  'parent '),
+              bold('cascades'),
+              plain(' to every subform.'),
+            ]),
+            for (final form in controller.deliveryList)
+              ConsumerSubform(
+                key: ValueKey(form.hashCode),
+                form: form,
+                onRemove: controller.removeConsumer,
+              ),
             ElevatedButton(
-              onPressed: context.read<DeliveryListFormCubit>().addConsumer,
+              onPressed: controller.addConsumer,
               child: const Text('Add Consumer'),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: context.read<DeliveryListFormCubit>().submit,
+              onPressed: controller.submit,
               child: const Text('Submit'),
             ),
           ],
@@ -61,8 +72,8 @@ class ConsumerSubform extends StatelessWidget {
     required this.onRemove,
   });
 
-  final ConsumerSubformCubit form;
-  final ValueChanged<ConsumerSubformCubit> onRemove;
+  final ConsumerSubformController form;
+  final ValueChanged<ConsumerSubformController> onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -99,27 +110,29 @@ class ConsumerSubform extends StatelessWidget {
   }
 }
 
-class DeliveryListFormCubit extends FormGroupCubit {
-  DeliveryListFormCubit();
+class DeliveryListFormController extends AdvancedFormController {
+  DeliveryListFormController();
 
-  final deliveryList = <ConsumerSubformCubit>{};
+  final deliveryList = <ConsumerSubformController>{};
 
   void addConsumer() {
-    final consumerForm = ConsumerSubformCubit();
+    final consumerForm = ConsumerSubformController();
     addSubform(consumerForm);
     deliveryList.add(consumerForm);
+    notifyListeners();
   }
 
-  void removeConsumer(ConsumerSubformCubit form) {
+  void removeConsumer(ConsumerSubformController form) {
     removeSubform(form);
     deliveryList.remove(form);
+    notifyListeners();
   }
 
   void submit() {
     if (validate()) {
       for (final consumer in deliveryList) {
-        debugPrint('Consumer email: ${consumer.email.state.value}');
-        debugPrint('Consumer country: ${consumer.country.state.value}');
+        debugPrint('Consumer email: ${consumer.email.value.value}');
+        debugPrint('Consumer country: ${consumer.country.value.value}');
       }
       debugPrint('Form is valid');
     } else {
@@ -128,19 +141,20 @@ class DeliveryListFormCubit extends FormGroupCubit {
   }
 }
 
-class ConsumerSubformCubit extends FormGroupCubit {
-  ConsumerSubformCubit() {
+class ConsumerSubformController extends AdvancedFormController {
+  ConsumerSubformController() {
     registerFields([
       email,
       country,
     ]);
   }
 
-  final email = TextFieldCubit(
+  final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
   );
 
-  final country = SingleSelectFieldCubit<Country?, ValidationError>(
+  final country =
+      AdvancedSingleSelectFieldController<Country?, ValidationError>(
     initialValue: null,
     options: Country.values,
     validator: (country) {

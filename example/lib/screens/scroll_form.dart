@@ -1,91 +1,120 @@
-import 'package:bloc_presentation/bloc_presentation.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:leancode_forms/leancode_forms.dart';
-import 'package:leancode_forms_example/cubits/focusable_text_field_cubit.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
 import 'package:leancode_forms_example/utils/extensions/iterable_extensions.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:leancode_forms_example/widgets/screen_description.dart';
+import 'package:provider/provider.dart';
 
 class ScrollFormScreen extends StatelessWidget {
   const ScrollFormScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<ScrollFormCubit>(
-      create: (context) => ScrollFormCubit(),
+    return ChangeNotifierProvider<ScrollFormController>(
+      create: (context) => ScrollFormController(),
       child: const ScrollForm(),
     );
   }
 }
 
-class ScrollForm extends StatelessWidget {
+class ScrollForm extends StatefulWidget {
   const ScrollForm({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    void scrollToFistError() {
-      final scrollFormCubit = context.read<ScrollFormCubit>();
-      final fields = [
-        scrollFormCubit.firstField,
-        scrollFormCubit.secondField,
-        scrollFormCubit.thirdField,
-      ];
-      fields.firstWhereOrNull((field) => field.state.isInvalid)?.focus();
-    }
+  State<ScrollForm> createState() => _ScrollFormState();
+}
 
+class _ScrollFormState extends State<ScrollForm> {
+  StreamSubscription<ScrollFormEvent>? _eventSubscription;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _eventSubscription ??= context.read<ScrollFormController>().events.listen(
+      (event) {
+        final context = this.context;
+        if (event is SubmitFailedWithErrors && context.mounted) {
+          _scrollToFirstError(context.read<ScrollFormController>());
+        }
+      },
+    );
+  }
+
+  void _scrollToFirstError(ScrollFormController controller) {
+    final fields = [
+      controller.firstField,
+      controller.secondField,
+      controller.thirdField,
+    ];
+    fields.firstWhereOrNull((f) => f.value.isInvalid)?.focus();
+  }
+
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.watch<ScrollFormController>();
     return FormPage(
       title: 'Scroll Form',
-      child: BlocPresentationListener<ScrollFormCubit, ScrollFormCubitEvent>(
-        listener: (context, event) {
-          if (event is SubmitFailedWithErrors) {
-            scrollToFistError();
-          }
-        },
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              FocusableFormTextField(
-                field: context.read<ScrollFormCubit>().firstField,
-                translateError: validatorTranslator,
-                labelText: 'First field',
-                hintText: 'Write here...',
-                onFieldSubmitted: (_) =>
-                    context.read<ScrollFormCubit>().secondField.focus(),
-              ),
-              const SizedBox(height: 260),
-              FocusableFormTextField(
-                field: context.read<ScrollFormCubit>().secondField,
-                translateError: validatorTranslator,
-                labelText: 'Second field',
-                hintText: 'Write here...',
-                onFieldSubmitted: (_) =>
-                    context.read<ScrollFormCubit>().thirdField.focus(),
-              ),
-              const SizedBox(height: 260),
-              FocusableFormTextField(
-                field: context.read<ScrollFormCubit>().thirdField,
-                translateError: validatorTranslator,
-                labelText: 'Third field',
-                hintText: 'Write here...',
-              ),
-              const SizedBox(height: 260),
-              ElevatedButton(
-                onPressed: context.read<ScrollFormCubit>().submit,
-                child: const Text('Submit'),
-              ),
-            ],
-          ),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            ScreenDescription([
+              bold('Focus management. '),
+              plain('Each field owns its own '),
+              code('FocusNode'),
+              plain('. On submit failure the controller emits a '),
+              code('SubmitFailedWithErrors'),
+              plain(' event over a plain broadcast '),
+              code('Stream'),
+              plain('; the widget listens and focuses the '),
+              bold('first invalid field'),
+              plain(', scrolling it into view.'),
+            ]),
+            FormTextField(
+              field: controller.firstField,
+              translateError: validatorTranslator,
+              labelText: 'First field',
+              hintText: 'Write here...',
+              onFieldSubmitted: (_) => controller.secondField.focus(),
+            ),
+            const SizedBox(height: 260),
+            FormTextField(
+              field: controller.secondField,
+              translateError: validatorTranslator,
+              labelText: 'Second field',
+              hintText: 'Write here...',
+              onFieldSubmitted: (_) => controller.thirdField.focus(),
+            ),
+            const SizedBox(height: 260),
+            FormTextField(
+              field: controller.thirdField,
+              translateError: validatorTranslator,
+              labelText: 'Third field',
+              hintText: 'Write here...',
+            ),
+            const SizedBox(height: 260),
+            ElevatedButton(
+              onPressed: controller.submit,
+              child: const Text('Submit'),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class ScrollFormCubit extends FormGroupCubit
-    with BlocPresentationMixin<FormGroupState, ScrollFormCubitEvent> {
-  ScrollFormCubit() {
+class ScrollFormController extends AdvancedFormController {
+  ScrollFormController() {
     registerFields([
       firstField,
       secondField,
@@ -93,27 +122,36 @@ class ScrollFormCubit extends FormGroupCubit
     ]);
   }
 
-  final firstField = FocusableTextFieldCubit<ValidationError>(
+  final firstField = AdvancedTextFieldController<ValidationError>(
     validator: filled(ValidationError.empty),
   );
-  final secondField = FocusableTextFieldCubit<ValidationError>(
+  final secondField = AdvancedTextFieldController<ValidationError>(
     validator: filled(ValidationError.empty),
   );
-  final thirdField = FocusableTextFieldCubit<ValidationError>(
+  final thirdField = AdvancedTextFieldController<ValidationError>(
     validator: filled(ValidationError.empty),
   );
+
+  final _eventsController = StreamController<ScrollFormEvent>.broadcast();
+  Stream<ScrollFormEvent> get events => _eventsController.stream;
 
   void submit() {
     if (validate()) {
       debugPrint('Submit successful');
     } else {
-      emitPresentation(const SubmitFailedWithErrors());
+      _eventsController.add(const SubmitFailedWithErrors());
     }
+  }
+
+  @override
+  void dispose() {
+    _eventsController.close();
+    super.dispose();
   }
 }
 
-sealed class ScrollFormCubitEvent {}
+sealed class ScrollFormEvent {}
 
-class SubmitFailedWithErrors implements ScrollFormCubitEvent {
+class SubmitFailedWithErrors implements ScrollFormEvent {
   const SubmitFailedWithErrors();
 }
