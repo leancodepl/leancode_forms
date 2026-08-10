@@ -24,8 +24,7 @@ class DeliveryListForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller =
-        AdvancedFormScope.watch<DeliveryListFormController>(context);
+    final controller = context.watchForm<DeliveryListFormController>();
     return FormPage(
       title: 'Delivery List Form',
       child: SingleChildScrollView(

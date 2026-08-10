@@ -27,8 +27,7 @@ class PasswordForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller =
-        AdvancedFormScope.watch<PasswordFormController>(context);
+    final controller = context.watchForm<PasswordFormController>();
     return FormPage(
       title: 'Password Form',
       child: ListView(

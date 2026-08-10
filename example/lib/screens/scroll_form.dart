@@ -34,11 +34,11 @@ class _ScrollFormState extends State<ScrollForm> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _eventSubscription ??=
-        AdvancedFormScope.read<ScrollFormController>(context).events.listen(
+        context.readForm<ScrollFormController>().events.listen(
       (event) {
         final context = this.context;
         if (event is SubmitFailedWithErrors && context.mounted) {
-          _scrollToFirstError(AdvancedFormScope.read<ScrollFormController>(context));
+          _scrollToFirstError(context.readForm<ScrollFormController>());
         }
       },
     );
@@ -61,7 +61,7 @@ class _ScrollFormState extends State<ScrollForm> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = AdvancedFormScope.watch<ScrollFormController>(context);
+    final controller = context.watchForm<ScrollFormController>();
     return FormPage(
       title: 'Scroll Form',
       child: SingleChildScrollView(

@@ -31,8 +31,7 @@ class _OptimizedRenderingForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller =
-        AdvancedFormScope.watch<OptimizedRenderingFormController>(context);
+    final controller = context.watchForm<OptimizedRenderingFormController>();
     return FormPage(
       title: 'Optimized Rendering',
       child: ListView(

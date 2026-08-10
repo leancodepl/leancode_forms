@@ -24,7 +24,7 @@ class SimpleForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = AdvancedFormScope.watch<SimpleFormController>(context);
+    final controller = context.watchForm<SimpleFormController>();
     return FormPage(
       title: 'Simple Form',
       child: SingleChildScrollView(

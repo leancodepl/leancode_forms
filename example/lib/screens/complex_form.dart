@@ -27,7 +27,7 @@ class ComplexForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = AdvancedFormScope.watch<ComplexFormController>(context);
+    final controller = context.watchForm<ComplexFormController>();
     return FormPage(
       title: 'Complex Form',
       child: SingleChildScrollView(
@@ -53,11 +53,10 @@ class ComplexForm extends StatelessWidget {
               labelText: 'Subform Type',
               hintText: 'Select subform type',
             ),
-            Builder( 
+            Builder(
               builder: (context) {
                 final type =
-                    AdvancedFormScope.watch<ComplexFormController>(context)
-                        .subformType;
+                    context.watchForm<ComplexFormController>().subformType;
                 return switch (type) {
                   SubformType.human => HumanSubform(
                       controller: controller.humanSubform,
