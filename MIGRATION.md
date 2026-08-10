@@ -195,7 +195,7 @@ Give every field and subform a single owner, and let the form be it:
 
 ## 8. Dropping `flutter_bloc` and friends
 
-**`BlocProvider` → `AdvancedFormScope`.** `AdvancedFormScope.read` / `.watch` behave like `context.read` / `context.watch` did — there is no `select` equivalent (see the "Form-level state" section of [README.md](./README.md)):
+**`BlocProvider` → `AdvancedFormScope`.** `context.readForm<T>()` / `context.watchForm<T>()` behave like `context.read` / `context.watch` did — there is no `select` equivalent (see the "Form-level state" section of [README.md](./README.md)):
 
 ```dart
 BlocProvider<SimpleFormCubit>(create: (context) => SimpleFormCubit(), …)              // 0.1.x
@@ -204,7 +204,7 @@ AdvancedFormScope<SimpleFormController>(create: (context) => SimpleFormControlle
 
 Two things to watch while converting screens:
 
-- Prefer hoisting one `final controller = AdvancedFormScope.watch<SimpleFormController>(context);` at the top of `build` over repeated `.read` calls.
+- Prefer hoisting one `final controller = context.watchForm<SimpleFormController>();` at the top of `build` over repeated `readForm` calls.
 - State your controller holds *outside* `AdvancedFormState` — a selected tab, a list of dynamically added rows — needs an explicit `notifyListeners()` now. In 0.1.x, `emit(FormGroupState(...))` rebuilt watchers as a side effect.
 
 Or drop the scope widget entirely: controllers are `ChangeNotifier`s, so a `StatefulWidget` can own one and dispose it in `dispose()`.

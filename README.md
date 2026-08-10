@@ -72,7 +72,7 @@ Two rules to remember:
 - **Call `registerFields()` once, with every field.** The form then owns their lifecycle — it disposes them, tracks whether anything was modified, and includes them in `validate()`, `resetAll()`, and the other form-wide operations. Calling it a second time *replaces* the field list, so the earlier batch stops participating while still being disposed at teardown.
 - **Bind widgets to `field.textController`**, not to a controller of your own. See [Rendering fields](#rendering-fields).
 
-Own the controller wherever you like — it's a `ChangeNotifier`. Use `AdvancedFormScope<T>`, which ships with this package: it creates the controller lazily (on first read, not at mount), exposes it to descendants via `AdvancedFormScope.watch` / `.read`, and disposes it automatically when unmounted.
+Own the controller wherever you like — it's a `ChangeNotifier`. Use `AdvancedFormScope<T>`, which ships with this package: it creates the controller lazily (on first read, not at mount), exposes it to descendants via `context.watchForm<T>()` / `context.readForm<T>()`, and disposes it automatically when unmounted.
 
 ```dart
 AdvancedFormScope<SignupFormController>(
@@ -113,7 +113,7 @@ Rebuilds are granular by construction: each builder subscribes to one field, so 
 
 `builder`'s third parameter is a `child:` you can pass for a subtree that doesn't depend on field state — built once and reused on every rebuild. See [EXAMPLES.md](./EXAMPLES.md#2-using-the-child-optimization), `example/lib/widgets/form_text_field_with_icon.dart`, and the "Optimized Rendering" screen in the example app.
 
-For parent widgets, grab the controller with `AdvancedFormScope.read<SignupFormController>(context)` — no subscription, no parent rebuilds — and let each field widget subscribe to its own field.
+For parent widgets, grab the controller with `context.readForm<SignupFormController>()` — no subscription, no parent rebuilds — and let each field widget subscribe to its own field.
 
 ## Form-level state
 
@@ -129,7 +129,7 @@ ValueListenableBuilder<AdvancedFormState>(
 );
 ```
 
-`AdvancedFormState` carries `wasModified` (any field changed since `registerFields`), `validating` (an async check is in flight), `fields` / `subforms`, `validationEnabled`, and `validationErrors` — every error in the form tree, keyed by field, for an error summary. `AdvancedFormScope` has no `select` equivalent — for the "subscribe to one slice" case, use the `ValueListenableBuilder` above, or isolate the sensitive subtree in its own widget and `AdvancedFormScope.watch` there.
+`AdvancedFormState` carries `wasModified` (any field changed since `registerFields`), `validating` (an async check is in flight), `fields` / `subforms`, `validationEnabled`, and `validationErrors` — every error in the form tree, keyed by field, for an error summary. `AdvancedFormScope` has no `select` equivalent — for the "subscribe to one slice" case, use the `ValueListenableBuilder` above, or isolate the sensitive subtree in its own widget and `watchForm` there.
 
 To react outside a builder, `form.onValuesChanged` and `form.onStatusChanged` are `Listenable`s covering the whole tree, subforms included. Pass a named callback so you can `removeListener` it later.
 
