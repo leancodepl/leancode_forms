@@ -412,7 +412,6 @@ class AdvancedFieldController<T, E extends Object>
       ),
     );
   }
-
 }
 
 /// The status of a [AdvancedFieldController].

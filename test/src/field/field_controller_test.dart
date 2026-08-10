@@ -402,7 +402,8 @@ void main() {
       expect(validated, isEmpty);
     });
 
-    test('disposing while the validator is in flight does not emit when it '
+    test(
+        'disposing while the validator is in flight does not emit when it '
         'resolves', () async {
       // Disposing inside the validator happens before `_asyncValidationFuture`
       // is assigned, so `dispose()` has nothing to cancel.
