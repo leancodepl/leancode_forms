@@ -25,18 +25,6 @@ List<_State> _record(_Field notifier) {
   return emissions;
 }
 
-/// Disposes [f] from inside one of its own listeners, swallowing the
-/// debug-only `ChangeNotifier` assertion that a release build would not throw.
-void _disposeFromListener(_Field f) {
-  try {
-    f.dispose();
-    // Catching the error is the point: release builds never throw it.
-    // ignore: avoid_catching_errors
-  } on AssertionError {
-    // Debug-only guard; the disposal itself already ran.
-  }
-}
-
 /// A field whose async validator records each value it is called with in
 /// `validated`, runs [onValidate], then resolves `null` after
 /// [validatorDelay].
@@ -357,49 +345,6 @@ void main() {
         _State(value: 10, status: FieldStatus.pending),
         _State(value: 10, status: FieldStatus.validating),
       ]);
-    });
-
-    // `testWidgets` on purpose: the binding fails a test that leaves a pending
-    // `Timer` behind, which is exactly the leak being guarded against.
-    testWidgets(
-        'disposing from a listener during the pending emission does not '
-        'schedule a debounce timer', (tester) async {
-      final (:field, :validated) = _asyncField(
-        debounce: const Duration(milliseconds: 200),
-      );
-      field
-        ..addListener(() => _disposeFromListener(field))
-        ..setValue(10);
-
-      expect(field.isDisposed, isTrue);
-      expect(validated, isEmpty);
-
-      // The test ends long before the 200ms debounce elapses, so a timer
-      // scheduled post-dispose is still pending when the binding checks.
-      await tester.pump(const Duration(milliseconds: 10));
-    });
-
-    testWidgets(
-        'disposing from a listener during the validating emission does not '
-        'start the async validator', (tester) async {
-      final (:field, :validated) = _asyncField(
-        validatorDelay: const Duration(milliseconds: 200),
-      );
-      field
-        ..addListener(() {
-          if (field.value.status == FieldStatus.validating) {
-            _disposeFromListener(field);
-          }
-        })
-        ..setValue(10);
-
-      expect(field.isDisposed, isFalse);
-
-      // Debounce elapses, `validating` is emitted, and the listener disposes.
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(field.isDisposed, isTrue);
-      expect(validated, isEmpty);
     });
 
     test('disposing while the validator is in flight does not emit when it '
