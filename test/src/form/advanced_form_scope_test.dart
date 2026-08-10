@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
-/// A controller that records whether/how many times it was created and
-/// disposed, without needing a widget tree.
+/// An [AdvancedFormController] that counts its own disposals.
 class _RecordingController extends AdvancedFormController {
   int disposeCalls = 0;
 
@@ -266,34 +265,77 @@ void main() {
 
       final innerElement = tester
           .element(find.byType(_Reader))
-          .findAncestorWidgetOfExactType<AdvancedFormScope<_RecordingController>>();
+          .findAncestorWidgetOfExactType<
+              AdvancedFormScope<_RecordingController>>();
       expect(innerLookup, isNotNull);
       expect(innerElement, isNotNull);
     });
 
-    testWidgets('throws a StateError with a helpful message when not found',
+    testWidgets(
+        'throws AdvancedFormScopeNotFoundException when no scope is found',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: _Reader(
             builder: (context) {
-              expect(
-                () => AdvancedFormScope.watch<_RecordingController>(context),
-                throwsA(
-                  isA<StateError>().having(
-                    (e) => e.message,
-                    'message',
-                    allOf(
-                      contains('_RecordingController'),
-                      contains('exact type argument'),
-                    ),
-                  ),
-                ),
-              );
+              AdvancedFormScope.watch<_RecordingController>(context);
               return const SizedBox();
             },
           ),
         ),
+      );
+
+      expect(
+        tester.takeException(),
+        isA<AdvancedFormScopeNotFoundException>().having(
+          (e) => e.controllerType,
+          'controllerType',
+          _RecordingController,
+        ),
+      );
+    });
+
+    testWidgets('context.readForm and context.watchForm resolve the controller',
+        (tester) async {
+      final controller = _RecordingController();
+      late _RecordingController fromRead;
+      late _RecordingController fromWatch;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdvancedFormScope<_RecordingController>.value(
+            value: controller,
+            child: _Reader(
+              builder: (context) {
+                fromRead = context.readForm<_RecordingController>();
+                fromWatch = context.watchForm<_RecordingController>();
+                return const SizedBox();
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(fromRead, same(controller));
+      expect(fromWatch, same(controller));
+    });
+
+    testWidgets('context.readForm throws when no scope is found',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: _Reader(
+            builder: (context) {
+              context.readForm<_RecordingController>();
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+
+      expect(
+        tester.takeException(),
+        isA<AdvancedFormScopeNotFoundException>(),
       );
     });
 
