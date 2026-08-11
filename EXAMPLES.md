@@ -47,8 +47,8 @@ class SimpleFormController extends AdvancedFormController {
     validator: filled(ValidationError.empty),
   );
 
-  void submit() {
-    if (validate()) {
+  Future<void> submit() async {
+    if (await validate()) {
       print('First: ${firstName.value.value}');
       print('Email: ${email.value.value}');
     }
@@ -134,7 +134,7 @@ class PasswordFormController extends AdvancedFormController {
 }
 ```
 
-`subscribeToFields` listens to the given fields and re-runs this field's validator whenever any of their values change. It only revalidates — it does not update this field's *value* in response to another field. For a value dependency ("when B changes, set A"), use `addListener` on the source field and `setValue` on the target.
+`subscribeToFields` listens to the given fields and re-runs this field's **sync** validator whenever any of their values change. The async validator is not re-run: this field's own value did not change, so its last answer is still current. It only revalidates — it does not update this field's *value* in response to another field. For a value dependency ("when B changes, set A"), use `addListener` on the source field and `setValue` on the target.
 
 ### 5. A reusable custom form widget
 
