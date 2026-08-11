@@ -190,8 +190,8 @@ class ComplexFormController extends AdvancedFormController {
     }
   }
 
-  void submit() {
-    if (validate()) {
+  Future<void> submit() async {
+    if (await validate()) {
       debugPrint('Form is valid!');
     } else {
       debugPrint('Form is invalid!');

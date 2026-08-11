@@ -135,8 +135,8 @@ class ScrollFormController extends AdvancedFormController {
   final _eventsController = StreamController<ScrollFormEvent>.broadcast();
   Stream<ScrollFormEvent> get events => _eventsController.stream;
 
-  void submit() {
-    if (validate()) {
+  Future<void> submit() async {
+    if (await validate()) {
       debugPrint('Submit successful');
     } else {
       _eventsController.add(const SubmitFailedWithErrors());

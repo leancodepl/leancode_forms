@@ -128,8 +128,8 @@ class DeliveryListFormController extends AdvancedFormController {
     notifyListeners();
   }
 
-  void submit() {
-    if (validate()) {
+  Future<void> submit() async {
+    if (await validate()) {
       for (final consumer in deliveryList) {
         debugPrint('Consumer email: ${consumer.email.value.value}');
         debugPrint('Consumer country: ${consumer.country.value.value}');

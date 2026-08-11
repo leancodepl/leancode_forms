@@ -36,13 +36,23 @@ class SimpleForm extends StatelessWidget {
               bold('async validation'),
               plain(' (email). Validation only runs on '),
               bold('submit'),
-              plain(' — type anything and press Submit to see errors appear. '
-                  'Try '),
+              plain(', which '),
+              code('await'),
+              plain('s the async check — type anything and press Submit to '
+                  'see errors appear. Try '),
               code('john@email.com'),
               plain(' or '),
               code('jack@email.com'),
-              plain(' to trigger the async "email taken" error.'),
+              plain(' to trigger the async "email taken" error, or '),
+              code('boom@email.com'),
+              plain(' to make the check throw: the form then reports '),
+              code('hasFailedValidation'),
+              plain(' and '),
+              code('failureToError'),
+              plain(' turns the exception into something readable.'),
             ]),
+            if (controller.value.hasFailedValidation)
+              const _CheckFailedBanner(),
             FormTextField(
               field: controller.firstName,
               translateError: validatorTranslator,
@@ -64,11 +74,34 @@ class SimpleForm extends StatelessWidget {
               hintText: 'Enter your email',
             ),
             ElevatedButton(
-              onPressed: controller.submit,
+              // A round is in flight, so the answer is not known yet.
+              onPressed: controller.value.validating ? null : controller.submit,
               child: const Text('Submit'),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// One banner for the whole form, driven by
+/// [AdvancedFormState.hasFailedValidation]. Not sticky — the next submit
+/// retries every failed round.
+class _CheckFailedBanner extends StatelessWidget {
+  const _CheckFailedBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
+      color: theme.colorScheme.errorContainer,
+      child: Text(
+        'Some checks could not be completed. Press Submit to try again.',
+        style: TextStyle(color: theme.colorScheme.onErrorContainer),
       ),
     );
   }
@@ -96,19 +129,28 @@ class SimpleFormController extends AdvancedFormController {
   late final email = AdvancedTextFieldController(
     validator: filled(ValidationError.empty),
     asyncValidation: AsyncValidation(
-      validator: _onEmailChanged,
+      validator: _checkEmail,
       debounce: const Duration(milliseconds: 500),
+      timeout: const Duration(seconds: 5),
+      // Opt in to showing something when the check itself falls over. Without
+      // it the field carries no code and only the form-level banner speaks.
+      failureToError: (error, stackTrace) =>
+          ValidationError.emailCheckUnavailable,
     ),
   );
 
-  Future<ValidationError?> _onEmailChanged(String value) async {
+  Future<ValidationError?> _checkEmail(String value) async {
     final takenEmail = ['john@email.com', 'jack@email.com'];
     await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (value == 'boom@email.com') {
+      throw StateError('the email service is down');
+    }
     return takenEmail.contains(value) ? ValidationError.emailTaken : null;
   }
 
-  void submit() {
-    if (validate(enableAutovalidate: false)) {
+  Future<void> submit() async {
+    // `await` is what makes this a guarantee: it runs the async validators too.
+    if (await validate(enableAutovalidate: false)) {
       debugPrint('First name: ${firstName.value.value}');
       debugPrint('Last name: ${lastName.value.value}');
       debugPrint('Email: ${email.value.value}');

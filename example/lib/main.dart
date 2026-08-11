@@ -39,6 +39,7 @@ enum ValidationError {
   //email related
   invalidEmail,
   emailTaken,
+  emailCheckUnavailable,
 
   //quiz related
   invalidAnswer,
@@ -59,6 +60,8 @@ String validatorTranslator(ValidationError error) {
     ValidationError.doesNotMatch => 'Passwords must match',
     ValidationError.invalidEmail => 'Invalid email',
     ValidationError.emailTaken => 'Email already taken',
+    ValidationError.emailCheckUnavailable =>
+      'We could not check this email right now',
     ValidationError.invalidAnswer => 'Invalid answer',
   };
 }
