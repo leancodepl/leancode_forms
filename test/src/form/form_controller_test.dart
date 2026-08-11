@@ -180,12 +180,12 @@ void main() {
     });
 
     group('validate', () {
-      test('enables autovalidate in fields', () {
+      test('enables autovalidate in fields', () async {
         subform.registerFields([subformField]);
         form
           ..registerFields([field1, field2])
-          ..addSubform(subform)
-          ..validate();
+          ..addSubform(subform);
+        await form.validate();
 
         expect(field1.value.autovalidate, true);
         expect(field2.value.autovalidate, true);
@@ -193,12 +193,12 @@ void main() {
         form.dispose();
       });
 
-      test('does not enable autovalidate in fields', () {
+      test('does not enable autovalidate in fields', () async {
         subform.registerFields([subformField]);
         form
           ..registerFields([field1, field2])
-          ..addSubform(subform)
-          ..validate(enableAutovalidate: false);
+          ..addSubform(subform);
+        await form.validate(enableAutovalidate: false);
 
         expect(field1.value.autovalidate, false);
         expect(field2.value.autovalidate, false);
@@ -206,7 +206,7 @@ void main() {
         form.dispose();
       });
 
-      test('is valid when all are valid', () {
+      test('is valid when all are valid', () async {
         subform.registerFields([subformField]);
         validator1.validationResult = null;
         validator2.validationResult = null;
@@ -214,11 +214,11 @@ void main() {
           ..registerFields([field1, field2])
           ..addSubform(subform);
 
-        expect(form.validate(), true);
+        expect(await form.validate(), true);
         form.dispose();
       });
 
-      test('is not valid if a subform is not valid', () {
+      test('is not valid if a subform is not valid', () async {
         subform.registerFields([subformField]);
         validator1.validationResult = null;
         validator2.validationResult = _Error2.malformed;
@@ -226,31 +226,31 @@ void main() {
           ..registerFields([field1])
           ..addSubform(subform);
 
-        expect(form.validate(), false);
+        expect(await form.validate(), false);
         form.dispose();
         field2.dispose();
       });
 
-      test('is not valid when any is invalid', () {
+      test('is not valid when any is invalid', () async {
         validator1.validationResult = _Error1.valueRequired;
         validator2.validationResult = null;
         form.registerFields([field1, field2]);
 
-        expect(form.validate(), false);
+        expect(await form.validate(), false);
         form.dispose();
         subform.dispose();
         subformField.dispose();
       });
 
-      test('does not short-circuit on validation', () {
+      test('does not short-circuit on validation', () async {
         subform.registerFields([subformField]);
         validator1.validationResult = _Error1.valueRequired;
         validator2.validationResult = _Error2.malformed;
 
         form
           ..registerFields([field1, field2])
-          ..addSubform(subform)
-          ..validate(enableAutovalidate: false);
+          ..addSubform(subform);
+        await form.validate(enableAutovalidate: false);
 
         expect(field1.value.error, _Error1.valueRequired);
         expect(field2.value.error, _Error2.malformed);
@@ -258,24 +258,25 @@ void main() {
         form.dispose();
       });
 
-      test('is valid when validationEnabled is false', () {
+      test('is valid when validationEnabled is false', () async {
         validator1.validationResult = _Error1.valueRequired;
         form
           ..registerFields([field1])
           ..setValidationEnabled(false);
 
-        expect(form.validate(), true);
+        expect(await form.validate(), true);
         form.dispose();
         field2.dispose();
         subform.dispose();
         subformField.dispose();
       });
 
-      test('enables autovalidate even when validationEnabled is false', () {
+      test('enables autovalidate even when validationEnabled is false',
+          () async {
         form
           ..registerFields([field1])
-          ..setValidationEnabled(false)
-          ..validate();
+          ..setValidationEnabled(false);
+        await form.validate();
 
         expect(field1.value.autovalidate, true);
         form.dispose();
@@ -284,26 +285,56 @@ void main() {
         subformField.dispose();
       });
 
-      test('is not valid when any of the fields is pending async validation',
-          () async {
+      test('reaches the async validators of every field', () async {
+        final checked = <String>[];
+        final asyncField = AdvancedTextFieldController<_Error1>(
+          initialValue: _initialValue1,
+          asyncValidation: AsyncValidation(
+            validator: (value) async {
+              checked.add(value);
+              return validator1.validationResult;
+            },
+          ),
+        );
+        form.registerFields([asyncField]);
+        addTearDown(form.dispose);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        validator1.validationResult = _Error1.valueRequired;
+
+        expect(await form.validate(), false);
+        expect(checked, [_initialValue1]);
+        expect(asyncField.value.asyncError, _Error1.valueRequired);
+      });
+
+      test('awaits a round that is still in flight', () async {
         validator1.validationResult = null;
         final asyncField = AdvancedTextFieldController<_Error1>(
           initialValue: _initialValue1,
           asyncValidation: AsyncValidation(
-            validator: (_) async => validator1.validationResult,
+            validator: (_) async {
+              await Future<void>.delayed(const Duration(milliseconds: 100));
+              return validator1.validationResult;
+            },
+            debounce: const Duration(milliseconds: 10),
           ),
-        );
+        )..setAutovalidate(true);
         form.registerFields([asyncField]);
+        addTearDown(form.dispose);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
 
         asyncField.setValue('value');
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+        expect(asyncField.value.isValidating, isTrue);
 
-        expect(form.validate(), false);
-        await Future<void>.delayed(const Duration(milliseconds: 500));
-        form.dispose();
-        field1.dispose();
-        field2.dispose();
-        subform.dispose();
-        subformField.dispose();
+        expect(await form.validate(), true);
+        expect(asyncField.value.isValid, isTrue);
       });
 
       test('is not valid when async validation of the field fails', () async {
@@ -313,12 +344,12 @@ void main() {
           asyncValidation: AsyncValidation(
             validator: (_) async => validator1.validationResult,
           ),
-        );
+        )..setAutovalidate(true);
         form.registerFields([asyncField]);
 
         asyncField.setValue('value');
         await Future<void>.delayed(const Duration(milliseconds: 500));
-        expect(form.validate(), false);
+        expect(await form.validate(), false);
 
         form.dispose();
         field1.dispose();
@@ -327,10 +358,8 @@ void main() {
         subformField.dispose();
       });
 
-      test(
-          'is not valid when any of the fields in subform is pending async validation',
-          () async {
-        validator2.validationResult = null;
+      test('reaches the async validators of a subform', () async {
+        validator2.validationResult = _Error2.malformed;
         final asyncSubformField = AdvancedFieldController<int, _Error2>(
           initialValue: 0,
           asyncValidation: AsyncValidation(
@@ -341,15 +370,131 @@ void main() {
           ..registerFields([asyncSubformField]);
         form.addSubform(asyncSubform);
 
-        asyncSubformField.setValue(10);
-        expect(form.validate(), false);
+        expect(await form.validate(), false);
+        expect(asyncSubformField.value.asyncError, _Error2.malformed);
 
-        await Future<void>.delayed(const Duration(milliseconds: 500));
         form.dispose();
         field1.dispose();
         field2.dispose();
         subform.dispose();
         subformField.dispose();
+      });
+
+      test('concurrent calls coalesce into one pass', () async {
+        var calls = 0;
+        final asyncField = AdvancedTextFieldController<_Error1>(
+          initialValue: _initialValue1,
+          asyncValidation: AsyncValidation(
+            validator: (_) async {
+              calls++;
+              await Future<void>.delayed(const Duration(milliseconds: 50));
+              return null;
+            },
+          ),
+        );
+        form.registerFields([asyncField]);
+        addTearDown(form.dispose);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        final first = form.validate();
+        final second = form.validate();
+
+        expect(identical(first, second), isTrue);
+        expect(await first, true);
+        expect(await second, true);
+        expect(calls, 1);
+      });
+
+      test('a disabled form does not occupy the coalescing slot', () async {
+        form.registerFields([field1]);
+        addTearDown(form.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+        validator1.validationResult = _Error1.valueRequired;
+
+        form.setValidationEnabled(false);
+        // Fire and forget, as a UI handler would. This returns `true` without
+        // validating anything, so it must not become the run a later call
+        // coalesces onto.
+        form.validate().ignore();
+
+        form.setValidationEnabled(true);
+        expect(await form.validate(), isFalse);
+      });
+
+      test('a disabled call leaves the gate for the next call to set',
+          () async {
+        form.registerFields([field1]);
+        addTearDown(form.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        form.setValidationEnabled(false);
+        form.validate(enableAutovalidate: false).ignore();
+        // The first call claimed nothing, so this one takes the full path and
+        // opens the gate itself.
+        form.validate().ignore();
+
+        expect(field1.value.autovalidate, isTrue);
+      });
+
+      test('a genuinely coalesced call does not re-broadcast autovalidate',
+          () async {
+        final asyncField = AdvancedTextFieldController<_Error1>(
+          initialValue: _initialValue1,
+          asyncValidation: AsyncValidation(
+            validator: (_) async {
+              await Future<void>.delayed(const Duration(milliseconds: 50));
+              return null;
+            },
+          ),
+        );
+        form.registerFields([asyncField]);
+        addTearDown(form.dispose);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        // A real run is in flight, so the second call must return it untouched
+        // rather than broadcast its own gate setting.
+        final first = form.validate(enableAutovalidate: false);
+        final second = form.validate();
+
+        expect(identical(first, second), isTrue);
+        expect(asyncField.value.autovalidate, isFalse);
+        await first;
+      });
+
+      test('a disposed form with a call in flight returns that call', () async {
+        final asyncField = AdvancedTextFieldController<_Error1>(
+          initialValue: _initialValue1,
+          asyncValidation: AsyncValidation(
+            validator: (_) async {
+              await Future<void>.delayed(const Duration(milliseconds: 50));
+              return null;
+            },
+          ),
+        );
+        form.registerFields([asyncField]);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        final first = form.validate();
+        form.dispose();
+
+        expect(identical(form.validate(), first), isTrue);
+        await first;
+        // `first` resolves at dispose, so drain the validator before the next
+        // test starts — this suite runs on wall-clock delays.
+        await Future<void>.delayed(const Duration(milliseconds: 80));
       });
     });
 
@@ -779,6 +924,158 @@ void main() {
         expect(field2.value.error, null);
         expect(subformField.value.error, _Error2.malformed);
         form.dispose();
+      });
+    });
+
+    group('derived aggregates', () {
+      /// A field whose async validator takes [delay] to answer [result].
+      AdvancedFieldController<int, _Error2> asyncField({
+        Duration delay = const Duration(milliseconds: 100),
+        _Error2? Function()? result,
+        bool throws = false,
+      }) =>
+          AdvancedFieldController<int, _Error2>(
+            initialValue: 0,
+            asyncValidation: AsyncValidation(
+              validator: (_) async {
+                await Future<void>.delayed(delay);
+                if (throws) {
+                  throw StateError('validator exploded');
+                }
+                return result?.call();
+              },
+              debounce: const Duration(milliseconds: 10),
+              onFailure: (error, stackTrace) async {},
+            ),
+          )..setAutovalidate(true);
+
+      test('validating follows the fields rather than a stored flag', () async {
+        final live = asyncField();
+        form.registerFields([live]);
+        addTearDown(form.dispose);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        expect(form.value.validating, isFalse);
+
+        live.setValue(10);
+        expect(form.value.validating, isTrue);
+
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        expect(form.value.validating, isFalse);
+      });
+
+      test('removeSubform mid-validation clears validating and wasModified',
+          () async {
+        final live = asyncField();
+        final liveSubform = AdvancedFormController()..registerFields([live]);
+        form.addSubform(liveSubform);
+        addTearDown(form.dispose);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        live.setValue(10);
+        await pumpEventQueue();
+        expect(form.value.validating, isTrue);
+        expect(form.value.wasModified, isTrue);
+
+        await form.removeSubform(liveSubform);
+
+        expect(form.value.validating, isFalse);
+        expect(form.value.wasModified, isFalse);
+      });
+
+      test('registerFields mid-validation rebaselines wasModified', () async {
+        final live = asyncField();
+        form.registerFields([live]);
+        addTearDown(form.dispose);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        live.setValue(10);
+        await pumpEventQueue();
+        expect(form.value.wasModified, isTrue);
+        expect(form.value.validating, isTrue);
+
+        form.registerFields([live]);
+
+        expect(form.value.wasModified, isFalse);
+        expect(form.value.validating, isTrue);
+
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        expect(form.value.validating, isFalse);
+      });
+
+      test('hasFailedValidation reports a round that could not complete',
+          () async {
+        final failing = asyncField(throws: true);
+        form.registerFields([failing]);
+        addTearDown(form.dispose);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        expect(form.value.hasFailedValidation, isFalse);
+
+        expect(await form.validate(), isFalse);
+
+        expect(form.value.hasFailedValidation, isTrue);
+        expect(form.value.canSubmit, isFalse);
+      });
+
+      test('canSubmit is a snapshot of known errors', () async {
+        validator1.validationResult = _Error1.valueRequired;
+        form.registerFields([field1, field2]);
+        addTearDown(form.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        // Nothing has been checked yet.
+        expect(form.value.canSubmit, isTrue);
+
+        expect(await form.validate(), isFalse);
+        expect(form.value.canSubmit, isFalse);
+      });
+
+      test('validationErrors includes a field invalid from an async check',
+          () async {
+        final rejected = asyncField(result: () => _Error2.malformed);
+        form.registerFields([rejected]);
+        addTearDown(form.dispose);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        expect(await form.validate(), isFalse);
+
+        expect(rejected.value.validationError, isNull);
+        expect(rejected.value.asyncError, _Error2.malformed);
+        expect(form.value.validationErrors, {rejected: _Error2.malformed});
+      });
+
+      test('notifies listeners when a derived aggregate changes', () async {
+        final live = asyncField();
+        form.registerFields([live]);
+        addTearDown(form.dispose);
+        addTearDown(field1.dispose);
+        addTearDown(field2.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        final getCount = _countCalls(form);
+
+        live.setValue(10);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+
+        expect(getCount(), greaterThanOrEqualTo(2));
       });
     });
 
