@@ -1,0 +1,149 @@
+part of 'advanced_field_controller.dart';
+
+/// Translates an error to a string.
+typedef ErrorTranslator<E extends Object> = String Function(E);
+
+/// The status of a [AdvancedFieldController].
+enum FieldStatus {
+  /// No error is recorded on the field.
+  ///
+  /// Not the same as *checked and passed*: a field nobody has validated yet is
+  /// `valid`. `await AdvancedFormController.validate()` is the guarantee.
+  valid,
+
+  /// An error is recorded on the field.
+  invalid,
+
+  /// A round is armed, waiting out [AsyncValidation.debounce].
+  pending,
+
+  /// The async validator is running.
+  validating,
+
+  /// The async validator threw, or its round timed out, so validation could not
+  /// complete — a technical fault, not a verdict about the value.
+  ///
+  /// Carries no error code unless [AsyncValidation.failureToError] supplied
+  /// one, but the field does not count as valid. Not sticky: the next
+  /// `validate()` re-runs the round, so submit is the retry.
+  failedValidation,
+}
+
+/// An immutable snapshot of an [AdvancedFieldController]. Obtain it from
+/// [AdvancedFieldController.value], or listen to the controller for changes.
+class AdvancedFieldState<T, E extends Object> {
+  /// Creates a new [AdvancedFieldState].
+  const AdvancedFieldState({
+    required this.value,
+    this.validationError,
+    this.asyncError,
+    this.autovalidate = false,
+    this.readOnly = false,
+    this.status = FieldStatus.valid,
+  });
+
+  /// The current value. Set it with [AdvancedFieldController.setValue].
+  final T value;
+
+  /// The error the sync path recorded — the sync validator or
+  /// [AdvancedFieldController.setError].
+  final E? validationError;
+
+  /// The error the async round recorded. Only the async pipeline writes it.
+  final E? asyncError;
+
+  /// Whether a value change runs the validators. With it off,
+  /// [AdvancedFieldController.setValue] only stores the value.
+  final bool autovalidate;
+
+  /// Whether the value is frozen against [AdvancedFieldController.setValue].
+  final bool readOnly;
+
+  /// Where validation currently stands.
+  final FieldStatus status;
+
+  /// The current error: [validationError] falling back to [asyncError].
+  ///
+  /// The sync slot wins because a rule about the value outranks a verdict that
+  /// may predate the app state the rule reads.
+  E? get error => validationError ?? asyncError;
+
+  /// Whether no error is recorded. See [FieldStatus.valid]: this is not the
+  /// same as *checked and passed*.
+  bool get isValid => status == FieldStatus.valid;
+
+  /// Whether an error is recorded.
+  bool get isInvalid => status == FieldStatus.invalid;
+
+  /// Whether a round is waiting out its debounce.
+  bool get isPending => status == FieldStatus.pending;
+
+  /// Whether the async validator is running.
+  bool get isValidating => status == FieldStatus.validating;
+
+  /// Whether a round is pending or validating.
+  bool get isInProgress => isPending || isValidating;
+
+  /// Whether the async validator failed, so validation never completed.
+  bool get isFailedValidation => status == FieldStatus.failedValidation;
+
+  // Sentinel-based, so passing null clears a slot and omitting it keeps the
+  // slot. `T` may itself be nullable, so `null` cannot mean "unchanged".
+  AdvancedFieldState<T, E> _copyWithNullable({
+    Object? value = _unset,
+    Object? validationError = _unset,
+    Object? asyncError = _unset,
+    bool? autovalidate,
+    bool? readOnly,
+    FieldStatus? status,
+  }) =>
+      AdvancedFieldState<T, E>(
+        value: identical(value, _unset) ? this.value : value as T,
+        validationError: identical(validationError, _unset)
+            ? this.validationError
+            : validationError as E?,
+        asyncError:
+            identical(asyncError, _unset) ? this.asyncError : asyncError as E?,
+        autovalidate: autovalidate ?? this.autovalidate,
+        readOnly: readOnly ?? this.readOnly,
+        status: status ?? this.status,
+      );
+
+  // ⚠️ Maintainer: keep these and `_copyWithNullable` in sync with the fields.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AdvancedFieldState<T, E> &&
+          value == other.value &&
+          validationError == other.validationError &&
+          asyncError == other.asyncError &&
+          autovalidate == other.autovalidate &&
+          readOnly == other.readOnly &&
+          status == other.status;
+
+  @override
+  int get hashCode => Object.hash(
+        value,
+        validationError,
+        asyncError,
+        autovalidate,
+        readOnly,
+        status,
+      );
+
+  @override
+  String toString() => 'AdvancedFieldState('
+      'value: $value, '
+      'validationError: $validationError, '
+      'asyncError: $asyncError, '
+      'status: ${status.name}, '
+      'autovalidate: $autovalidate, '
+      'readOnly: $readOnly)';
+}
+
+// A private enum value, so no caller-supplied value can be `identical` to it.
+// `const Object()` would not do: Dart canonicalizes it, so a field holding one
+// would read as "argument omitted" and its write would be dropped.
+enum _Unset { unset }
+
+const _unset = _Unset.unset;
