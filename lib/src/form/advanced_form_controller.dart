@@ -24,7 +24,7 @@ class AdvancedFormController
   /// subforms. Has no effect on form behavior.
   final String debugName;
 
-  /// When true, a change to any field re-runs the change path on every other
+  /// When true, a change to any field re-runs the sync validator on every other
   /// field whose gate is open. See [validateWithAutovalidate].
   final bool validateAll;
 
@@ -79,8 +79,11 @@ class AdvancedFormController
   /// short-circuited.
   ///
   /// [enableAutovalidate] turns autovalidate on across the tree first.
-  /// Concurrent calls coalesce, and the in-flight call's [enableAutovalidate]
-  /// wins. Returns `true` when `state.validationEnabled` is false.
+  ///
+  /// Calling this again before the first call finishes gives you the same
+  /// result; it does not start a second pass, and the first call's
+  /// [enableAutovalidate] is the one that applies. Returns `true` when
+  /// `state.validationEnabled` is false.
   Future<bool> validate({bool enableAutovalidate = true}) {
     // Checked before anything is broadcast: a coalesced call must not re-run
     // `setAutovalidate`, and a disabled form must not claim the coalescing slot
@@ -104,18 +107,14 @@ class AdvancedFormController
     );
   }
 
-  /// Re-runs the change path on every leaf field whose gate is open: the sync
-  /// validator now, the async validator after its debounce.
+  /// Re-runs the **sync** validator on every leaf field whose gate is open.
   ///
-  /// Deliberately not [validate] — one keystroke must not fire an immediate
-  /// network call for every other field in the tree. Read-only fields are left
-  /// alone.
+  /// Deliberately not [validate]: a sibling's edit does not change a field's own
+  /// value, so no network call is owed and a settled async answer still stands.
+  /// Read-only fields are included — freezing a value does not stop its rule
+  /// from being re-evaluated.
   void validateWithAutovalidate() => _broadcast(
-        (field) {
-          if (field.value.autovalidate) {
-            field.setValue(field.value.value);
-          }
-        },
+        (field) => field.revalidateSync(),
         (subform) => subform.validateWithAutovalidate(),
       );
 

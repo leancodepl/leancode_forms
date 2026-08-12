@@ -14,7 +14,8 @@ enum FieldStatus {
   /// An error is recorded on the field.
   invalid,
 
-  /// A round is armed, waiting out [AsyncValidation.debounce].
+  /// The value changed and the async validator is about to run, once the
+  /// [AsyncValidation.debounce] wait is over.
   pending,
 
   /// The async validator is running.
@@ -64,8 +65,8 @@ class AdvancedFieldState<T, E extends Object> {
 
   /// The current error: [validationError] falling back to [asyncError].
   ///
-  /// The sync slot wins because a rule about the value outranks a verdict that
-  /// may predate the app state the rule reads.
+  /// [validationError] wins because a rule about the value outranks a verdict
+  /// that may predate the app state the rule reads.
   E? get error => validationError ?? asyncError;
 
   /// Whether no error is recorded. See [FieldStatus.valid]: this is not the
@@ -87,8 +88,6 @@ class AdvancedFieldState<T, E extends Object> {
   /// Whether the async validator failed, so validation never completed.
   bool get isFailedValidation => status == FieldStatus.failedValidation;
 
-  // Sentinel-based, so passing null clears a slot and omitting it keeps the
-  // slot. `T` may itself be nullable, so `null` cannot mean "unchanged".
   AdvancedFieldState<T, E> _copyWithNullable({
     Object? value = _unset,
     Object? validationError = _unset,
@@ -109,7 +108,6 @@ class AdvancedFieldState<T, E extends Object> {
         status: status ?? this.status,
       );
 
-  // ⚠️ Maintainer: keep these and `_copyWithNullable` in sync with the fields.
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -141,9 +139,6 @@ class AdvancedFieldState<T, E extends Object> {
       'readOnly: $readOnly)';
 }
 
-// A private enum value, so no caller-supplied value can be `identical` to it.
-// `const Object()` would not do: Dart canonicalizes it, so a field holding one
-// would read as "argument omitted" and its write would be dropped.
 enum _Unset { unset }
 
 const _unset = _Unset.unset;

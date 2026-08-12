@@ -17,8 +17,11 @@ void main() {
     addTearDown(controller.dispose);
 
     controller.email.setValue('john@email.com');
-    // TODO: replace with an await on the field's pending async validation.
-    await Future<void>.delayed(const Duration(seconds: 2));
+
+    // The gate is closed on a fresh controller, so setValue stores the value
+    // and runs nothing. `validate()` is what reaches the async check — and
+    // awaiting it beats sleeping for a fixed duration.
+    await expectLater(controller.email.validate(), completion(isFalse));
 
     expect(controller.email.value.error, ValidationError.emailTaken);
   });

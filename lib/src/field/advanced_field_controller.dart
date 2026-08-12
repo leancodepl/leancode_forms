@@ -80,9 +80,9 @@ class AdvancedFieldController<T, E extends Object>
   /// Sets a new [newValue]. A no-op on a read-only field unless [force] is
   /// true.
   ///
-  /// Aborts the live round and drops the verdict, which described a value the
-  /// field no longer holds. With the gate closed nothing runs, so a quiet form
-  /// makes no network calls.
+  /// Both errors are cleared, because they described the old value. If the gate
+  /// is open the validators run; if it is closed nothing runs, so a form nobody
+  /// has submitted yet makes no network calls.
   void setValue(T newValue, {bool force = false}) {
     if (_value.readOnly && !force) {
       return;
@@ -116,8 +116,8 @@ class AdvancedFieldController<T, E extends Object>
   /// where a null `onChange` is what disables a widget.
   ValueSetter<T>? getValueSetter() => _value.readOnly ? null : setValue;
 
-  /// Sets a new [error] on the sync slot. Passing null clears it and the status
-  /// follows.
+  /// Sets a new [error] on [AdvancedFieldState.validationError]. Passing null
+  /// clears it and the status follows.
   ///
   /// Aborts the live round so it cannot erase the pushed error. The verdict
   /// survives: the value did not change.
@@ -135,12 +135,14 @@ class AdvancedFieldController<T, E extends Object>
   /// field ended up [AdvancedFieldState.isValid].
   ///
   /// The sync validator runs first; if it fails, `false` is returned with no
-  /// network call. If it passes, an armed round is flushed, an in-flight one is
-  /// awaited rather than restarted, a verdict still describing the current
-  /// value is reused, and otherwise a round runs immediately — which is also
-  /// how a failed round is retried.
+  /// network call. If it passes, a round still waiting out its debounce is run
+  /// at once, an in-flight one is awaited rather than restarted, a verdict still
+  /// describing the current value is reused, and otherwise a round runs
+  /// immediately — which is also how a failed round is retried.
   ///
-  /// Concurrent calls coalesce. A field disposed mid-round completes `false`.
+  /// Calling this again before the first call finishes gives you the same
+  /// result; it does not start a second round. A field disposed mid-round
+  /// completes `false`.
   Future<bool> validate() =>
       _isDisposed ? Future.value(false) : _validateCall.run(_runValidate);
 
@@ -179,17 +181,17 @@ class AdvancedFieldController<T, E extends Object>
         ),
       );
 
-  /// Clears both error slots, and drops the verdict since the code it produced
-  /// is being erased. This is how to invalidate an async check whose answer
-  /// depends on state outside the value.
+  /// Clears both errors, and drops the verdict since the code it produced is
+  /// being erased. This is how to invalidate an async check whose answer depends
+  /// on state outside the value.
   void clearErrors() {
     _abortRound();
     _hasVerdict = false;
     _clearTo(_value.value);
   }
 
-  /// Resets the field to its initial value, clearing both error slots, the
-  /// status, the verdict and [lastFailure]. Keeps
+  /// Resets the field to its initial value, clearing both errors, the status,
+  /// the verdict and [lastFailure]. Keeps
   /// [AdvancedFieldState.autovalidate] and [AdvancedFieldState.readOnly].
   void reset() {
     _abortRound();
@@ -202,7 +204,9 @@ class AdvancedFieldController<T, E extends Object>
   ///
   /// The async validator is not re-run: this field's value did not change, so
   /// its verdict stands. While this field's gate is closed nothing happens at
-  /// all, so a sibling's edit cannot erase a server-pushed error.
+  /// all. With it open [AdvancedFieldState.validationError] is rewritten, so a
+  /// code pushed there with [setError] gives way to whatever the validator now
+  /// returns.
   void subscribeToFields(
     List<AdvancedFieldController<dynamic, dynamic>> fields,
   ) {
@@ -216,9 +220,7 @@ class AdvancedFieldController<T, E extends Object>
         return;
       }
       lastValues = values;
-      if (_value.autovalidate) {
-        _setSyncError(_validator(_value.value));
-      }
+      revalidateSync();
     }
 
     for (final f in fields) {
@@ -229,6 +231,23 @@ class AdvancedFieldController<T, E extends Object>
         f.removeListener(listener);
       }
     };
+  }
+
+  /// Re-runs the **sync** validator if the gate is open, and nothing otherwise.
+  ///
+  /// This is what a dependency's change means for this field: its own value did
+  /// not change, so [AdvancedFieldState.asyncError], the verdict and
+  /// [lastFailure] are left alone and no network call is owed. Read-only fields
+  /// are included — freezing a value does not stop its rule from being
+  /// re-evaluated.
+  ///
+  /// The mechanism behind [subscribeToFields] and the form's
+  /// `validateWithAutovalidate`. Prefer those: they say *when* to re-run, which
+  /// is the part a form actually has to get right.
+  void revalidateSync() {
+    if (_value.autovalidate) {
+      _setSyncError(_validator(_value.value));
+    }
   }
 
   /// Test-only seeder for states the public API can't construct, notably any
@@ -381,21 +400,21 @@ class AdvancedFieldController<T, E extends Object>
         ),
       );
 
-  // Writes the sync slot, leaving the status to [_statusAfter].
-  void _setSyncError(E? validationError) => _setState(
+  // Writes `validationError`, leaving the status to [_statusAfter].
+  void _setSyncError(E? syncError) => _setState(
         _value._copyWithNullable(
-          validationError: validationError,
-          status: _statusAfter(validationError),
+          validationError: syncError,
+          status: _statusAfter(syncError),
         ),
       );
 
   // A live or failed round owns the status, so it is carried through. A settled
-  // field re-derives it from its slots, which is how a state seeded with a
-  // status that disagrees with its errors gets corrected.
-  FieldStatus _statusAfter(E? validationError) =>
+  // field re-derives it from both errors, which is how a state seeded with a
+  // status that disagrees with them gets corrected.
+  FieldStatus _statusAfter(E? syncError) =>
       _value.isInProgress || _value.isFailedValidation
           ? _value.status
-          : _slotStatus(validationError, _value.asyncError);
+          : _slotStatus(syncError, _value.asyncError);
 
   void _setState(AdvancedFieldState<T, E> newValue) {
     if (_isDisposed || newValue == _value) {

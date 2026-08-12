@@ -7,10 +7,10 @@ import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 /// and a [FocusNode] for focus-management flows. Widgets can bind directly to
 /// [textController] and [focusNode].
 ///
-/// [textController] is a projection of the field state, never an independent
-/// source of truth: after every inbound mutation the text is reconciled with
-/// [fieldValue] in the same turn, preserving the selection where possible. Text
-/// typed into a read-only field is therefore reverted immediately.
+/// [textController] never holds a value of its own: after every write to the
+/// field, its text is put back in step with [fieldValue] in the same turn,
+/// keeping the cursor position where possible. Text typed into a read-only
+/// field is therefore reverted immediately.
 class AdvancedTextFieldController<E extends Object>
     extends AdvancedFieldController<String, E> {
   /// Creates a new [AdvancedTextFieldController].
