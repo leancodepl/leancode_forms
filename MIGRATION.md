@@ -106,8 +106,6 @@ field.reset();               // 0.2.0: value and errors only; flags survive
 
 **`validationErrors` keys on `error`, not `validationError`.** A field invalid from an async check now appears in an error summary, as the docs always claimed.
 
-**Value equality is no longer deep.** `equatable` is gone, and `AdvancedFieldState.operator ==` compares members with `==`. For scalars and records this matches 0.1.x. For `List`/`Set`/`Map` values or error types, two equal-content-but-distinct instances now compare unequal, so `setValue` notifies where 0.1.x deduplicated. Most visible on `AdvancedMultiSelectFieldController`, whose value *is* a `Set` and whose `addValue` / `removeValue` allocate a new set on every call.
-
 **`addSubform` throws instead of failing quietly.** It raises a `StateError` if either the parent or the subform has already been disposed.
 
 **A disposed form also throws on `registerFields`, `setValidationEnabled` and `removeSubform`.** All three raise a `StateError` instead of touching a disposed controller. Code that tore a form down and then called one of them was already broken; it now says so at the call site.

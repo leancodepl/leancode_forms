@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 import 'package:leancode_forms/src/utils/shared_call.dart';
@@ -30,9 +31,7 @@ class AdvancedFormController
 
   final _onValuesChanged = ChangeNotifier();
   final _onStatusChanged = ChangeNotifier();
-  // The type is spelled out: inferring it from the literal normalises the
-  // malbounded `dynamic` error type to `Object`, which no longer accepts the
-  // `dynamic` fields `registerFields` is handed.
+  // Explicit type — inference would widen the error type from dynamic to Object.
   final Set<AdvancedFieldController<dynamic, dynamic>> _ownedFields = {};
   final _childCleanups = <VoidCallback>[];
   final _validateCall = SharedCall<bool>();
@@ -260,8 +259,6 @@ class AdvancedFormController
   }
 
   Future<bool> _runValidate({required bool enableAutovalidate}) async {
-    // Never short-circuit on the first `false`: a field that is not asked to
-    // validate is a field whose async check never runs.
     final results = await Future.wait<bool>([
       for (final field in value.fields) field.validate(),
       for (final subform in value.subforms)
@@ -332,14 +329,10 @@ class AdvancedFormController
   }
 
   void _handleStatusChanged() {
-    // The aggregates are derived on read, so there is nothing to write — but
-    // their readers still have to be told to look again.
     notifyListeners();
     _onStatusChanged.notifyListeners();
   }
 
-  // The one aggregate that cannot be derived on read: it needs the baseline
-  // captured at `registerFields`.
   void _recomputeWasModified() {
     final subformsWereModified = value.subforms.any(
       (subform) => subform.value.wasModified,
@@ -367,7 +360,7 @@ class AdvancedFormController
 /// [validating], [hasFailedValidation], [canSubmit] and [validationErrors] are
 /// derived from the child controllers on every read, so they follow the live
 /// tree. Only the stored members take part in `==`.
-class AdvancedFormState {
+class AdvancedFormState with EquatableMixin {
   /// Creates a new [AdvancedFormState].
   const AdvancedFormState({
     this.wasModified = false,
@@ -411,9 +404,6 @@ class AdvancedFormState {
   bool get canSubmit => allFields.every((field) => field.value.isValid);
 
   /// Every error in the tree, keyed by field.
-  ///
-  /// The value is [AdvancedFieldState.error], so a field invalid from an async
-  /// check appears too. A failed round with no error code does not.
   Map<AdvancedFieldController<dynamic, dynamic>, dynamic>
       get validationErrors => {
             for (final field in allFields)
@@ -434,21 +424,11 @@ class AdvancedFormState {
         validationEnabled: validationEnabled ?? this.validationEnabled,
       );
 
-  // Keep `==`, `hashCode` and `copyWith` in sync with the fields above.
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AdvancedFormState &&
-          wasModified == other.wasModified &&
-          listEquals(fields, other.fields) &&
-          setEquals(subforms, other.subforms) &&
-          validationEnabled == other.validationEnabled;
-
-  @override
-  int get hashCode => Object.hash(
+  List<Object?> get props => [
         wasModified,
-        Object.hashAll(fields),
-        Object.hashAllUnordered(subforms),
+        fields,
+        subforms,
         validationEnabled,
-      );
+      ];
 }

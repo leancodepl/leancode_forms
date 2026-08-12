@@ -32,7 +32,7 @@ enum FieldStatus {
 
 /// An immutable snapshot of an [AdvancedFieldController]. Obtain it from
 /// [AdvancedFieldController.value], or listen to the controller for changes.
-class AdvancedFieldState<T, E extends Object> {
+class AdvancedFieldState<T, E extends Object> with Equatable {
   /// Creates a new [AdvancedFieldState].
   const AdvancedFieldState({
     required this.value,
@@ -110,34 +110,14 @@ class AdvancedFieldState<T, E extends Object> {
       );
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AdvancedFieldState<T, E> &&
-          value == other.value &&
-          validationError == other.validationError &&
-          asyncError == other.asyncError &&
-          autovalidate == other.autovalidate &&
-          readOnly == other.readOnly &&
-          status == other.status;
-
-  @override
-  int get hashCode => Object.hash(
+  List<Object?> get props => [
         value,
         validationError,
         asyncError,
         autovalidate,
         readOnly,
         status,
-      );
-
-  @override
-  String toString() => 'AdvancedFieldState('
-      'value: $value, '
-      'validationError: $validationError, '
-      'asyncError: $asyncError, '
-      'status: ${status.name}, '
-      'autovalidate: $autovalidate, '
-      'readOnly: $readOnly)';
+      ];
 }
 
 enum _Unset { unset }

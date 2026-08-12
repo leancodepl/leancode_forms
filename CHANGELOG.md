@@ -42,7 +42,6 @@
 * `Disposable` mixin removed (lifecycle is handled by `ChangeNotifier.dispose`).
 * **Deprecated:** `AdvancedFieldController.stream` replaces the `stream` that `FieldCubit` inherited from `Cubit`, so stream-based code keeps compiling through the migration. It ships deprecated and will be removed in 0.3.0 — use `addListener`, `subscribeToFields`, or the builder widgets instead.
 * **Breaking:** Removed `clear()` from the text, single-select, and multi-select controllers — it only called `reset()`. Call `reset()` instead.
-* **Breaking:** Dropped the `equatable` dependency. `AdvancedFieldState` and `AdvancedFormState` now implement `==` / `hashCode` by hand, comparing members with `==` rather than `EquatableMixin`'s deep collection equality. Identical for scalar and record values; for `List` / `Set` / `Map` values or error types, two equal-content-but-distinct instances now compare unequal, so a set-to-equal-value notifies where it previously deduplicated. The inherited `props` getter is gone with it.
 
 ## 0.1.2
 
