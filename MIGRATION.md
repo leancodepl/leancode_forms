@@ -40,7 +40,6 @@
 | `asyncValidator:`, `asyncValidationDebounce:` | `asyncValidation: AsyncValidation(validator:, debounce:, timeout:, onFailure:, failureToError:)` |
 | `bool field.validate()`, `bool form.validate()` | `Future<bool> validate()` — **await it** ([section 3](#3-behavior-changes-that-are-not-renames)) |
 | `AsyncValidationErrorHandler` | `AsyncValidationFailureHandler` |
-| `FieldStatus.failed`, `state.isFailed` | `FieldStatus.failedValidation`, `state.isFailedValidation` |
 | `form.onValuesChangedStream` (`Stream<void>`) | `form.onValuesChanged` (`Listenable`) |
 | `form.onStatusChangedStream` (`Stream<FieldStatus>`) | `form.onStatusChanged` (`Listenable`, no payload) |
 | `BlocBuilder<FormGroupCubit, FormGroupState>` | `ValueListenableBuilder<AdvancedFormState>` — there is no `AdvancedFormBuilder` |
@@ -66,9 +65,9 @@ Future<void> submit() async {       // 0.2.0
 }
 ```
 
-Concurrent calls coalesce, so a double-tapped submit button runs one pass. To keep a synchronous "can I enable the button?" read, use `form.value.canSubmit` — a snapshot of *known* errors, true on a quiet form nobody has checked yet.
+Calling it again before the first call finishes gives you the same result, so a double-tapped submit button runs one pass. For a synchronous "can I enable the button?" read, use `form.value.canSubmit` — a snapshot of *known* errors, true on a form nobody has checked yet.
 
-**The gate now decides when the async validator runs too.** In 0.1.x `setValue` was the async validator's only trigger, and it fired whether or not autovalidate was on — so a quiet form still made network calls, and `validate()` never reached an async validator. In 0.2.0 one rule covers both: `autovalidate` decides whether a value change starts a round, and a round runs the sync validator first and the async validator only if sync passed. A quiet form makes no calls; `await validate()` checks everything.
+**`autovalidate` now controls the async validator too.** In 0.1.x `setValue` ran it whether or not autovalidate was on, so a form nobody had submitted still made network calls, and `validate()` never reached an async validator. Now one rule covers both: `autovalidate` decides whether changing the value validates, and the sync validator runs first with the async one only if sync passed.
 
 **A throwing async validator no longer hangs the field.** In 0.1.x an exception from `asyncValidator` left the internal `Completer` uncompleted, so the field stayed in `FieldStatus.validating` indefinitely and the exception surfaced as an uncaught async error. In 0.2.0 the field moves to `FieldStatus.failedValidation` and the exception is reported through `FlutterError.reportError`, or through `AsyncValidation.onFailure` if you supply a handler. A failed field is not valid — `validate()` returns `false`, so a failed availability check cannot let a submit through. It is not sticky: the next `validate()` re-runs the round.
 
@@ -85,7 +84,7 @@ asyncValidation: AsyncValidation(
 );
 
 field.setError(null);        // 0.1.x: status invalid, nothing to show
-field.setError(null);        // 0.2.0: status valid, error cleared
+field.setError(null);        // 0.2.0: clears validationError, status follows
 
 field.reset();               // 0.1.x: also cleared autovalidate and readOnly
 field.reset();               // 0.2.0: value and errors only; flags survive
@@ -93,17 +92,17 @@ field.reset();               // 0.2.0: value and errors only; flags survive
 
 **`FieldStatus` gained a `failedValidation` value.** Previously exhaustive `switch`es over `FieldStatus` stop compiling until you add a `failedValidation` arm. Map it alongside `invalid` unless you want to distinguish "the check could not run" from "the check returned an error".
 
-**`setError(null)` clears instead of marking the field invalid.** 0.1.x pinned the status to `invalid` whatever it was handed, so applying a server response field-by-field marked every accepted field invalid with nothing to show. The status is now derived from what the field actually holds.
+**`setError(null)` clears instead of marking the field invalid.** 0.1.x pinned the status to `invalid` whatever it was handed, so applying a server response field-by-field marked every accepted field invalid with nothing to show. The status now follows what the field actually holds.
+
+`setError` writes `validationError` only. If an async check recorded a code, `setError(null)` leaves it and the field stays `invalid` — call `clearErrors()` to clear both. 0.1.x wiped `asyncError` on every `setError`, so an async code could not survive a server-response pass.
 
 **`reset()` keeps `autovalidate` and `readOnly`.** 0.1.x rebuilt a default state, so `form.resetAll()` unlocked fields business logic had locked and silently undid the autovalidate `form.validate()` had escalated. Call `setAutovalidate` / `unmarkReadOnly` explicitly if you relied on that.
 
-**`subscribeToFields` re-runs the sync validator only.** The dependent field's own value did not change, so its last async answer is still current and no network call is owed. It also does nothing at all while the dependent field's gate is closed, so a sibling's edit cannot erase a server-pushed error.
+**`subscribeToFields` re-runs the sync validator only.** The dependent field's own value did not change, so its last async answer still stands and no network call is owed. It does nothing while that field's `autovalidate` is off. With it on, `validationError` is rewritten, so a code you pushed there with `setError` gives way to whatever the validator now returns — as in 0.1.x. The same goes for `validateWithAutovalidate()` and `validateAll: true`, which reach every field in the tree rather than the dependencies you named.
 
 **`subscribeToFields` fires more eagerly.** 0.1.x combined the observed fields with `Rx.combineLatest`, so nothing fired until *every* observed field had emitted at least once, and the first emission always passed `.distinct()` even for a status-only change. 0.2.0 compares each observed field's value against a cached baseline: it fires on the first value change to any one field, and never on a status-only change. Dependent fields that appeared not to revalidate in 0.1.x now will.
 
-**`markReadOnly()` stops a live async round.** A frozen field no longer goes on transitioning `pending` -> `validating` -> `invalid` on its own, and it drops `lastFailure` while keeping a `failedValidation` status, so freezing a form at submit time cannot pin one request/response graph per failed field.
-
-**`AdvancedFormState.validating` is a getter, not a stored field.** So are the new `canSubmit`, `hasFailedValidation` and `validationErrors`. Reading them is unchanged; only code *constructing* `AdvancedFormState(validating: ...)` breaks.
+**`markReadOnly()` stops a running check.** A frozen field no longer changes status by itself, and it drops `lastFailure` while keeping a `failedValidation` status.
 
 **`validationErrors` keys on `error`, not `validationError`.** A field invalid from an async check now appears in an error summary, as the docs always claimed.
 
@@ -114,6 +113,14 @@ field.reset();               // 0.2.0: value and errors only; flags survive
 **Form state settles synchronously.** 0.1.x routed field changes through a `.distinct()` subscription, so `wasModified` and `validating` updated a microtask later. They now update in the same call stack as the field change.
 
 **Debounce timers and in-flight async validations are cancelled on dispose.** 0.1.x `close()` cancelled only the field subscription, so a timer could fire after close.
+
+**`setValue` clears both errors while `autovalidate` is off.** 0.1.x carried the stored error over, so an error outlived the value that produced it and suppressed the async validator for every later edit. If you push a server error onto such a field and expect it to survive typing, re-push it after the change.
+
+**The error goes blank while a check runs.** Both errors are cleared when a check starts, because they described the previous value, so the message is absent for the debounce plus the request and returns if the answer is still bad. 0.1.x kept the stale message up throughout. To hold the old text, render `state.error` only when `!state.isInProgress`.
+
+**The select controllers assert that the value is one of `options`.** `select`, `addValue` and `toggleElement` throw in debug and profile builds if handed a value outside the list, and keep 0.1.x behavior in release. Code that seeds a selection before `options` is filled needs reordering.
+
+**`addSubform` and `removeSubform` recompute `wasModified`.** Attaching an already-modified subform marks the parent modified at once, and removing the only modified child clears the flag; in 0.1.x neither happened until the next field change. An unsaved-changes guard will trip and clear at different moments.
 
 ---
 
