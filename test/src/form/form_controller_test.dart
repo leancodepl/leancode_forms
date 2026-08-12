@@ -1132,6 +1132,53 @@ void main() {
 
         expect(getCount(), greaterThanOrEqualTo(2));
       });
+
+      test('notifies when a field swaps one error code for another', () async {
+        form.registerFields([field1, field2]);
+        addTearDown(form.dispose);
+        addTearDown(subform.dispose);
+        addTearDown(subformField.dispose);
+
+        field1.setError(_Error1.valueRequired);
+        await pumpEventQueue();
+        expect(form.value.validationErrors, {field1: _Error1.valueRequired});
+
+        final getCount = _countCalls(form);
+        final getStatusCount = _countCalls(form.onStatusChanged);
+        final getValuesCount = _countCalls(form.onValuesChanged);
+
+        // The status stays `invalid`, so only the error tells the form that a
+        // derived aggregate moved.
+        field1.setError(_Error1.taken);
+
+        expect(field1.value.status, FieldStatus.invalid);
+        expect(form.value.validationErrors, {field1: _Error1.taken});
+        expect(getCount(), 1);
+        expect(getStatusCount(), 1);
+        expect(getValuesCount(), 0);
+      });
+
+      test('notifies when a subform field swaps one error code for another',
+          () async {
+        subform.registerFields([field1]);
+        form
+          ..addSubform(subform)
+          ..registerFields([field2]);
+        addTearDown(form.dispose);
+        addTearDown(subformField.dispose);
+
+        field1.setError(_Error1.valueRequired);
+        await pumpEventQueue();
+
+        final getCount = _countCalls(form);
+        final getStatusCount = _countCalls(form.onStatusChanged);
+
+        field1.setError(_Error1.taken);
+
+        expect(form.value.validationErrors, {field1: _Error1.taken});
+        expect(getCount(), 1);
+        expect(getStatusCount(), 1);
+      });
     });
 
     group('addSubform — disposed guards', () {

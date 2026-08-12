@@ -20,22 +20,25 @@ class AdvancedFormController
     this.validateAll = false,
   });
 
-  /// A label for this form used for logging, or tracing across nested
-  /// subforms. Has no effect on form behavior.
+  /// A label you can log to tell nested subforms apart. The package never reads
+  /// it.
   final String debugName;
 
   /// When true, any field's change re-runs the sync validator on every field in
   /// the tree whose gate is open. See [validateWithAutovalidate].
   final bool validateAll;
 
-  final ChangeNotifier _onValuesChanged = ChangeNotifier();
-  final ChangeNotifier _onStatusChanged = ChangeNotifier();
+  final _onValuesChanged = ChangeNotifier();
+  final _onStatusChanged = ChangeNotifier();
+  // The type is spelled out: inferring it from the literal normalises the
+  // malbounded `dynamic` error type to `Object`, which no longer accepts the
+  // `dynamic` fields `registerFields` is handed.
   final Set<AdvancedFieldController<dynamic, dynamic>> _ownedFields = {};
-  final List<VoidCallback> _childCleanups = [];
-  final SharedCall<bool> _validateCall = SharedCall();
+  final _childCleanups = <VoidCallback>[];
+  final _validateCall = SharedCall<bool>();
 
-  AdvancedFormState _value = const AdvancedFormState();
-  List<dynamic> _initialFieldsState = const <dynamic>[];
+  var _value = const AdvancedFormState();
+  var _initialFieldsState = const <dynamic>[];
   bool _isDisposed = false;
 
   @override
@@ -49,12 +52,13 @@ class AdvancedFormController
   /// or when fields are registered.
   Listenable get onValuesChanged => _onValuesChanged;
 
-  /// Fires when any leaf field's status changes (recursively through subforms).
+  /// Fires when any leaf field's status or error changes (recursively through
+  /// subforms).
   Listenable get onStatusChanged => _onStatusChanged;
 
-  /// Takes ownership of the [fields], disposing them when this form is
-  /// disposed. Their current values become the [AdvancedFormState.wasModified]
-  /// baseline.
+  /// Registers [fields] as this form's own fields and takes ownership of them,
+  /// disposing them when this form is disposed. Their current values become the
+  /// [AdvancedFormState.wasModified] baseline.
   ///
   /// Replaces any earlier registration: those fields stop validating and
   /// notifying, but are still disposed with this form.
@@ -281,14 +285,19 @@ class AdvancedFormController
     for (final field in value.fields) {
       var lastValue = field.value.value;
       var lastStatus = field.value.status;
+      // The error is watched next to the status because swapping one error code
+      // for another leaves the status `invalid` while [validationErrors]
+      // changes. Together the two cover every aggregate derived from a field.
+      Object? lastError = field.value.error;
       void listener() {
         final state = field.value;
         if (state.value != lastValue) {
           lastValue = state.value;
           _handleValuesChanged();
         }
-        if (state.status != lastStatus) {
+        if (state.status != lastStatus || state.error != lastError) {
           lastStatus = state.status;
+          lastError = state.error;
           _handleStatusChanged();
         }
       }
@@ -352,7 +361,7 @@ class AdvancedFormController
   }
 }
 
-/// A snapshot of an [AdvancedFormController] — which fields and subforms it
+/// The state of an [AdvancedFormController] — which fields and subforms it
 /// owns, whether the user has changed anything, and whether validation applies.
 ///
 /// [validating], [hasFailedValidation], [canSubmit] and [validationErrors] are
@@ -395,10 +404,10 @@ class AdvancedFormState {
 
   /// Whether every field in the tree is [FieldStatus.valid] right now.
   ///
-  /// A snapshot of **known** errors, so it is true on a quiet form where
-  /// nothing has been checked yet. It is false while any round is pending or
-  /// validating. Use it to enable a submit button;
-  /// `await AdvancedFormController.validate()` is the guarantee.
+  /// Only known errors count, so it is true on a form where nothing has been
+  /// checked yet. It is false while any round is pending or validating. Use it
+  /// to enable a submit button, and run [AdvancedFormController.validate]
+  /// before you trust the values.
   bool get canSubmit => allFields.every((field) => field.value.isValid);
 
   /// Every error in the tree, keyed by field.
@@ -425,7 +434,7 @@ class AdvancedFormState {
         validationEnabled: validationEnabled ?? this.validationEnabled,
       );
 
-  // ⚠️ Maintainer: keep these and `copyWith` in sync with the fields above.
+  // Keep `==`, `hashCode` and `copyWith` in sync with the fields above.
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

@@ -143,7 +143,7 @@ class SimpleFormController extends AdvancedFormController {
     final takenEmail = ['john@email.com', 'jack@email.com'];
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (value == 'boom@email.com') {
-      throw StateError('the email service is down');
+      throw Exception('the email service is down');
     }
     return takenEmail.contains(value) ? ValidationError.emailTaken : null;
   }

@@ -91,21 +91,17 @@ class AsyncValidation<T, E extends Object> {
   /// [AdvancedFieldState.asyncError]. A throw from here is reported to
   /// [FlutterError.reportError], not rethrown.
   final AsyncValidationFailureMapper<E>? failureToError;
-}
 
-extension _Failures<T, E extends Object> on AsyncValidation<T, E> {
-  E? mapFailure(AsyncValidationFailure failure, String? field) {
-    if (failureToError case final map?) {
-      try {
-        return map(failure.error, failure.stackTrace);
-      } catch (error, stack) {
-        _report(field, 'mapping the async validation failure', error, stack);
-      }
+  E? _mapFailure(AsyncValidationFailure failure, String? field) {
+    try {
+      return failureToError?.call(failure.error, failure.stackTrace);
+    } catch (error, stack) {
+      _report(field, 'mapping the async validation failure', error, stack);
     }
     return null;
   }
 
-  Future<void> reportFailure(
+  Future<void> _reportFailure(
     AsyncValidationFailure failure,
     String? field,
   ) async {

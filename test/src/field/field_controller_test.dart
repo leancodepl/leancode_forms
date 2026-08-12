@@ -808,7 +808,6 @@ void main() {
       expect(emissions, isEmpty);
       expect(field.value.asyncError, isNull);
     });
-
   });
 
   group('async validation failure', () {
@@ -1206,8 +1205,7 @@ void main() {
       expect(field1.value.error, _Error.valueRequired);
     });
 
-    test('enabling the gate does not validate immediately',
-        () async {
+    test('enabling the gate does not validate immediately', () async {
       validator.validationResult = _Error.malformed;
       final field2 = AdvancedFieldController<int, _Error>(initialValue: 0);
       final field1 = AdvancedFieldController<int, _Error>(
@@ -1269,6 +1267,183 @@ void main() {
 
       expect(tf.textController.text, 'abcxyz');
       expect(tf.textController.selection.baseOffset, 3);
+    });
+  });
+
+  group('AdvancedTextFieldController selection mapping', () {
+    /// Sets [initialValue] on a field, selects [selection], writes [newValue]
+    /// and returns the reconciled text controller.
+    TextEditingController reconciled(
+      String initialValue,
+      TextSelection selection,
+      String newValue,
+    ) {
+      final tf = AdvancedTextFieldController<_Error>(
+        initialValue: initialValue,
+      );
+      addTearDown(tf.dispose);
+      tf.textController.selection = selection;
+
+      tf.setValue(newValue);
+
+      expect(tf.textController.text, newValue);
+      return tf.textController;
+    }
+
+    test('a selection keeps covering the same characters after a cut', () {
+      final c = reconciled(
+        'lorem ipsum, dolor sit amet',
+        const TextSelection(baseOffset: 13, extentOffset: 21),
+        'lorem ip, dolor sit amet',
+      );
+
+      expect(
+        c.selection,
+        const TextSelection(baseOffset: 10, extentOffset: 18),
+      );
+      expect(c.text.substring(10, 18), 'dolor si');
+    });
+
+    test('a backwards selection stays backwards', () {
+      final c = reconciled(
+        'lorem ipsum, dolor sit amet',
+        const TextSelection(baseOffset: 21, extentOffset: 13),
+        'lorem ip, dolor sit amet',
+      );
+
+      expect(
+        c.selection,
+        const TextSelection(baseOffset: 18, extentOffset: 10),
+      );
+    });
+
+    test(
+        'text inserted at the front moves the selection instead of '
+        'stretching it', () {
+      final c = reconciled(
+        'bcd',
+        const TextSelection(baseOffset: 0, extentOffset: 1),
+        'abcd',
+      );
+
+      expect(c.selection, const TextSelection(baseOffset: 1, extentOffset: 2));
+      expect(c.text.substring(1, 2), 'b');
+    });
+
+    test('a caret at the end follows a prefix added by formatting', () {
+      final c = reconciled(
+        '1234',
+        const TextSelection.collapsed(offset: 4),
+        '+48 1234',
+      );
+
+      expect(c.selection.baseOffset, 8);
+    });
+
+    test('a caret inside a run that was replaced lands at its start', () {
+      final c = reconciled(
+        'lorem ipsum, dolor sit amet',
+        const TextSelection(baseOffset: 13, extentOffset: 21),
+        'lorem',
+      );
+
+      expect(c.selection, const TextSelection.collapsed(offset: 5));
+    });
+
+    test('an emptied field collapses the caret to zero', () {
+      final c = reconciled('abc', const TextSelection.collapsed(offset: 3), '');
+
+      expect(c.selection, const TextSelection.collapsed(offset: 0));
+    });
+
+    test('a caret in text that grew from empty lands at the end', () {
+      final c = reconciled('', const TextSelection.collapsed(offset: 0), 'abc');
+
+      expect(c.selection.baseOffset, 3);
+    });
+
+    test('overlapping head and tail anchors keep the caret in range', () {
+      expect(
+        reconciled('aa', const TextSelection.collapsed(offset: 2), 'aaa')
+            .selection,
+        const TextSelection.collapsed(offset: 3),
+      );
+      expect(
+        reconciled('aa', const TextSelection.collapsed(offset: 0), 'aaa')
+            .selection,
+        const TextSelection.collapsed(offset: 0),
+      );
+      expect(
+        reconciled('aaa', const TextSelection.collapsed(offset: 3), 'aa')
+            .selection,
+        const TextSelection.collapsed(offset: 2),
+      );
+    });
+
+    test('two texts sharing no characters keep the offsets in range', () {
+      final c = reconciled(
+        'abc',
+        const TextSelection(baseOffset: 0, extentOffset: 3),
+        'xyz',
+      );
+
+      expect(c.selection, const TextSelection(baseOffset: 0, extentOffset: 3));
+    });
+
+    test('an invalid selection collapses to the end', () {
+      final tf = AdvancedTextFieldController<_Error>(initialValue: 'abc');
+      addTearDown(tf.dispose);
+      // Assigning `text` is what leaves the selection at -1.
+      tf.textController.text = 'abc';
+
+      tf.setValue('abcdef');
+
+      expect(tf.textController.selection.baseOffset, 6);
+    });
+
+    test('affinity and isDirectional survive the mapping', () {
+      final c = reconciled(
+        'abcdef',
+        const TextSelection(
+          baseOffset: 1,
+          extentOffset: 3,
+          affinity: TextAffinity.upstream,
+          isDirectional: true,
+        ),
+        'abcxyz',
+      );
+
+      expect(c.selection.affinity, TextAffinity.upstream);
+      expect(c.selection.isDirectional, isTrue);
+    });
+
+    test('a refused keystroke puts the caret back where it was', () {
+      final tf = AdvancedTextFieldController<_Error>(initialValue: 'locked')
+        ..markReadOnly();
+      addTearDown(tf.dispose);
+
+      // A character typed at offset 4, as the engine would report it.
+      tf.textController.value = const TextEditingValue(
+        text: 'lockXed',
+        selection: TextSelection.collapsed(offset: 5),
+      );
+
+      expect(tf.textController.text, 'locked');
+      expect(tf.textController.selection.baseOffset, 4);
+    });
+
+    test('offsets never land inside a character', () {
+      // The two texts differ in the second half of the emoji, so a raw
+      // code-unit anchor would sit between its halves.
+      final c = reconciled(
+        '\u{1F600}b',
+        const TextSelection(baseOffset: 2, extentOffset: 3),
+        '\u{1F601}c',
+      );
+
+      expect(c.selection.start, isNot(1));
+      expect(c.selection.end, isNot(1));
+      expect(c.selection, const TextSelection(baseOffset: 0, extentOffset: 3));
     });
   });
 

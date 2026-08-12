@@ -33,13 +33,13 @@
 | `MultiSelectFieldCubit<V, E>` | `AdvancedMultiSelectFieldController<V, E>` |
 | `FormGroupCubit` | `AdvancedFormController` |
 | `FieldState<T, E>` | `AdvancedFieldState<T, E>` |
-| `FormGroupState` | `AdvancedFormState` (same members) |
+| `FormGroupState` | `AdvancedFormState` — `validating` is now a getter, so `AdvancedFormState(validating: …)` no longer compiles |
 | `FieldBuilder<T, E>` | `AdvancedFieldBuilder<T, E>` — wraps `ValueListenableBuilder`; `builder` gains a third `child` param |
 | `cubit.state` | `controller.value` (plus the `fieldValue` and `error` shortcuts) |
+| `cubit.isClosed` (from `Cubit`) | `controller.isDisposed` |
 | `field.clear()` | **Removed** — call `field.reset()` |
 | `asyncValidator:`, `asyncValidationDebounce:` | `asyncValidation: AsyncValidation(validator:, debounce:, timeout:, onFailure:, failureToError:)` |
 | `bool field.validate()`, `bool form.validate()` | `Future<bool> validate()` — **await it** ([section 3](#3-behavior-changes-that-are-not-renames)) |
-| `AsyncValidationErrorHandler` | `AsyncValidationFailureHandler` |
 | `form.onValuesChangedStream` (`Stream<void>`) | `form.onValuesChanged` (`Listenable`) |
 | `form.onStatusChangedStream` (`Stream<FieldStatus>`) | `form.onStatusChanged` (`Listenable`, no payload) |
 | `BlocBuilder<FormGroupCubit, FormGroupState>` | `ValueListenableBuilder<AdvancedFormState>` — there is no `AdvancedFormBuilder` |
@@ -79,7 +79,7 @@ asyncValidation: AsyncValidation(
 
 asyncValidation: AsyncValidation(
   validator: _check,
-  onFailure: _report,                                // 0.2.0 — non-nullable stackTrace
+  onFailure: _report,                                // 0.2.0 — new; takes a non-nullable stackTrace
   failureToError: (e, s) => MyError.checkFailed,     // optional: give it something to show
 );
 
@@ -127,7 +127,7 @@ removeSubform(subform);         // 0.2.0
 
 **The error goes blank while a check runs.** Both errors are cleared when a check starts, because they described the previous value, so the message is absent for the debounce plus the request and returns if the answer is still bad. 0.1.x kept the stale message up throughout. To hold the old text, render `state.error` only when `!state.isInProgress`.
 
-**The select controllers assert that the value is one of `options`.** `select` and `addValue` throw in debug builds if handed a value outside the list, and so does `toggleElement` when it adds; removing an off-list value stays silent. Release builds keep 0.1.x behavior. Code that seeds a selection before `options` is filled needs reordering.
+**The select controllers assert that the value is one of `options`.** `select` and `addValue` throw in debug builds if handed a value outside the list, and so does `toggleElement` when it adds; removing an off-list value stays silent. Release builds keep 0.1.x behavior. `select(null)` clears the selection and is always allowed, and `initialValue` is never checked — an off-list initial value is accepted silently, which is the way out if you cannot reorder.
 
 **`addSubform` and `removeSubform` recompute `wasModified`.** Attaching an already-modified subform marks the parent modified at once, and removing the only modified child clears the flag; in 0.1.x neither happened until the next field change. An unsaved-changes guard will trip and clear at different moments.
 

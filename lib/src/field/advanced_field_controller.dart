@@ -16,7 +16,7 @@ typedef _Result<E extends Object> = ({
 });
 
 FieldStatus _statusFromErrors(Object? validationError, Object? asyncError) =>
-    (validationError ?? asyncError) == null
+    validationError == null && asyncError == null
         ? FieldStatus.valid
         : FieldStatus.invalid;
 
@@ -49,7 +49,7 @@ class AdvancedFieldController<T, E extends Object>
   final T _initialValue;
   final Validator<T, E> _validator;
   final AsyncValidation<T, E>? _asyncValidation;
-  final SharedCall<bool> _validateCall = SharedCall();
+  final _validateCall = SharedCall<bool>();
 
   AdvancedFieldState<T, E> _value;
   AsyncValidationFailure? _lastFailure;
@@ -326,10 +326,11 @@ class AdvancedFieldController<T, E extends Object>
     final round = _ValidationRound<T, E>(value: value);
     _currentRound = round;
 
-    if (debounced) {
+    final asyncValidation = _asyncValidation;
+    if (debounced && asyncValidation != null) {
       // The timer starts before any state is published, so a listener
       // re-entering during the `pending` notification cannot orphan it.
-      round.startDebounce(_asyncValidation!.debounce, () => _run(round));
+      round.startDebounce(asyncValidation.debounce, () => _run(round));
       _lastFailure = null;
       _clearTo(value, status: FieldStatus.pending);
     } else {
@@ -340,12 +341,14 @@ class AdvancedFieldController<T, E extends Object>
   }
 
   Future<void> _run(_ValidationRound<T, E> round) async {
-    if (!identical(_currentRound, round)) {
+    final asyncValidation = _asyncValidation;
+    // A round only ever starts when there is an async validator, so the null
+    // case is unreachable rather than handled.
+    if (asyncValidation == null || !identical(_currentRound, round)) {
       return;
     }
     round.cancelTimers();
 
-    final asyncValidation = _asyncValidation!;
     _lastFailure = null;
     _setState(
       _value._copyWithNullable(
@@ -360,7 +363,8 @@ class AdvancedFieldController<T, E extends Object>
     final result = await round.runValidator(asyncValidation);
     round.cancelTimers();
 
-    // Superseded, cancelled or disposed: a dead round's answer is noise.
+    // `_currentRound` no longer points at this round, so a newer round replaced
+    // it or `_abortRound` dropped it. Its answer must not be written.
     if (!identical(_currentRound, round)) {
       return;
     }
@@ -383,12 +387,12 @@ class AdvancedFieldController<T, E extends Object>
     _lastFailure = failure;
     _setState(
       _value._copyWithNullable(
-        asyncError: asyncValidation.mapFailure(failure, name),
+        asyncError: asyncValidation._mapFailure(failure, name),
         status: FieldStatus.failedValidation,
       ),
     );
     round.finish();
-    unawaited(asyncValidation.reportFailure(failure, name));
+    unawaited(asyncValidation._reportFailure(failure, name));
   }
 
   // `_currentRound` is the liveness token: a round that is no longer it can
@@ -471,8 +475,8 @@ class _ValidationRound<T, E extends Object> {
     }
 
     try {
-      // `Future.sync` sends a synchronous throw down the rejected-future path,
-      // so no round can rest in `validating` with nothing outstanding.
+      // `Future.sync` turns a synchronous throw into a rejected future, so the
+      // sync and async failure paths end up in the same `catch` below.
       final verdict = await Future.any([
         Future.sync(() => validation.validator(value)),
         timedOut.future,
