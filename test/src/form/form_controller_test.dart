@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
-enum _Error1 { valueRequired }
+enum _Error1 { valueRequired, taken }
 
 enum _Error2 { malformed }
 
@@ -924,6 +924,59 @@ void main() {
         expect(field2.value.error, null);
         expect(subformField.value.error, _Error2.malformed);
         form.dispose();
+      });
+
+      test('re-runs the sync validator of a read-only field', () {
+        form.registerFields([field1]);
+        field1
+          ..setAutovalidate(true)
+          ..markReadOnly();
+        validator1.validationResult = _Error1.valueRequired;
+
+        form.validateWithAutovalidate();
+
+        expect(field1.value.error, _Error1.valueRequired);
+        form.dispose();
+      });
+
+      test('keeps a settled async answer when a sibling changes', () async {
+        var asyncCalls = 0;
+        final email = AdvancedTextFieldController<_Error1>();
+        late final AdvancedTextFieldController<_Error1> confirm;
+        confirm = AdvancedTextFieldController<_Error1>(
+          validator: (value) =>
+              value == email.fieldValue ? null : _Error1.valueRequired,
+          asyncValidation: AsyncValidation(
+            validator: (_) async {
+              asyncCalls++;
+              return _Error1.taken;
+            },
+            debounce: const Duration(milliseconds: 10),
+          ),
+        );
+        final crossForm = AdvancedFormController(validateAll: true)
+          ..registerFields([email, confirm]);
+
+        email.setValue('a@x.com');
+        crossForm.setAutovalidate(true);
+        confirm.setValue('a@x.com');
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+
+        expect(confirm.value.asyncError, _Error1.taken);
+        expect(asyncCalls, 1);
+
+        // The user edits the *other* field. `confirm`'s cross-field rule now
+        // fails, but its own value never changed, so its verdict still stands
+        // and nothing is owed to the network.
+        email.setValue('a@x.corn');
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+
+        expect(confirm.value.validationError, _Error1.valueRequired);
+        expect(confirm.value.asyncError, _Error1.taken);
+        expect(confirm.value.isInProgress, false);
+        expect(asyncCalls, 1);
+
+        crossForm.dispose();
       });
     });
 

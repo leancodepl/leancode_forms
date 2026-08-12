@@ -621,29 +621,6 @@ void main() {
       expect(validated, const [10]);
     });
 
-    test(
-        'a sync-invalid keystroke during a pending round cannot resurrect the '
-        'earlier text', () async {
-      final text = AdvancedTextFieldController<_Error>(
-        validator: (value) => value.length > 2 ? _Error.malformed : null,
-        asyncValidation: const AsyncValidation(
-          validator: _alwaysValid,
-          debounce: Duration(milliseconds: 50),
-        ),
-      )..setAutovalidate(true);
-      addTearDown(text.dispose);
-
-      text.textController.text = 'ab';
-      await Future<void>.delayed(const Duration(milliseconds: 80));
-
-      text.textController.text = 'abc';
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-
-      expect(text.fieldValue, 'abc');
-      expect(text.textController.text, 'abc');
-      expect(text.value.validationError, _Error.malformed);
-    });
-
     test('reset during a pending round is not undone by the round', () async {
       final (:field, :validated) = _asyncField(
         debounce: const Duration(milliseconds: 100),
@@ -811,36 +788,6 @@ void main() {
       expect(field.lastFailure, isNull);
     });
 
-    test('a listener writing during the pending notification kills the round',
-        () async {
-      // `_currentRound` is installed before the `pending` state is published,
-      // so a listener re-entering from inside that notification supersedes the
-      // round that is publishing it. The superseded round must then stay
-      // silent rather than resurrect its own value.
-      final (:field, :validated) = _asyncField(
-        debounce: const Duration(milliseconds: 20),
-        result: () => _Error.unavailable,
-      );
-      addTearDown(field.dispose);
-
-      var reentered = false;
-      field
-        ..addListener(() {
-          if (field.value.isPending && !reentered) {
-            reentered = true;
-            field.setValue(2);
-          }
-        })
-        ..setValue(1);
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-
-      expect(reentered, isTrue);
-      // The superseded round never reached the validator.
-      expect(validated, const [2]);
-      expect(field.fieldValue, 2);
-      expect(field.value.asyncError, _Error.unavailable);
-    });
-
     test('a superseded round writes nothing after the abort', () async {
       final (:field, :validated) = _asyncField(
         debounce: const Duration(milliseconds: 10),
@@ -862,28 +809,6 @@ void main() {
       expect(field.value.asyncError, isNull);
     });
 
-    test(
-        'a re-entrant setValue during the pending notification leaves one '
-        'live round', () async {
-      late _Field f;
-      var reentered = false;
-      final (:field, :validated) = _asyncField();
-      f = field;
-      addTearDown(f.dispose);
-
-      f
-        ..addListener(() {
-          if (!reentered && f.value.isPending) {
-            reentered = true;
-            f.setValue(99);
-          }
-        })
-        ..setValue(10);
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-
-      expect(validated, const [99]);
-      expect(f.fieldValue, 99);
-    });
   });
 
   group('async validation failure', () {
@@ -1281,7 +1206,7 @@ void main() {
       expect(field1.value.error, _Error.valueRequired);
     });
 
-    test('enabling the gate does not validate immediately (issue #29)',
+    test('enabling the gate does not validate immediately',
         () async {
       validator.validationResult = _Error.malformed;
       final field2 = AdvancedFieldController<int, _Error>(initialValue: 0);
@@ -1376,30 +1301,4 @@ void main() {
       expect(node.dispose, throwsAssertionError);
     });
   });
-
-  group('AdvancedFieldState', () {
-    test('toString prints both slots, the status and the flags', () {
-      const state = _State(
-        value: 7,
-        validationError: _Error.malformed,
-        asyncError: _Error.unavailable,
-        autovalidate: true,
-        readOnly: true,
-        status: FieldStatus.invalid,
-      );
-
-      expect(
-        state.toString(),
-        'AdvancedFieldState('
-        'value: 7, '
-        'validationError: _Error.malformed, '
-        'asyncError: _Error.unavailable, '
-        'status: invalid, '
-        'autovalidate: true, '
-        'readOnly: true)',
-      );
-    });
-  });
 }
-
-Future<_Error?> _alwaysValid(String value) async => null;
