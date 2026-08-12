@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leancode_forms/leancode_forms.dart';
@@ -830,7 +832,7 @@ void main() {
         form.addSubform(subform);
         final emissions = _record<AdvancedFormState>(form);
 
-        await form.removeSubform(subform);
+        form.removeSubform(subform);
 
         expect(emissions, [const AdvancedFormState()]);
         // Subform is disposed — touching its onValuesChanged would throw, so
@@ -847,7 +849,7 @@ void main() {
         form.addSubform(subform);
         final emissions = _record<AdvancedFormState>(form);
 
-        await form.removeSubform(subform, close: false);
+        form.removeSubform(subform, close: false);
 
         expect(emissions, [const AdvancedFormState()]);
         // Subform should still be alive — confirm by reading its state.
@@ -862,7 +864,7 @@ void main() {
 
       test('is noop if form was not added', () async {
         final emissions = _record<AdvancedFormState>(form);
-        await form.removeSubform(subform);
+        form.removeSubform(subform);
         expect(emissions, isEmpty);
         form.dispose();
         subform.dispose();
@@ -1036,7 +1038,7 @@ void main() {
         expect(form.value.validating, isTrue);
         expect(form.value.wasModified, isTrue);
 
-        await form.removeSubform(liveSubform);
+        form.removeSubform(liveSubform);
 
         expect(form.value.validating, isFalse);
         expect(form.value.wasModified, isFalse);
@@ -1155,6 +1157,67 @@ void main() {
 
         expect(() => parent.addSubform(child), throwsStateError);
       });
+
+      test('registerFields throws StateError when disposed', () {
+        final f = AdvancedFormController()..dispose();
+        final field = AdvancedFieldController<int, _Error2>(initialValue: 0);
+        addTearDown(field.dispose);
+
+        expect(() => f.registerFields([field]), throwsStateError);
+      });
+
+      test('setValidationEnabled throws StateError when disposed', () {
+        final f = AdvancedFormController()..dispose();
+
+        expect(() => f.setValidationEnabled(false), throwsStateError);
+      });
+
+      test('removeSubform throws StateError when disposed', () {
+        final parent = AdvancedFormController();
+        final child = AdvancedFormController();
+        parent
+          ..addSubform(child)
+          ..dispose();
+
+        expect(() => parent.removeSubform(child), throwsStateError);
+      });
+    });
+
+    group('AdvancedTextFieldController focusNode', () {
+      test('throws StateError when read after dispose', () {
+        final field = AdvancedTextFieldController<_Error1>()..dispose();
+
+        expect(() => field.focusNode, throwsStateError);
+      });
+
+      test('dispose is safe when the focusNode was never read', () {
+        final field = AdvancedTextFieldController<_Error1>();
+
+        expect(field.dispose, returnsNormally);
+      });
+    });
+
+    test('a throwing sync validator reports its error once, to the caller',
+        () async {
+      final unhandled = <Object>[];
+
+      await runZonedGuarded(
+        () async {
+          final field = AdvancedFieldController<int, _Error2>(
+            initialValue: 0,
+            validator: (_) => throw StateError('validator exploded'),
+          );
+          final f = AdvancedFormController()..registerFields([field]);
+
+          await expectLater(f.validate(), throwsStateError);
+          // Give an unhandled error a turn to reach the zone.
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          f.dispose();
+        },
+        (error, stackTrace) => unhandled.add(error),
+      );
+
+      expect(unhandled, isEmpty);
     });
   });
 }

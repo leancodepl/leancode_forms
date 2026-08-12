@@ -8,7 +8,7 @@ typedef AsyncValidator<T, E extends Object> = Future<E?> Function(T);
 /// [TimeoutException] of a round that ran out of time.
 typedef AsyncValidationFailureHandler = Future<void> Function(
   Object error,
-  StackTrace? stackTrace,
+  StackTrace stackTrace,
 );
 
 /// Maps a failure of an [AsyncValidator] to an error code, so a failed round
@@ -73,7 +73,7 @@ class AsyncValidation<T, E extends Object> {
   /// [AdvancedFieldController.validate] ignores it — it flushes instead.
   final Duration debounce;
 
-  /// How long a round may run before it is abandoned. Null — the default —
+  /// How long [validator] may run before it is abandoned. Null — the default —
   /// means no bound, so a [validator] that never settles hangs
   /// [AdvancedFieldController.validate] forever. On expiry the field moves to
   /// [FieldStatus.failedValidation] and the abandoned result is dropped.
@@ -82,12 +82,14 @@ class AsyncValidation<T, E extends Object> {
   /// Called when a round fails. If omitted, the failure goes to
   /// [FlutterError.reportError]. Invoked unawaited after the state resolved, so
   /// a slow handler cannot hold the field in [FieldStatus.validating], and it
-  /// cannot turn a failed round into a passing one.
+  /// cannot turn a failed round into a passing one. A throw from here is
+  /// reported to [FlutterError.reportError], not rethrown.
   final AsyncValidationFailureHandler? onFailure;
 
   /// Turns a failure into an error code, so a failed round can show something.
   /// Without it a failed field carries no code. A code produced here lands in
-  /// [AdvancedFieldState.asyncError].
+  /// [AdvancedFieldState.asyncError]. A throw from here is reported to
+  /// [FlutterError.reportError], not rethrown.
   final AsyncValidationFailureMapper<E>? failureToError;
 }
 
@@ -124,7 +126,7 @@ extension _Failures<T, E extends Object> on AsyncValidation<T, E> {
   }
 }
 
-void _report(String? field, String action, Object error, StackTrace? stack) =>
+void _report(String? field, String action, Object error, StackTrace stack) =>
     FlutterError.reportError(
       FlutterErrorDetails(
         exception: error,

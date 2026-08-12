@@ -54,7 +54,8 @@ class AdvancedFieldState<T, E extends Object> {
   final E? asyncError;
 
   /// Whether a value change runs the validators. With it off,
-  /// [AdvancedFieldController.setValue] only stores the value.
+  /// [AdvancedFieldController.setValue] stores the value, clears both errors
+  /// and resets the status to [FieldStatus.valid].
   final bool autovalidate;
 
   /// Whether the value is frozen against [AdvancedFieldController.setValue].
@@ -69,11 +70,11 @@ class AdvancedFieldState<T, E extends Object> {
   /// that may predate the app state the rule reads.
   E? get error => validationError ?? asyncError;
 
-  /// Whether no error is recorded. See [FieldStatus.valid]: this is not the
-  /// same as *checked and passed*.
+  /// Whether the status is [FieldStatus.valid]: not the same as *checked and
+  /// passed*.
   bool get isValid => status == FieldStatus.valid;
 
-  /// Whether an error is recorded.
+  /// Whether the status is [FieldStatus.invalid] — not a failed round.
   bool get isInvalid => status == FieldStatus.invalid;
 
   /// Whether a round is waiting out its debounce.

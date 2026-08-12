@@ -28,12 +28,23 @@ class AdvancedTextFieldController<E extends Object>
   /// controller — do not dispose externally.
   final TextEditingController textController;
 
-  /// The [FocusNode] bound to this field. Lifecycle owned by this controller —
-  /// do not dispose externally.
-  late final FocusNode focusNode = FocusNode(
-    debugLabel:
-        'AdvancedTextFieldController${name?.isNotEmpty ?? false ? '($name)' : ''}',
-  );
+  FocusNode? _focusNode;
+
+  /// The [FocusNode] bound to this field, created on first use.
+  /// 
+  /// Throws a [StateError] if controller is disposed.
+  FocusNode get focusNode {
+    if (isDisposed) {
+      throw StateError(
+        'Cannot use the focusNode of a disposed AdvancedTextFieldController.',
+      );
+    }
+
+    return _focusNode ??= FocusNode(
+      debugLabel:
+          'AdvancedTextFieldController${name?.isNotEmpty ?? false ? '($name)' : ''}',
+    );
+  }
 
   /// True while [_reconcile] is writing to [textController], so the write does
   /// not come back through [_onTextControllerChanged] as user input.
@@ -79,7 +90,7 @@ class AdvancedTextFieldController<E extends Object>
     textController
       ..removeListener(_onTextControllerChanged)
       ..dispose();
-    focusNode.dispose();
+    _focusNode?.dispose();
     super.dispose();
   }
 }

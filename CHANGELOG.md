@@ -19,9 +19,11 @@
 * **Breaking:** `validate()` returns `Future<bool>` on both controllers and now runs the async validators. **Await it** — the result is the only thing that says the values were checked.
 * **Breaking:** `reset()` keeps `autovalidate` and `readOnly`. Previously `form.resetAll()` unlocked fields your code had locked, and undid the autovalidate that `form.validate()` turned on.
 * **Breaking:** `setError(null)` clears `validationError` and the status follows, instead of leaving the field `invalid` with nothing to show. This is what makes "apply the server's response to every field" work. It leaves `asyncError` alone — use `clearErrors()` for both.
+* **Breaking:** `removeSubform` returns `void`. Disposal is synchronous now, so drop the `await` — in 0.1.x it waited for every field and nested subform to close.
+* **Breaking:** `registerFields`, `setValidationEnabled` and `removeSubform` throw a `StateError` on a disposed form, as `addSubform` already did.
 * **Breaking:** `FieldStatus` has a new `failedValidation` value, for a check that could not run. Exhaustive `switch`es over `FieldStatus` need an arm for it.
 * **Breaking:** `AdvancedFormState.validationErrors` is keyed on `AdvancedFieldState.error`, so a field invalid from an async check now appears in an error summary.
-* **Breaking:** `select`, `addValue` and `toggleElement` assert that the value is one of `options`. Seeding a selection before `options` is filled now throws in debug and profile builds.
+* **Breaking:** `select` and `addValue` assert that the value is one of `options`, and so does `toggleElement` when it adds. Seeding a selection before `options` is filled now throws in debug builds.
 * An error never outlives the value it described. Changing the value clears both errors, and so does starting a check — so the message goes blank while a check runs, then comes back if the answer is still bad. Render `state.error` only when `!state.isInProgress` to hold the old text instead.
 * Cross-field checks re-run the **sync** validator only, both through `subscribeToFields` and through `validateAll: true`. The field's own value did not change, so its last answer still stands and nothing is owed to the network. 0.1.x skipped fields that already carried an async error, so a cross-field rule stopped being re-evaluated once a server check had failed.
 * A settled async answer is reused while it still describes the value, so a second submit press on an unchanged form makes no network calls.

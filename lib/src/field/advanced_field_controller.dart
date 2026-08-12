@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:leancode_forms/src/utils/coalescing_call.dart';
+import 'package:leancode_forms/src/utils/shared_call.dart';
 
 part 'advanced_field_state.dart';
 part 'async_validation.dart';
@@ -15,7 +15,7 @@ typedef _Result<E extends Object> = ({
   AsyncValidationFailure? failure,
 });
 
-FieldStatus _slotStatus(Object? validationError, Object? asyncError) =>
+FieldStatus _statusFromErrors(Object? validationError, Object? asyncError) =>
     (validationError ?? asyncError) == null
         ? FieldStatus.valid
         : FieldStatus.invalid;
@@ -25,8 +25,8 @@ FieldStatus _slotStatus(Object? validationError, Object? asyncError) =>
 ///
 /// Validation follows two rules. [AdvancedFieldState.autovalidate] is the gate
 /// that decides whether a value change starts a round, and a round runs the
-/// sync validator first, the async one only if sync passed. [validate] always
-/// starts a round, whatever the gate says.
+/// sync validator first, the async one only if sync passed. [validate]
+/// validates on demand, whatever the gate says.
 class AdvancedFieldController<T, E extends Object>
     with ChangeNotifier
     implements ValueListenable<AdvancedFieldState<T, E>> {
@@ -49,7 +49,7 @@ class AdvancedFieldController<T, E extends Object>
   final T _initialValue;
   final Validator<T, E> _validator;
   final AsyncValidation<T, E>? _asyncValidation;
-  final CoalescingCall<bool> _validateCall = CoalescingCall();
+  final SharedCall<bool> _validateCall = SharedCall();
 
   AdvancedFieldState<T, E> _value;
   AsyncValidationFailure? _lastFailure;
@@ -103,7 +103,7 @@ class AdvancedFieldController<T, E extends Object>
           value: newValue,
           validationError: validationError,
           asyncError: null,
-          status: _slotStatus(validationError, null),
+          status: _statusFromErrors(validationError, null),
         ),
       );
       return;
@@ -120,13 +120,14 @@ class AdvancedFieldController<T, E extends Object>
   /// clears it and the status follows.
   ///
   /// Aborts the live round so it cannot erase the pushed error. The verdict
-  /// survives: the value did not change.
+  /// survives: the value did not change. Passing null also discards a
+  /// [FieldStatus.failedValidation] status, unlike [markReadOnly].
   void setError(E? error) {
     _abortRound();
     _setState(
       _value._copyWithNullable(
         validationError: error,
-        status: _slotStatus(error, _value.asyncError),
+        status: _statusFromErrors(error, _value.asyncError),
       ),
     );
   }
@@ -135,10 +136,15 @@ class AdvancedFieldController<T, E extends Object>
   /// field ended up [AdvancedFieldState.isValid].
   ///
   /// The sync validator runs first; if it fails, `false` is returned with no
-  /// network call. If it passes, a round still waiting out its debounce is run
-  /// at once, an in-flight one is awaited rather than restarted, a verdict still
-  /// describing the current value is reused, and otherwise a round runs
-  /// immediately — which is also how a failed round is retried.
+  /// network call.
+  ///
+  /// If it passes, exactly one of four things happens, in this order:
+  ///
+  /// 1. A round still waiting out its debounce is run at once.
+  /// 2. An in-flight round is awaited, not restarted.
+  /// 3. A verdict that still describes the current value is reused.
+  /// 4. Otherwise a round runs immediately — which is also how a failed round
+  ///    is retried.
   ///
   /// Calling this again before the first call finishes gives you the same
   /// result; it does not start a second round. A field disposed mid-round
@@ -160,7 +166,9 @@ class AdvancedFieldController<T, E extends Object>
   ///
   /// Aborts the live round, so a frozen field does not go on transitioning on
   /// its own. Drops [lastFailure] but keeps a
-  /// [FieldStatus.failedValidation] status, so the field still blocks submit.
+  /// [FieldStatus.failedValidation] status, so the field still blocks submit; a
+  /// round still in progress is dropped and leaves the field valid, so only
+  /// [validate] can still catch it.
   void markReadOnly() {
     _abortRound();
     _setState(
@@ -168,7 +176,7 @@ class AdvancedFieldController<T, E extends Object>
         readOnly: true,
         status: _value.isFailedValidation
             ? FieldStatus.failedValidation
-            : _slotStatus(_value.validationError, _value.asyncError),
+            : _statusFromErrors(_value.validationError, _value.asyncError),
       ),
     );
   }
@@ -200,7 +208,7 @@ class AdvancedFieldController<T, E extends Object>
   }
 
   /// Subscribes to the [fields] and re-runs this field's **sync** validator
-  /// whenever any of their values change.
+  /// whenever any of their values change. Replaces any earlier subscription.
   ///
   /// The async validator is not re-run: this field's value did not change, so
   /// its verdict stands. While this field's gate is closed nothing happens at
@@ -250,9 +258,9 @@ class AdvancedFieldController<T, E extends Object>
     }
   }
 
-  /// Test-only seeder for states the public API can't construct, notably any
-  /// state carrying an [AdvancedFieldState.asyncError]. Carries no verdict, so
-  /// [validate] re-runs the async validator for it.
+  /// Test-only seeder for state combinations the pipeline never produces, such
+  /// as an [AdvancedFieldState.asyncError] with no round having run. Carries no
+  /// verdict, so [validate] re-runs the async validator for it.
   @visibleForTesting
   void debugSetState(AdvancedFieldState<T, E> state) {
     _abortRound();
@@ -293,7 +301,7 @@ class AdvancedFieldController<T, E extends Object>
 
     final live = _currentRound;
     if (live != null) {
-      if (live.isArmed) {
+      if (live.isDebouncing) {
         unawaited(_run(live));
       }
       return _report(await live.done);
@@ -308,8 +316,9 @@ class AdvancedFieldController<T, E extends Object>
 
   // A superseded round cannot report success, and neither can a failed one —
   // `failedValidation` is not `isValid`. Every conjunct is load-bearing:
-  // `isValid` alone would pass a failed round, since it only means *no error
-  // recorded*, and `notSuperseded` alone would pass an invalid one.
+  // without `notSuperseded`, a round cancelled into a valid state (say by
+  // `clearErrors`) passes; without `isValid`, an invalid or failed round does;
+  // without `!_isDisposed`, a round that settled just before disposal does.
   bool _report(bool notSuperseded) =>
       !_isDisposed && notSuperseded && _value.isValid;
 
@@ -318,9 +327,9 @@ class AdvancedFieldController<T, E extends Object>
     _currentRound = round;
 
     if (debounced) {
-      // Armed before any state is published, so a listener re-entering during
-      // the `pending` notification cannot orphan this timer.
-      round.arm(_asyncValidation!.debounce, () => _run(round));
+      // The timer starts before any state is published, so a listener
+      // re-entering during the `pending` notification cannot orphan it.
+      round.startDebounce(_asyncValidation!.debounce, () => _run(round));
       _lastFailure = null;
       _clearTo(value, status: FieldStatus.pending);
     } else {
@@ -334,7 +343,7 @@ class AdvancedFieldController<T, E extends Object>
     if (!identical(_currentRound, round)) {
       return;
     }
-    round.disarm();
+    round.cancelTimers();
 
     final asyncValidation = _asyncValidation!;
     _lastFailure = null;
@@ -348,8 +357,8 @@ class AdvancedFieldController<T, E extends Object>
       return;
     }
 
-    final result = await round.race(asyncValidation);
-    round.disarm();
+    final result = await round.runValidator(asyncValidation);
+    round.cancelTimers();
 
     // Superseded, cancelled or disposed: a dead round's answer is noise.
     if (!identical(_currentRound, round)) {
@@ -363,10 +372,10 @@ class AdvancedFieldController<T, E extends Object>
       _setState(
         _value._copyWithNullable(
           asyncError: result.verdict,
-          status: _slotStatus(_value.validationError, result.verdict),
+          status: _statusFromErrors(_value.validationError, result.verdict),
         ),
       );
-      round.settle(true);
+      round.finish();
       return;
     }
 
@@ -378,19 +387,19 @@ class AdvancedFieldController<T, E extends Object>
         status: FieldStatus.failedValidation,
       ),
     );
-    round.settle(true);
+    round.finish();
     unawaited(asyncValidation.reportFailure(failure, name));
   }
 
   // `_currentRound` is the liveness token: a round that is no longer it can
-  // never write state again. Settling stops anything awaiting it from hanging.
+  // never write state again. Cancelling stops anything awaiting it from hanging.
   void _abortRound() {
     _lastFailure = null;
-    _currentRound?.settle(false);
+    _currentRound?.cancel();
     _currentRound = null;
   }
 
-  // Publishes [value] with both error slots cleared.
+  // Publishes [value] with both errors cleared and the given status.
   void _clearTo(T value, {FieldStatus status = FieldStatus.valid}) => _setState(
         _value._copyWithNullable(
           value: value,
@@ -414,7 +423,7 @@ class AdvancedFieldController<T, E extends Object>
   FieldStatus _statusAfter(E? syncError) =>
       _value.isInProgress || _value.isFailedValidation
           ? _value.status
-          : _slotStatus(syncError, _value.asyncError);
+          : _statusFromErrors(syncError, _value.asyncError);
 
   void _setState(AdvancedFieldState<T, E> newValue) {
     if (_isDisposed || newValue == _value) {
@@ -441,13 +450,14 @@ class _ValidationRound<T, E extends Object> {
   // here.
   Future<bool> get done => _done.future;
 
-  bool get isArmed => _debounceTimer?.isActive ?? false;
+  bool get isDebouncing => _debounceTimer?.isActive ?? false;
 
-  void arm(Duration debounce, void Function() fire) =>
-      _debounceTimer = Timer(debounce, fire);
+  void startDebounce(Duration delay, void Function() run) =>
+      _debounceTimer = Timer(delay, run);
 
-  // `Future.any` reports only the first to settle and drops the loser's error.
-  Future<_Result<E>> race(AsyncValidation<T, E> validation) async {
+  // `Future.any` handles and drops the loser's error, so a validator that
+  // throws after the timeout cannot escape as an unhandled async error.
+  Future<_Result<E>> runValidator(AsyncValidation<T, E> validation) async {
     final timedOut = Completer<E?>();
 
     if (validation.timeout case final duration?) {
@@ -480,15 +490,23 @@ class _ValidationRound<T, E extends Object> {
     }
   }
 
-  void disarm() {
+  // Cancels both timers: the debounce and, once [runValidator] has set it, the
+  // timeout.
+  void cancelTimers() {
     _debounceTimer?.cancel();
     _debounceTimer = null;
     _timeoutTimer?.cancel();
     _timeoutTimer = null;
   }
 
-  void settle(bool notSuperseded) {
-    disarm();
+  // The round ran to completion, whether the validator passed or failed.
+  void finish() => _complete(true);
+
+  // The round was superseded, aborted or disposed, so it never had its say.
+  void cancel() => _complete(false);
+
+  void _complete(bool notSuperseded) {
+    cancelTimers();
     if (!_done.isCompleted) {
       _done.complete(notSuperseded);
     }

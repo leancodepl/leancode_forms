@@ -344,4 +344,4 @@ class BaseFormController extends AdvancedFormController {
 }
 ```
 
-`Future<void> removeSubform(form, {bool close = true})` detaches a subform and disposes it unless you pass `close: false`. The parent disposes attached subforms in its own `dispose()`, so don't dispose them yourself as well. Calling `addSubform` with — or on — a disposed controller throws a descriptive `StateError` rather than crashing later.
+`void removeSubform(form, {bool close = true})` detaches a subform and disposes it unless you pass `close: false`. The parent disposes attached subforms in its own `dispose()`, so don't dispose them yourself as well. Calling `addSubform` with — or on — a disposed controller throws a descriptive `StateError` rather than crashing later, and so do `registerFields`, `setValidationEnabled` and `removeSubform` on one.
