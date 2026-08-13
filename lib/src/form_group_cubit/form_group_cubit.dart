@@ -318,7 +318,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 }
 
 /// The state of a [FormGroupCubit].
-class FormGroupState with EquatableMixin {
+class FormGroupState with Equatable {
   /// Creates a new [FormGroupState].
   const FormGroupState({
     this.wasModified = false,
