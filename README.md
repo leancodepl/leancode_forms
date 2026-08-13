@@ -294,6 +294,8 @@ field.setError(null);                  // clear validationError — status follo
 field.clearErrors();                   // clear everything, including the last async answer
 ```
 
+`markReadOnly()` freezes the value; how the widget *looks* is yours to decide. Widgets with a nullable callback — `Switch`, `Checkbox`, `DropdownButton` — grey out on their own once `getValueSetter()` returns `null`. A text field does not: `TextField.readOnly` blocks typing but keeps the enabled styling, so pass `enabled: !state.readOnly` too when a frozen field should also look frozen.
+
 `setError(null)` is what makes the "apply the server's response to every field" pattern work: fields the server accepted end up `valid` with nothing to show, rather than `invalid` with nothing to show.
 
 `setError` writes `validationError` only. A code an async check recorded survives it, and the field stays `invalid` showing that code — use `clearErrors()` when you mean "forget everything, including the async answer". A pushed error is also not protected from the validators: while the field's gate is open, anything that re-runs its sync validator — an edit, `subscribeToFields`, `validateAll` — overwrites `validationError` with whatever the validator returns.
