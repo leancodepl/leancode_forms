@@ -254,11 +254,13 @@ Status changes on the observed fields — an async validator starting, say — a
 
 The async validator is deliberately *not* re-run: this field's own value did not change, so its last answer is still current and no async check is owed.
 
-It does exactly one thing: **re-run this field's sync validator.** It does not copy or derive values. For "when B changes, set A" — recompute a total, mirror one field into another, clear a dependent selection — use `addListener` and `setValue`:
+It does exactly one thing: **re-run this field's sync validator.** It does not copy or derive values. For "when B changes, set A" — recompute a total, mirror one field into another, clear a dependent selection — use the form's `addRelation`:
 
 ```dart
-quantity.addListener(() => total.setValue(quantity.fieldValue * unitPrice));
+addRelation(quantity, (value) => value, (qty) => total.setValue(qty * unitPrice));
 ```
+
+`addRelation(source, select, onChange)` calls `onChange` whenever the part of `source`'s value picked by `select` changes (compared with `==`; status-only changes never fire). The form removes the listener in its own `dispose()`, so there is nothing to clean up.
 
 Working example: `PasswordFormScreen` in the example app.
 
