@@ -47,19 +47,7 @@ class AdvancedFieldController<T, E extends Object>
   /// Not used for identity — fields are identified by reference.
   final String? name;
 
-  final T _initialValue;
-  final Validator<T, E> _validator;
-  final AsyncValidation<T, E>? _asyncValidation;
-  final _validateCall = SharedCall<bool>();
-
   AdvancedFieldState<T, E> _value;
-  AsyncValidationFailure? _lastFailure;
-  _ValidationRound<T, E>? _currentRound;
-  VoidCallback? _fieldsSubscriptionCleanup;
-  bool _isDisposed = false;
-
-  // Whether a settled verdict still describes the value the field holds.
-  bool _hasVerdict = false;
 
   @override
   AdvancedFieldState<T, E> get value => _value;
@@ -70,13 +58,28 @@ class AdvancedFieldController<T, E extends Object>
   /// The current error — shortcut for `value.error`.
   E? get error => _value.error;
 
+  bool _isDisposed = false;
+
   /// Whether this controller has been disposed. Once true it stays true.
   bool get isDisposed => _isDisposed;
+
+  AsyncValidationFailure? _lastFailure;
 
   /// Details behind [FieldStatus.failedValidation], or null when the field is
   /// not in that state. Diagnostic only.
   AsyncValidationFailure? get lastFailure =>
       _value.isFailedValidation ? _lastFailure : null;
+
+  // Internals with no public surface.
+  final T _initialValue;
+  final Validator<T, E> _validator;
+  final AsyncValidation<T, E>? _asyncValidation;
+  final _validateCall = SharedCall<bool>();
+  _ValidationRound<T, E>? _currentRound;
+  VoidCallback? _fieldsSubscriptionCleanup;
+
+  // Whether a settled verdict still describes the value the field holds.
+  bool _hasVerdict = false;
 
   /// Sets a new [newValue]. A no-op on a read-only field unless [force] is
   /// true.

@@ -30,7 +30,6 @@ class AppDropdownField<T> extends StatelessWidget {
       children: [
         Flexible(
           child: DropdownButtonFormField<T>(
-            initialValue: value,
             onChanged: onChanged,
             items: [
               for (final option in options)

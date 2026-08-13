@@ -29,31 +29,35 @@ class AdvancedFormController
   /// the tree whose gate is open. See [validateWithAutovalidate].
   final bool validateAll;
 
-  final _onValuesChanged = ChangeNotifier();
-  final _onStatusChanged = ChangeNotifier();
-  // Explicit type — inference would widen the error type from dynamic to Object.
-  final Set<AdvancedFieldController<dynamic, dynamic>> _ownedFields = {};
-  final _childCleanups = <VoidCallback>[];
-  final _validateCall = SharedCall<bool>();
-
   var _value = const AdvancedFormState();
-  var _initialFieldsState = const <dynamic>[];
-  bool _isDisposed = false;
 
   @override
   AdvancedFormState get value => _value;
+
+  bool _isDisposed = false;
 
   /// Whether this controller has been disposed. Once true it stays true;
   /// disposed controllers are not to be reused.
   bool get isDisposed => _isDisposed;
 
+  final _onValuesChanged = ChangeNotifier();
+
   /// Fires when any leaf field's value changes (recursively through subforms),
   /// or when fields are registered.
   Listenable get onValuesChanged => _onValuesChanged;
 
+  final _onStatusChanged = ChangeNotifier();
+
   /// Fires when any leaf field's status or error changes (recursively through
   /// subforms).
   Listenable get onStatusChanged => _onStatusChanged;
+
+  // Internals with no public surface.
+  // Explicit type — inference would widen the error type from dynamic to Object.
+  final Set<AdvancedFieldController<dynamic, dynamic>> _ownedFields = {};
+  final _childCleanups = <VoidCallback>[];
+  final _validateCall = SharedCall<bool>();
+  var _initialFieldsState = const <dynamic>[];
 
   /// Registers [fields] as this form's own fields and takes ownership of them,
   /// disposing them when this form is disposed. Their current values become the
@@ -360,7 +364,7 @@ class AdvancedFormController
 /// [validating], [hasFailedValidation], [canSubmit] and [validationErrors] are
 /// derived from the child controllers on every read, so they follow the live
 /// tree. Only the stored members take part in `==`.
-class AdvancedFormState with EquatableMixin {
+class AdvancedFormState with Equatable {
   /// Creates a new [AdvancedFormState].
   const AdvancedFormState({
     this.wasModified = false,

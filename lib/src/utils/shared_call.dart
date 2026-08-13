@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+
 /// One run of an operation, shared by everyone who asks for it while it is
 /// still going — so a double-tapped submit button cannot start two validation
 /// passes.
+@internal
 class SharedCall<T> {
   Future<T>? _inFlight;
 
