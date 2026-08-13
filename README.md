@@ -233,7 +233,7 @@ An *error* is a code describing what is wrong with the value. A *failure* is the
 - `form.value.hasFailedValidation` drives one banner for the whole form. Per-field text is opt-in: pass `failureToError` to turn the exception into an error code, which then displays through the normal path.
 - Failure is **not sticky**. A failed round records no answer, so the next `await validate()` re-runs it — submit is the retry, and there is no separate API for it.
 
-Only `AdvancedTextFieldController` and `AdvancedBooleanFieldController` accept `asyncValidation`. Working example: `SimpleFormScreen` in the example app.
+Every field controller accepts `asyncValidation`. Working example: `SimpleFormScreen` in the example app.
 
 ### Validation that depends on another field
 
@@ -269,7 +269,7 @@ Working example: `PasswordFormScreen` in the example app.
 - `AdvancedSingleSelectFieldController` — one choice from `options` (dropdowns, radio groups),
 - `AdvancedMultiSelectFieldController` — a set of choices, with `toggleElement` / `addValue` / `removeValue`.
 
-All support `reset()`, `markReadOnly()` / `unmarkReadOnly()`, and sync validation. The text and boolean controllers default their `initialValue`; the two select controllers require both `initialValue` and `options`. All accept an optional `name`, which labels the field in diagnostics and gives logging or serialization a stable handle.
+All support `reset()`, `markReadOnly()` / `unmarkReadOnly()`, and both sync and async validation. The text and boolean controllers default their `initialValue`; the two select controllers require both `initialValue` and `options`. All accept an optional `name`, which labels the field in diagnostics and gives logging or serialization a stable handle.
 
 ### Reading the current state
 
