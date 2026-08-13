@@ -92,12 +92,12 @@ Two rules prevent most bugs. **Call `registerFields()` once, in the constructor,
 
 ## Field controllers
 
-| Controller | Value `T` | Constructor and notes |
+| Controller | Value type | Constructor and notes |
 | --- | --- | --- |
 | `AdvancedTextFieldController<E>` | `String` | `{initialValue = '', validator, asyncValidation, name}`; owns `textController` + `focusNode`, has `focus()` |
 | `AdvancedBooleanFieldController<E>` | `bool` | `{initialValue = false, validator, asyncValidation, name}` |
-| `AdvancedSingleSelectFieldController<V, E>` | `V?` | `{required V? initialValue, required List<V> options, validator, name}`; set with `select(V? option)`, `null` clears; no async validation |
-| `AdvancedMultiSelectFieldController<V, E>` | `Set<V>` | `{required Set<V> initialValue, required List<V> options, validator, name}`; `toggleElement` / `addValue` / `removeValue`; no async validation |
+| `AdvancedSingleSelectFieldController<V, E>` | `V?` | `{required V? initialValue, required List<V> options, validator, asyncValidation, name}`; set with `select(V? option)`, `null` clears |
+| `AdvancedMultiSelectFieldController<V, E>` | `Set<V>` | `{required Set<V> initialValue, required List<V> options, validator, asyncValidation, name}`; set with `toggleElement` / `addValue` / `removeValue` |
 
 `name` labels the field in error reports and as the `FocusNode` debug label. All support `reset()`, `markReadOnly()` / `unmarkReadOnly()`, `setError()`, `clearErrors()`, `setAutovalidate()`, `getValueSetter()` (a `ValueSetter<T>?` — `null` while read-only, so a widget with a nullable `onChanged` disables itself), `validate()`, `subscribeToFields()`.
 
@@ -110,8 +110,8 @@ Two rules prevent most bugs. **Call `registerFields()` once, in the constructor,
 class PhoneFieldController extends AdvancedTextFieldController<MyError> {
   PhoneFieldController({
     String initialValue = '',
-    Validator<String, MyError>? validator, // spell the arity out when forwarding
-  }) : super(initialValue: _digits(initialValue), validator: validator);
+    super.validator, // super-parameters forward the rest unchanged
+  }) : super(initialValue: _digits(initialValue));
 
   static String _digits(String value) => value.replaceAll(RegExp(r'\D'), '');
 
@@ -121,7 +121,7 @@ class PhoneFieldController extends AdvancedTextFieldController<MyError> {
 }
 ```
 
-Why it works: every write to `textController` — keystroke, paste or programmatic `.text =` — goes through the public `setValue`, so the override always runs, and the transformed value is written back into `textController` in the same turn with the caret kept on the same characters. Normalize `initialValue` before it reaches `super`, as above — `reset()` returns to *that* value without passing through `setValue`. A super-parameter (`super.validator`) cannot be combined with an explicit `super(...)` call, so forward by hand: `Validator<String, E>?`, `AsyncValidation<String, E>?`. The subclass may stay generic — `class PhoneFieldController<E extends Object> extends AdvancedTextFieldController<E>` — which is what a reusable field widget wants.
+Why it works: every write to `textController` — keystroke, paste or programmatic `.text =` — goes through the public `setValue`, so the override always runs, and the transformed value is written back into `textController` in the same turn with the caret kept on the same characters. Normalize `initialValue` before it reaches `super`, as above — `reset()` returns to *that* value without passing through `setValue`. Named super-parameters mix freely with the explicit `super(...)` call that carries the normalized value, so forward everything you do not transform as `super.validator`, `super.asyncValidation`, `super.name`. The subclass may stay generic — `class PhoneFieldController<E extends Object> extends AdvancedTextFieldController<E>` — which is what a reusable field widget wants.
 
 ### Field state — `AdvancedFieldState<T, E>`
 
@@ -203,7 +203,7 @@ AdvancedFieldBuilder<Country?, MyError>(
 )
 ```
 
-`ErrorTranslator<E>` is `String Function(E)` from the package — write one per error enum: `String translate(MyError e) => switch (e) { MyError.required => 'Required', MyError.tooShort => 'Too short', … };`. It takes a **non-null** `E` while `state.error` is `E?`, so promote before calling it, as above. In a real app wrap each binding once in a reusable widget taking `field` + `ErrorTranslator<E> translateError` and call it everywhere; a generic select wrapper binds `AdvancedFieldBuilder<V?, E>` over `AdvancedSingleSelectFieldController<V, E>`.
+`ErrorTranslator<E>` is `String Function(E)` from the package — a plain function, so write it wherever the labels belong: `String translate(MyError e) => switch (e) { MyError.required => 'Required', MyError.tooShort => 'Too short', … };`. One shared translator per error enum is the cheapest start, but the same code often wants different wording per field ("Required" vs. "Pick a country"), so pass a field-specific translator where it reads better — the widget takes the function, not the enum. It takes a **non-null** `E` while `state.error` is `E?`, so promote before calling it, as above. In a real app wrap each binding once in a reusable widget taking `field` + `ErrorTranslator<E> translateError` and call it everywhere; a generic select wrapper binds `AdvancedFieldBuilder<V?, E>` over `AdvancedSingleSelectFieldController<V, E>`.
 
 If you reach for `DropdownButtonFormField` instead, its selected-value parameter is `value:` up to Flutter 3.33 and `initialValue:` from 3.35 on, where `value:` is deprecated — check the project's SDK first. The package floor is `flutter: >=3.13.0`.
 
@@ -266,7 +266,7 @@ Do not wrap the fields in Flutter's `Form` — you need no `Form`, no `GlobalKey
 
 ## Async validation
 
-For checks that live on the server ("is this username taken?"). Only on text and boolean controllers. A verdict your own save call returns is not this — push it with `setError` (see *Server errors*).
+For checks that live on the server ("is this username taken?"). Every field controller takes `asyncValidation`, selects included. A verdict your own save call returns is not this — push it with `setError` (see *Server errors*).
 
 ```dart
 late final username = AdvancedTextFieldController(
@@ -313,7 +313,7 @@ late final repeatPassword = AdvancedTextFieldController<MyError>(
 
 It deliberately does *not* re-run async validators (the field's own value did not change — no network call owed) and does nothing while the field's gate is closed. To make the cross-check live before the first submit, chain `..setAutovalidate(true)` after `..subscribeToFields([password])`. Like `registerFields`, a second `subscribeToFields` call **replaces** the previous subscription.
 
-**Two fields watching each other** (one rule over a pair, "at least one traveler"): wire them in the **constructor body**, after `registerFields`, and never in a cascade — `adults.subscribeToFields([children]); children.subscribeToFields([adults]);`. A cascade `..subscribeToFields([sibling])` inside a `late final` initializer evaluates the sibling **eagerly**, so a mutual pair **stack-overflows at construction**; a mutually-referencing `late final` pair also needs an **explicit type** (`late final AdvancedTextFieldController<MyError> adults = ...`) or the analyzer reports `top_level_cycle`. No loop results — the subscription re-runs only when a watched **value** changes, not when a sibling's error or status changes. An error only appears on a field whose **own** validator returns it, so the pair's rule goes in **both** validators; the subscriptions are only what re-runs them. `validateAll: true` is the blunt alternative — it replaces the subscriptions, not the duplication.
+**Two fields watching each other** — one rule spanning a pair, where either field can break it or fix it. Say a booking form has `adults` and `children` counts and the rule is "book at least one person", so editing either field must re-check both. Wire them in the **constructor body**, after `registerFields`, and never in a cascade — `adults.subscribeToFields([children]); children.subscribeToFields([adults]);`. A cascade `..subscribeToFields([sibling])` inside a `late final` initializer evaluates the sibling **eagerly**, so a mutual pair **stack-overflows at construction**; a mutually-referencing `late final` pair also needs an **explicit type** (`late final AdvancedTextFieldController<MyError> adults = ...`) or the analyzer reports `top_level_cycle`. No loop results — the subscription re-runs only when a watched **value** changes, not when a sibling's error or status changes. An error only appears on a field whose **own** validator returns it, so the pair's rule goes in **both** validators; the subscriptions are only what re-runs them. `validateAll: true` is the blunt alternative — it replaces the subscriptions, not the duplication.
 
 **Value depends on another field** ("when B changes, set A" — totals, mirroring, clearing a dependent selection): use `addListener` + `setValue`, e.g. `quantity.addListener(() => total.setValue((int.tryParse(quantity.fieldValue) ?? 0) * unitPrice, force: true));` with `total` an `AdvancedFieldController<int, MyError>` — a text field's `fieldValue` is a `String`, and `String * int` compiles in Dart and repeats the string. A derived field is usually a display field you `markReadOnly()`, and `setValue` on a read-only field is a **no-op**, so pass `force: true` as above. Seed it **before** `registerFields`, or give it the derived `initialValue:` — seeding it afterwards captures the baseline at the stale value, and `wasModified` is then true before the user touches anything. Unlike `subscribeToFields`, `addListener` fires on **any** state change of the source (a gate flip, an error appearing), not only on a value change — which is why the derivation must be idempotent, and why mutual subscriptions cannot loop. A *destructive* one — `city.select(null)` when `country` changes — must first compare the source against the value it last saw, or the `setAutovalidate` sweep inside `validate()` wipes the user's choice on submit. Attaching or detaching subforms and calling `setValidationEnabled` from such a listener is supported too.
 
@@ -427,7 +427,7 @@ class CheckoutFormController extends AdvancedFormController {
 }
 ```
 
-`validationEnabled` starts `true` and only `setValidationEnabled` ever writes it — `resetAll()` leaves it alone — so seed the gate at construction and again in whatever method calls `resetAll()`, or a section that should start off blocks the first submit. `setValidationEnabled(true)` re-runs the sync validators at once, and a parent's `validate()` turns autovalidate on across the tree *before* it checks `validationEnabled`, so gates open inside a disabled subform even though nothing runs there — without the `setAutovalidate(false)` above, the re-enabled section flashes errors on untouched fields. The setter is idempotent, so it needs no last-seen-value guard even though `validate()`'s sweep re-enters it — the same sweep re-opens the gates straight after.
+`validationEnabled` starts `true` and only `setValidationEnabled` ever writes it — `resetAll()` leaves it alone — so seed the gate at construction and again in whatever method calls `resetAll()`, or a section that should start off blocks the first submit. `setValidationEnabled(true)` re-runs the sync validators at once. A *disabled* form's own `validate()` leaves the gates as it found them, but a parent's `validate()` sweeps `setAutovalidate(true)` across the whole tree, and that sweep never consults `validationEnabled` — so gates still open inside a disabled subform even though nothing runs there. Without the `setAutovalidate(false)` above, the re-enabled section flashes errors on untouched fields. The setter is idempotent, so it needs no last-seen-value guard even though `validate()`'s sweep re-enters it — the same sweep re-opens the gates straight after.
 
 A disabled subform's `validate()` returns `true` without running anything, and its errors were cleared when you disabled it, so it cannot block submit. It is **not** removed from the aggregates: its fields still count toward `canSubmit`, `validating`, `hasFailedValidation` and `wasModified`, so an error pushed in with `setError` (or written by `validateAll: true`) still blocks a `canSubmit`-gated button.
 
@@ -435,18 +435,10 @@ A disabled subform's `validate()` returns `true` without running anything, and i
 
 ```dart
 void enableGift() => addSubform(gift);
-void disableGift() => removeSubform(gift, close: false); // you now own `gift`
-
-@override
-void dispose() {
-  if (!value.subforms.contains(gift)) {
-    gift.dispose(); // the parent only disposes subforms still attached
-  }
-  super.dispose();
-}
+void disableGift() => removeSubform(gift); // close: true by default — `gift` is disposed
 ```
 
-- `close: true` (the default) disposes the subform; adding a disposed controller back throws a `StateError`. `close: false` hands ownership back to you — dispose it yourself, as above.
+- `close: true` (the default) disposes the subform, so build a fresh one per appearance; adding a disposed controller back throws a `StateError`. Reuse one controller across appearances with `close: false` — that hands ownership back to you, and the parent disposes only subforms still attached, so your own `dispose()` must dispose it while it is detached.
 - A detached subform is out of reach of `validate`, `resetAll`, `markReadOnly`, `clearErrors` and `setAutovalidate`.
 - A subform attached *after* the first `validate()` has closed gates; call `sub.setAutovalidate(true)` on attach if that section should also give live feedback.
 - `addSubform` is a no-op when already attached and `removeSubform` when not, so a toggle needs no bookkeeping flag.
@@ -456,6 +448,6 @@ void dispose() {
 - The form disposes every field passed to `registerFields` and every **attached** subform. **Never dispose those yourself.** You dispose only the form.
 - Any ownership works because the controller is a `ChangeNotifier`: `ChangeNotifierProvider(create: (_) => MyFormController())` disposes it for you; in a `StatefulWidget`, dispose it in `State.dispose`.
 - Get the controller in widgets with `context.read` (actions, stable references) and subscribe with `AdvancedFieldBuilder` / `ValueListenableBuilder` / `context.select` (rebuilds).
-- `registerFields`, `addSubform`, `removeSubform` and `setValidationEnabled` throw a `StateError` on a disposed controller. `validate()` does not — it returns `false`, so a submit after teardown fails quietly.
+- `registerFields`, `addSubform`, `removeSubform`, `setValidationEnabled` and `subscribeToFields` throw a `StateError` on a disposed controller — `registerFields` also when any field in the list is disposed. `validate()` does not — it returns `false`, so a submit after teardown fails quietly.
 
 **Prefilled / edit forms.** `wasModified` is baselined at `registerFields` time. A controller that registers fields in its constructor and *then* loads server data reports `wasModified: true` forever, so a "disabled until modified" button is live from the start. Either build the field controllers with the loaded data as `initialValue:`, or re-call `registerFields(sameList)` once the data arrives to re-baseline. Re-baselining does not move `reset()` — that always returns to the constructor's `initialValue`, so after a re-baseline `resetAll()` lands off the baseline and flips `wasModified` back to true. Prefer the `initialValue:` route whenever the form has a discard button.
