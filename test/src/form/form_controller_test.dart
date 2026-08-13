@@ -273,14 +273,15 @@ void main() {
         subformField.dispose();
       });
 
-      test('enables autovalidate even when validationEnabled is false',
-          () async {
+      test('leaves the gates closed when validationEnabled is false', () async {
         form
           ..registerFields([field1])
           ..setValidationEnabled(false);
         await form.validate();
 
-        expect(field1.value.autovalidate, true);
+        // Opening them would make the next keystroke run the async validators
+        // the caller just disabled.
+        expect(field1.value.autovalidate, false);
         form.dispose();
         field2.dispose();
         subform.dispose();
@@ -428,8 +429,7 @@ void main() {
         expect(await form.validate(), isFalse);
       });
 
-      test('a disabled call leaves the gate for the next call to set',
-          () async {
+      test('a disabled call does not claim the shared run', () async {
         form.registerFields([field1]);
         addTearDown(form.dispose);
         addTearDown(field2.dispose);
@@ -438,9 +438,11 @@ void main() {
 
         form.setValidationEnabled(false);
         form.validate(enableAutovalidate: false).ignore();
-        // The first call claimed nothing, so this one takes the full path and
-        // opens the gate itself.
-        form.validate().ignore();
+
+        // The disabled call claimed nothing, so once validation is back on the
+        // next call takes the full path and opens the gate itself.
+        form.setValidationEnabled(true);
+        await form.validate();
 
         expect(field1.value.autovalidate, isTrue);
       });
@@ -1209,6 +1211,16 @@ void main() {
         final f = AdvancedFormController()..dispose();
         final field = AdvancedFieldController<int, _Error2>(initialValue: 0);
         addTearDown(field.dispose);
+
+        expect(() => f.registerFields([field]), throwsStateError);
+      });
+
+      test('registerFields throws StateError when a field has been disposed',
+          () {
+        final f = AdvancedFormController();
+        addTearDown(f.dispose);
+        final field = AdvancedFieldController<int, _Error2>(initialValue: 0)
+          ..dispose();
 
         expect(() => f.registerFields([field]), throwsStateError);
       });

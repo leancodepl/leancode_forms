@@ -74,8 +74,11 @@ class SimpleForm extends StatelessWidget {
               hintText: 'Enter your email',
             ),
             ElevatedButton(
-              // A round is in flight, so the answer is not known yet.
-              onPressed: controller.value.validating ? null : controller.submit,
+              // `canSubmit` is what a submit button binds to: it is false while
+              // any check is in flight and while any error is known, and true on
+              // a fresh form nobody has validated yet. `submit` still awaits
+              // `validate()` — this only greys out what is already known to fail.
+              onPressed: controller.value.canSubmit ? controller.submit : null,
               child: const Text('Submit'),
             ),
           ],

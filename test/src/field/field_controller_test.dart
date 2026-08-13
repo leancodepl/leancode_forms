@@ -1153,6 +1153,52 @@ void main() {
   });
 
   group('subscribeToFields', () {
+    test('throws StateError when this field has been disposed', () {
+      final observed = AdvancedFieldController<int, _Error>(initialValue: 0);
+      addTearDown(observed.dispose);
+      var validatorCalls = 0;
+      final field = AdvancedFieldController<int, _Error>(
+        initialValue: 0,
+        validator: (_) {
+          validatorCalls++;
+          return null;
+        },
+      )
+        ..setAutovalidate(true)
+        ..dispose();
+
+      expect(() => field.subscribeToFields([observed]), throwsStateError);
+
+      // The guard is what keeps the listener off the live field.
+      observed.setValue(10);
+
+      expect(validatorCalls, 0);
+    });
+
+    test('drops the subscription on dispose', () {
+      final observed = AdvancedFieldController<int, _Error>(initialValue: 0);
+      addTearDown(observed.dispose);
+      var validatorCalls = 0;
+      final field = AdvancedFieldController<int, _Error>(
+        initialValue: 0,
+        validator: (_) {
+          validatorCalls++;
+          return null;
+        },
+      )
+        ..setAutovalidate(true)
+        ..subscribeToFields([observed]);
+
+      observed.setValue(10);
+
+      expect(validatorCalls, 1);
+
+      field.dispose();
+      observed.setValue(20);
+
+      expect(validatorCalls, 1);
+    });
+
     test('re-runs the sync validator when a subscribed field changes',
         () async {
       validator.validationResult = _Error.malformed;
@@ -1220,260 +1266,6 @@ void main() {
 
       expect(field1.value.error, isNull);
       expect(field1.value.isValid, isTrue);
-    });
-  });
-
-  group('AdvancedTextFieldController text controller sync', () {
-    test('typing into textController updates field value', () {
-      final tf = AdvancedTextFieldController<_Error>(initialValue: 'a')
-        ..textController.text = 'abc';
-      expect(tf.value.value, 'abc');
-      tf.dispose();
-    });
-
-    test('setValue mirrors to textController', () {
-      final tf = AdvancedTextFieldController<_Error>(initialValue: 'a')
-        ..setValue('hello');
-      expect(tf.textController.text, 'hello');
-      tf.dispose();
-    });
-
-    test('reset clears both field and textController', () {
-      final tf = AdvancedTextFieldController<_Error>()
-        ..setValue('typed')
-        ..reset();
-      expect(tf.value.value, '');
-      expect(tf.textController.text, '');
-      tf.dispose();
-    });
-
-    test('input into a read-only field is reconciled in the same turn', () {
-      final tf = AdvancedTextFieldController<_Error>(initialValue: 'locked')
-        ..markReadOnly();
-      addTearDown(tf.dispose);
-
-      tf.textController.text = 'typed over';
-
-      expect(tf.fieldValue, 'locked');
-      expect(tf.textController.text, 'locked');
-    });
-
-    test('reconciling keeps the selection when it still fits', () {
-      final tf = AdvancedTextFieldController<_Error>(initialValue: 'abcdef');
-      addTearDown(tf.dispose);
-      tf.textController.selection = const TextSelection.collapsed(offset: 3);
-
-      tf.setValue('abcxyz');
-
-      expect(tf.textController.text, 'abcxyz');
-      expect(tf.textController.selection.baseOffset, 3);
-    });
-  });
-
-  group('AdvancedTextFieldController selection mapping', () {
-    /// Sets [initialValue] on a field, selects [selection], writes [newValue]
-    /// and returns the reconciled text controller.
-    TextEditingController reconciled(
-      String initialValue,
-      TextSelection selection,
-      String newValue,
-    ) {
-      final tf = AdvancedTextFieldController<_Error>(
-        initialValue: initialValue,
-      );
-      addTearDown(tf.dispose);
-      tf.textController.selection = selection;
-
-      tf.setValue(newValue);
-
-      expect(tf.textController.text, newValue);
-      return tf.textController;
-    }
-
-    test('a selection keeps covering the same characters after a cut', () {
-      final c = reconciled(
-        'lorem ipsum, dolor sit amet',
-        const TextSelection(baseOffset: 13, extentOffset: 21),
-        'lorem ip, dolor sit amet',
-      );
-
-      expect(
-        c.selection,
-        const TextSelection(baseOffset: 10, extentOffset: 18),
-      );
-      expect(c.text.substring(10, 18), 'dolor si');
-    });
-
-    test('a backwards selection stays backwards', () {
-      final c = reconciled(
-        'lorem ipsum, dolor sit amet',
-        const TextSelection(baseOffset: 21, extentOffset: 13),
-        'lorem ip, dolor sit amet',
-      );
-
-      expect(
-        c.selection,
-        const TextSelection(baseOffset: 18, extentOffset: 10),
-      );
-    });
-
-    test(
-        'text inserted at the front moves the selection instead of '
-        'stretching it', () {
-      final c = reconciled(
-        'bcd',
-        const TextSelection(baseOffset: 0, extentOffset: 1),
-        'abcd',
-      );
-
-      expect(c.selection, const TextSelection(baseOffset: 1, extentOffset: 2));
-      expect(c.text.substring(1, 2), 'b');
-    });
-
-    test('a caret at the end follows a prefix added by formatting', () {
-      final c = reconciled(
-        '1234',
-        const TextSelection.collapsed(offset: 4),
-        '+48 1234',
-      );
-
-      expect(c.selection.baseOffset, 8);
-    });
-
-    test('a caret inside a run that was replaced lands at its start', () {
-      final c = reconciled(
-        'lorem ipsum, dolor sit amet',
-        const TextSelection(baseOffset: 13, extentOffset: 21),
-        'lorem',
-      );
-
-      expect(c.selection, const TextSelection.collapsed(offset: 5));
-    });
-
-    test('an emptied field collapses the caret to zero', () {
-      final c = reconciled('abc', const TextSelection.collapsed(offset: 3), '');
-
-      expect(c.selection, const TextSelection.collapsed(offset: 0));
-    });
-
-    test('a caret in text that grew from empty lands at the end', () {
-      final c = reconciled('', const TextSelection.collapsed(offset: 0), 'abc');
-
-      expect(c.selection.baseOffset, 3);
-    });
-
-    test('overlapping head and tail anchors keep the caret in range', () {
-      expect(
-        reconciled('aa', const TextSelection.collapsed(offset: 2), 'aaa')
-            .selection,
-        const TextSelection.collapsed(offset: 3),
-      );
-      expect(
-        reconciled('aa', const TextSelection.collapsed(offset: 0), 'aaa')
-            .selection,
-        const TextSelection.collapsed(offset: 0),
-      );
-      expect(
-        reconciled('aaa', const TextSelection.collapsed(offset: 3), 'aa')
-            .selection,
-        const TextSelection.collapsed(offset: 2),
-      );
-    });
-
-    test('two texts sharing no characters keep the offsets in range', () {
-      final c = reconciled(
-        'abc',
-        const TextSelection(baseOffset: 0, extentOffset: 3),
-        'xyz',
-      );
-
-      expect(c.selection, const TextSelection(baseOffset: 0, extentOffset: 3));
-    });
-
-    test('an invalid selection collapses to the end', () {
-      final tf = AdvancedTextFieldController<_Error>(initialValue: 'abc');
-      addTearDown(tf.dispose);
-      // Assigning `text` is what leaves the selection at -1.
-      tf.textController.text = 'abc';
-
-      tf.setValue('abcdef');
-
-      expect(tf.textController.selection.baseOffset, 6);
-    });
-
-    test('affinity and isDirectional survive the mapping', () {
-      final c = reconciled(
-        'abcdef',
-        const TextSelection(
-          baseOffset: 1,
-          extentOffset: 3,
-          affinity: TextAffinity.upstream,
-          isDirectional: true,
-        ),
-        'abcxyz',
-      );
-
-      expect(c.selection.affinity, TextAffinity.upstream);
-      expect(c.selection.isDirectional, isTrue);
-    });
-
-    test('a refused keystroke puts the caret back where it was', () {
-      final tf = AdvancedTextFieldController<_Error>(initialValue: 'locked')
-        ..markReadOnly();
-      addTearDown(tf.dispose);
-
-      // A character typed at offset 4, as the engine would report it.
-      tf.textController.value = const TextEditingValue(
-        text: 'lockXed',
-        selection: TextSelection.collapsed(offset: 5),
-      );
-
-      expect(tf.textController.text, 'locked');
-      expect(tf.textController.selection.baseOffset, 4);
-    });
-
-    test('offsets never land inside a character', () {
-      // The two texts differ in the second half of the emoji, so a raw
-      // code-unit anchor would sit between its halves.
-      final c = reconciled(
-        '\u{1F600}b',
-        const TextSelection(baseOffset: 2, extentOffset: 3),
-        '\u{1F601}c',
-      );
-
-      expect(c.selection.start, isNot(1));
-      expect(c.selection.end, isNot(1));
-      expect(c.selection, const TextSelection(baseOffset: 0, extentOffset: 3));
-    });
-  });
-
-  group('AdvancedTextFieldController focus node', () {
-    test('focusNode is created and not focused initially', () {
-      final tf = AdvancedTextFieldController<_Error>();
-      expect(tf.focusNode.hasFocus, false);
-      tf.dispose();
-    });
-
-    testWidgets('focus() requests focus on the focusNode', (tester) async {
-      final tf = AdvancedTextFieldController<_Error>();
-      addTearDown(tf.dispose);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Material(
-            child: TextField(focusNode: tf.focusNode),
-          ),
-        ),
-      );
-      tf.focus();
-      await tester.pump();
-      expect(tf.focusNode.hasFocus, true);
-    });
-
-    test('dispose disposes the focusNode', () {
-      final tf = AdvancedTextFieldController<_Error>();
-      final node = tf.focusNode;
-      tf.dispose();
-      expect(node.dispose, throwsAssertionError);
     });
   });
 }

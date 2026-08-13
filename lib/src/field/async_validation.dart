@@ -49,6 +49,12 @@ class AsyncValidationFailure {
 
 /// Everything a field needs to validate its value asynchronously.
 ///
+/// One run of [validator] over one value is a **round**. It starts when the
+/// value changes or [AdvancedFieldController.validate] is called, and it ends
+/// with an answer, with a failure, or dropped because a newer value arrived. A
+/// field runs at most one round at a time — a new value replaces the round in
+/// progress instead of queueing a second one.
+///
 /// The validator is treated as a function of the value: while a settled verdict
 /// still describes the value the field holds, it is reused instead of calling
 /// [validator] again. A check depending on state outside the value must be

@@ -67,7 +67,7 @@ Future<void> submit() async {       // 0.2.0
 
 Calling it again before the first call finishes gives you the same result, so a double-tapped submit button runs one pass. For a synchronous "can I enable the button?" read, use `form.value.canSubmit` — a snapshot of *known* errors, true on a form nobody has checked yet.
 
-**`autovalidate` now controls the async validator too.** In 0.1.x `setValue` ran it whether or not autovalidate was on, so a form nobody had submitted still made network calls, and `validate()` never reached an async validator. Now one rule covers both: `autovalidate` decides whether changing the value validates, and the sync validator runs first with the async one only if sync passed.
+**`autovalidate` now controls the async validator too.** In 0.1.x `setValue` ran it whether or not autovalidate was on, so a form nobody had submitted still ran async validators, and `validate()` never reached an async validator. Now one rule covers both: `autovalidate` decides whether changing the value validates, and the sync validator runs first with the async one only if sync passed.
 
 **A throwing async validator no longer hangs the field.** In 0.1.x an exception from `asyncValidator` left the internal `Completer` uncompleted, so the field stayed in `FieldStatus.validating` indefinitely and the exception surfaced as an uncaught async error. In 0.2.0 the field moves to `FieldStatus.failedValidation` and the exception is reported through `FlutterError.reportError`, or through `AsyncValidation.onFailure` if you supply a handler. A failed field is not valid — `validate()` returns `false`, so a failed availability check cannot let a submit through. It is not sticky: the next `validate()` re-runs the round.
 
@@ -98,7 +98,7 @@ field.reset();               // 0.2.0: value and errors only; flags survive
 
 **`reset()` keeps `autovalidate` and `readOnly`.** 0.1.x rebuilt a default state, so `form.resetAll()` unlocked fields business logic had locked and silently undid the autovalidate `form.validate()` had escalated. Call `setAutovalidate` / `unmarkReadOnly` explicitly if you relied on that.
 
-**`subscribeToFields` re-runs the sync validator only.** The dependent field's own value did not change, so its last async answer still stands and no network call is owed. It does nothing while that field's `autovalidate` is off. With it on, `validationError` is rewritten, so a code you pushed there with `setError` gives way to whatever the validator now returns — as in 0.1.x. The same goes for `validateWithAutovalidate()` and `validateAll: true`, which reach every field in the tree rather than the dependencies you named.
+**`subscribeToFields` re-runs the sync validator only.** The dependent field's own value did not change, so its last async answer still stands and no async check is owed. It does nothing while that field's `autovalidate` is off. With it on, `validationError` is rewritten, so a code you pushed there with `setError` gives way to whatever the validator now returns — as in 0.1.x. The same goes for `validateWithAutovalidate()` and `validateAll: true`, which reach every field in the tree rather than the dependencies you named.
 
 **`subscribeToFields` fires more eagerly.** 0.1.x combined the observed fields with `Rx.combineLatest`, so nothing fired until *every* observed field had emitted at least once, and the first emission always passed `.distinct()` even for a status-only change. 0.2.0 compares each observed field's value against a cached baseline: it fires on the first value change to any one field, and never on a status-only change. Dependent fields that appeared not to revalidate in 0.1.x now will.
 
@@ -315,6 +315,25 @@ class QuantityFieldController                                    // was: Quantit
 ```
 
 If the field holds a `String` and its widget binds a text controller, extend `AdvancedTextFieldController<E>` rather than `AdvancedFieldController<String, E>` — you get `textController` and `focusNode` with it.
+
+### The protected `emit` is gone
+
+`FieldCubit` subclasses wrote state with the `emit` they inherited from `Cubit`, usually to set a value and an error in one go:
+
+```dart
+emit(state.copyWith(value: newValue, validationError: MyError.rejected));   // 0.1.x
+```
+
+There is no replacement, protected or public. Write the two parts through the public methods instead:
+
+```dart
+setValue(newValue);              // clears both errors, then validates if the gate is open
+setError(MyError.rejected);      // pushes the error back on
+```
+
+Two differences to plan for. Each call notifies, so listeners see an intermediate state — bind widgets to `state.error` and they render blank for one frame in between. And `setValue` runs the validators when `autovalidate` is on, so a validator that disagrees overwrites the error you push next; `setError` aborts a running async check, so the order above is the one that holds.
+
+`onChange` and the `Change` class are gone as well — a `ChangeNotifier` reports that something changed, not what. Diff it yourself in a listener, as in [section 6](#6-form-listenables-instead-of-streams).
 
 ### Replacing cubit-stream patterns
 

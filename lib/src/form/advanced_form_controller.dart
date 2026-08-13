@@ -66,19 +66,24 @@ class AdvancedFormController
   /// Replaces any earlier registration: those fields stop validating and
   /// notifying, but are still disposed with this form.
   ///
-  /// Throws a [StateError] if this form has already been disposed — disposed
-  /// controllers cannot be reused.
+  /// Throws a [StateError] if this form or any of the [fields] has already been
+  /// disposed — disposed controllers cannot be reused.
   void registerFields(List<AdvancedFieldController<dynamic, dynamic>> fields) {
     if (isDisposed) {
       throw StateError(
         'Cannot register fields on a disposed AdvancedFormController.',
       );
     }
+    if (fields.any((field) => field.isDisposed)) {
+      throw StateError(
+        'Cannot register a disposed AdvancedFieldController.',
+      );
+    }
 
     _runChildCleanups();
     // `value.fields` is replaced while `_ownedFields` accumulates, on purpose:
     // a replaced batch stops participating but is still disposed with the form.
-    _setState(value.copyWith(fields: fields));
+    _setState(value._copyWith(fields: fields));
 
     _ownedFields.addAll(fields);
     _initialFieldsState = getFieldValues();
@@ -116,12 +121,12 @@ class AdvancedFormController
     if (isDisposed) {
       return Future.value(false);
     }
+    if (!value.validationEnabled) {
+      return Future.value(true);
+    }
 
     if (enableAutovalidate) {
       setAutovalidate(true);
-    }
-    if (!value.validationEnabled) {
-      return Future.value(true);
     }
 
     return _validateCall.run(
@@ -132,7 +137,7 @@ class AdvancedFormController
   /// Re-runs the **sync** validator on every leaf field whose gate is open.
   ///
   /// Deliberately not [validate]: a sibling's edit does not change a field's own
-  /// value, so no network call is owed and a settled async answer still stands.
+  /// value, so no async check is owed and a settled async answer still stands.
   /// Read-only fields are included — freezing a value does not stop its rule
   /// from being re-evaluated.
   void validateWithAutovalidate() => _broadcast(
@@ -191,7 +196,7 @@ class AdvancedFormController
     }
 
     _runChildCleanups();
-    _setState(value.copyWith(subforms: {...value.subforms, form}));
+    _setState(value._copyWith(subforms: {...value.subforms, form}));
     _wireChildren();
     _recomputeWasModified();
   }
@@ -215,7 +220,7 @@ class AdvancedFormController
     }
 
     _runChildCleanups();
-    _setState(value.copyWith(subforms: {...value.subforms}..remove(form)));
+    _setState(value._copyWith(subforms: {...value.subforms}..remove(form)));
     if (close) {
       form.dispose();
     }
@@ -238,7 +243,7 @@ class AdvancedFormController
     if (validationEnabled == value.validationEnabled) {
       return;
     }
-    _setState(value.copyWith(validationEnabled: validationEnabled));
+    _setState(value._copyWith(validationEnabled: validationEnabled));
     if (validationEnabled) {
       validateWithAutovalidate();
     } else {
@@ -345,7 +350,7 @@ class AdvancedFormController
         .equals(_initialFieldsState, getFieldValues());
 
     _setState(
-      value.copyWith(wasModified: subformsWereModified || fieldsWereModified),
+      value._copyWith(wasModified: subformsWereModified || fieldsWereModified),
     );
   }
 
@@ -414,8 +419,7 @@ class AdvancedFormState with Equatable {
               if (field.value.error case final error?) field: error,
           };
 
-  /// Returns a copy of this state with the given fields replaced.
-  AdvancedFormState copyWith({
+  AdvancedFormState _copyWith({
     bool? wasModified,
     List<AdvancedFieldController<dynamic, dynamic>>? fields,
     Set<AdvancedFormController>? subforms,

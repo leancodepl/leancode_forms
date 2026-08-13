@@ -133,7 +133,7 @@ With `provider`, `context.select<SignupFormController, bool>((c) => c.value.vali
 
 To react outside a builder, `form.onValuesChanged` and `form.onStatusChanged` are `Listenable`s covering the whole tree, subforms included. Pass a named callback so you can `removeListener` it later.
 
-`AdvancedFormController` takes two optional constructor arguments: `debugName`, a label for logging across nested subforms, and `validateAll` — when true, a change to any field re-runs the **sync** validator on every *other* autovalidating field, which is what you want when fields validate against each other. No async check is restarted: a field whose own value did not change keeps its last answer, so typing costs nothing on the network. It is the blunt version of `subscribeToFields`, reaching the whole tree instead of the dependencies you name.
+`AdvancedFormController` takes two optional constructor arguments: `debugName`, a label for logging across nested subforms, and `validateAll` — when true, a change to any field re-runs the **sync** validator on every *other* autovalidating field, which is what you want when fields validate against each other. No async check is restarted: a field whose own value did not change keeps its last answer, so typing starts no async checks. It is the blunt version of `subscribeToFields`, reaching the whole tree instead of the dependencies you name.
 
 ## Validation
 
@@ -158,7 +158,7 @@ Two rules cover every case:
 
 | `autovalidate` | on `setValue` | on `await validate()` |
 | --- | --- | --- |
-| `false` | Store the value, clear both errors. Nothing runs — a form nobody has submitted makes no network calls | Sync; async only if sync passed |
+| `false` | Store the value, clear both errors. Nothing runs — a form nobody has submitted runs no async checks | Sync; async only if sync passed |
 | `true` | Sync; async only if sync passed (async debounced) | Sync; async only if sync passed (async immediate) |
 
 So you control *when* validators run:
@@ -252,7 +252,7 @@ late final repeatPassword = AdvancedTextFieldController(
 
 Status changes on the observed fields — an async validator starting, say — are filtered out, so dependent fields don't churn for nothing. Nothing happens at all while this field's gate is closed. With the gate open `validationError` is rewritten, so an error pushed in with `setError` gives way to whatever the validator now returns.
 
-The async validator is deliberately *not* re-run: this field's own value did not change, so its last answer is still current and no network call is owed.
+The async validator is deliberately *not* re-run: this field's own value did not change, so its last answer is still current and no async check is owed.
 
 It does exactly one thing: **re-run this field's sync validator.** It does not copy or derive values. For "when B changes, set A" — recompute a total, mirror one field into another, clear a dependent selection — use `addListener` and `setValue`:
 

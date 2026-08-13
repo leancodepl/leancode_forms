@@ -46,18 +46,15 @@ class AdvancedTextFieldController<E extends Object>
     );
   }
 
-  /// True while [_reconcile] is writing to [textController], so the write does
-  /// not come back through [_onTextControllerChanged] as user input.
-  bool _reconciling = false;
-
+  // Writing to `textController` notifies this method again, in the same turn.
+  // That re-entry stops here rather than looping, because [_reconcile] only ever
+  // writes [fieldValue] itself, so the texts match by the time it runs. Keep
+  // that true of any new write.
   void _onTextControllerChanged() {
-    if (_reconciling) {
-      return;
-    }
     if (textController.text != fieldValue) {
       setValue(textController.text);
-      // The field may have refused the write — read-only, or a subclass
-      // transformed the value — so reconcile in the same turn.
+      // The field may not store the text as given: it can be read-only, or a
+      // subclass can transform the value. Put the text back in step now.
       _reconcile();
     }
   }
@@ -69,12 +66,10 @@ class AdvancedTextFieldController<E extends Object>
       return;
     }
 
-    _reconciling = true;
     textController.value = TextEditingValue(
       text: text,
       selection: _mapSelection(textController.selection, oldText, text),
     );
-    _reconciling = false;
   }
 
   // Moves a selection from `oldText` onto `newText` so that it keeps covering

@@ -86,7 +86,7 @@ class AdvancedFieldController<T, E extends Object>
   ///
   /// Both errors are cleared, because they described the old value. If the gate
   /// is open the validators run; if it is closed nothing runs, so a form nobody
-  /// has submitted yet makes no network calls.
+  /// has submitted yet starts no async checks.
   void setValue(T newValue, {bool force = false}) {
     if (_value.readOnly && !force) {
       return;
@@ -139,8 +139,8 @@ class AdvancedFieldController<T, E extends Object>
   /// Runs a full validation round on the current value and reports whether the
   /// field ended up [AdvancedFieldState.isValid].
   ///
-  /// The sync validator runs first; if it fails, `false` is returned with no
-  /// network call.
+  /// The sync validator runs first; if it fails, `false` is returned and the
+  /// async validator does not run.
   ///
   /// If it passes, exactly one of four things happens, in this order:
   ///
@@ -219,9 +219,19 @@ class AdvancedFieldController<T, E extends Object>
   /// all. With it open [AdvancedFieldState.validationError] is rewritten, so a
   /// code pushed there with [setError] gives way to whatever the validator now
   /// returns.
+  ///
+  /// The subscription is dropped on [dispose]. Throws a [StateError] if this
+  /// field has already been disposed — otherwise the listeners it attaches to
+  /// the live [fields] would never be removed.
   void subscribeToFields(
     List<AdvancedFieldController<dynamic, dynamic>> fields,
   ) {
+    if (_isDisposed) {
+      throw StateError(
+        'Cannot subscribe a disposed AdvancedFieldController to fields.',
+      );
+    }
+
     _fieldsSubscriptionCleanup?.call();
 
     var lastValues = <dynamic>[for (final f in fields) f.value.value];
@@ -249,7 +259,7 @@ class AdvancedFieldController<T, E extends Object>
   ///
   /// This is what a dependency's change means for this field: its own value did
   /// not change, so [AdvancedFieldState.asyncError], the verdict and
-  /// [lastFailure] are left alone and no network call is owed. Read-only fields
+  /// [lastFailure] are left alone and no async check is owed. Read-only fields
   /// are included — freezing a value does not stop its rule from being
   /// re-evaluated.
   ///
@@ -285,7 +295,7 @@ class AdvancedFieldController<T, E extends Object>
     final validationError = _validator(_value.value);
 
     if (validationError != null) {
-      // Nothing is owed to the network for a value already known bad. The
+      // No async check is owed for a value already known bad. The
       // verdict survives — the value did not change.
       _abortRound();
       _setState(
@@ -318,11 +328,7 @@ class AdvancedFieldController<T, E extends Object>
     return _report(await _beginRound(_value.value, debounced: false).done);
   }
 
-  // A superseded round cannot report success, and neither can a failed one —
-  // `failedValidation` is not `isValid`. Every conjunct is load-bearing:
-  // without `notSuperseded`, a round cancelled into a valid state (say by
-  // `clearErrors`) passes; without `isValid`, an invalid or failed round does;
-  // without `!_isDisposed`, a round that settled just before disposal does.
+  // Turns the outcome of a round into what [validate] returns.
   bool _report(bool notSuperseded) =>
       !_isDisposed && notSuperseded && _value.isValid;
 

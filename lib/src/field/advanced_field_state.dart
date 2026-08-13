@@ -120,6 +120,4 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
       ];
 }
 
-enum _Unset { unset }
-
-const _unset = _Unset.unset;
+const _unset = Object();

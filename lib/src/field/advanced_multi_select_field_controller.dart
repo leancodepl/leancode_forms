@@ -7,6 +7,7 @@ class AdvancedMultiSelectFieldController<V, E extends Object>
   AdvancedMultiSelectFieldController({
     required super.initialValue,
     super.validator,
+    super.asyncValidation,
     required this.options,
     super.name,
   });
