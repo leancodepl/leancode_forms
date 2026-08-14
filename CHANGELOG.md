@@ -2,8 +2,11 @@
 
 > Upgrading from 0.1.x? See [MIGRATION.md](./MIGRATION.md) for a step-by-step guide.
 
-* **Breaking:** We've rebuilt the library on `ChangeNotifier` / `ValueListenable`. That means `flutter_bloc` and `rxdart` are no longer dependencies.
-* **Breaking:** Renamed core classes:
+### Breaking changes
+
+* Minimum Flutter is now 3.13.0 (was 3.10.0).
+* Rebuilt on `ChangeNotifier` / `ValueListenable`, so `flutter_bloc` and `rxdart` are no longer dependencies.
+* Renamed the core classes:
   * `FieldCubit` → `AdvancedFieldController`
   * `TextFieldCubit` → `AdvancedTextFieldController`
   * `BooleanFieldCubit` → `AdvancedBooleanFieldController`
@@ -13,39 +16,48 @@
   * `FieldState` → `AdvancedFieldState`
   * `FormGroupState` → `AdvancedFormState`
   * `FieldBuilder` → `AdvancedFieldBuilder`
-* **Breaking:** `AdvancedFieldBuilder` is now a thin wrapper around `ValueListenableBuilder` instead of `BlocBuilder`. The `field:` parameter is typed `AdvancedFieldController<T, E>`, and `builder` is a `ValueWidgetBuilder`, so it takes a third `child` parameter. You can also use `ValueListenableBuilder` directly.
-* **Breaking:** Lifecycle method renamed from `close()` to `dispose()` on both controllers.
-* **Breaking:** The `asyncValidator` and `asyncValidationDebounce` parameters are replaced by a single `asyncValidation: AsyncValidation(validator:, debounce:, timeout:, onFailure:, failureToError:)`.
-* **Breaking:** `validate()` returns `Future<bool>` on both controllers and now runs the async validators. **Await it** — the result is the only thing that says the values were checked.
-* **Breaking:** `form.validate()` on a form with `validationEnabled: false` no longer turns autovalidate on. It still returns `true` without validating, but it now leaves the gates as it found them — previously it opened every gate in the tree, so the next keystroke ran the async validators the caller had just disabled and left the form unable to submit.
-* **Breaking:** `reset()` keeps `autovalidate` and `readOnly`. Previously `form.resetAll()` unlocked fields your code had locked, and undid the autovalidate that `form.validate()` turned on.
-* **Breaking:** `setError(null)` clears `validationError` and the status follows, instead of leaving the field `invalid` with nothing to show. This is what makes "apply the server's response to every field" work. It leaves `asyncError` alone — use `clearErrors()` for both.
-* **Breaking:** `removeSubform` returns `void`. Disposal is synchronous now, so drop the `await` — in 0.1.x it waited for every field and nested subform to close.
-* **Breaking:** `registerFields`, `setValidationEnabled` and `removeSubform` throw a `StateError` on a disposed form, as `addSubform` already did.
-* **Breaking:** `FieldStatus` has a new `failedValidation` value, for a check that could not run. Exhaustive `switch`es over `FieldStatus` need an arm for it.
-* **Breaking:** `AdvancedFormState.validationErrors` is keyed on `AdvancedFieldState.error`, so a field invalid from an async check now appears in an error summary.
-* **Breaking:** `select` and `addValue` assert that the value is one of `options`, and so does `toggleElement` when it adds. Seeding a selection before `options` is filled now throws in debug builds.
-* An error never outlives the value it described. Changing the value clears both errors, and so does starting a check — so the message goes blank while a check runs, then comes back if the answer is still bad. Render `state.error` only when `!state.isInProgress` to hold the old text instead.
-* Cross-field checks re-run the **sync** validator only, both through `subscribeToFields` and through `validateAll: true`. The field's own value did not change, so its last answer still stands and no async check is owed. 0.1.x skipped fields that already carried an async error, so a cross-field rule stopped being re-evaluated once a server check had failed.
+* Renamed `close()` to `dispose()` on both controllers, and removed the `Disposable` mixin.
+* `AdvancedFieldBuilder` wraps `ValueListenableBuilder` instead of `BlocBuilder`, so `builder` is a `ValueWidgetBuilder` and takes a third `child` parameter. `ValueListenableBuilder` works directly too.
+* Replaced `asyncValidator` and `asyncValidationDebounce` with `asyncValidation: AsyncValidation(validator:, debounce:, timeout:, onFailure:, failureToError:)`.
+* `validate()` returns `Future<bool>` on both controllers and now runs the async validators. **Await it.**
+* `form.validate()` on a form with `validationEnabled: false` returns `true` without validating and leaves the autovalidate gates as it found them.
+* `reset()` keeps `autovalidate` and `readOnly`.
+* `setError(null)` clears `validationError` and the status follows, instead of leaving the field `invalid` with nothing to show. It leaves `asyncError` alone — use `clearErrors()` for both.
+* An error never outlives the value it described: changing the value clears both errors, and so does starting a check.
+* `removeSubform` returns `void` — drop the `await`.
+* A disposed controller throws a `StateError` from `registerFields`, `setValidationEnabled`, `addSubform`, `removeSubform` and `subscribeToFields`.
+* `FieldStatus` has a new `failedValidation` value, for a check that could not run. Exhaustive `switch`es need an arm for it.
+* `AdvancedFormState.validationErrors` reports each field's `error` (sync **or** async) instead of `validationError`.
+* `select` and `addValue` assert that the value is one of `options`, and so does `toggleElement` when it adds.
+* `onValuesChangedStream` / `onStatusChangedStream` are now the `Listenable`s `onValuesChanged` / `onStatusChanged`. `onStatusChanged` carries no payload.
+* Removed `clear()` from the text, single-select, and multi-select controllers — call `reset()`.
+
+### Added
+
+* `AsyncValidation.timeout` bounds how long a check may run (default: no bound), and `AsyncValidation.failureToError` turns a failed check into a displayable error code.
+* `AdvancedFieldController.lastFailure` carries the exception, its stack trace, and whether the check timed out.
+* `AdvancedFormState.canSubmit` and `AdvancedFormState.hasFailedValidation` report submit readiness and failed checks across the whole form.
+* The single-select and multi-select controllers accept `asyncValidation`, which they could not before.
+* `AdvancedTextFieldController` owns a `TextEditingController` (`field.textController`) kept in two-way sync with the value, and a `FocusNode` (`field.focusNode`) with a `focus()` shortcut.
+* `AdvancedFieldController` gained an optional `String? name` for debugging, logging, and serialization.
+* `AdvancedFieldController.revalidateSync()` re-runs the sync validator when the field's gate is open, for custom cross-field wiring.
+
+### Changed
+
+* Cross-field checks re-run the **sync** validator only, both through `subscribeToFields` and through `validateAll: true`.
 * A settled async answer is reused while it still describes the value, so a second submit press on an unchanged form runs no async validators.
-* Added `AsyncValidation.timeout` (default: no bound) and `AsyncValidation.failureToError` for an opt-in displayable code; `AdvancedFieldController.lastFailure` carrying the exception, its stack trace and whether it timed out; `AdvancedFormState.canSubmit` and `AdvancedFormState.hasFailedValidation`.
-* `AdvancedSingleSelectFieldController` and `AdvancedMultiSelectFieldController` accept `asyncValidation`, as the text and boolean controllers already did. A select field could not be async-validated at all before.
-* **Breaking:** `registerFields` throws a `StateError` when one of the fields has been disposed, as `addSubform` already did for a disposed subform. Before, it accepted the field and failed later inside the form's own wiring.
-* **Breaking:** `subscribeToFields` throws a `StateError` on a disposed field. Before, it attached listeners that nothing would ever remove.
-* Fixed, in the async validation path:
-  * A result arriving late no longer overwrites a newer value, nor undoes `reset()`, `clearErrors()`, `setError()` or `setValidationEnabled(false)`.
-  * A validator that throws before its first `await` no longer leaves the field stuck on `validating` forever.
-  * `markReadOnly()` stops a running check, so a frozen field no longer goes on changing status by itself.
-  * Removing a subform while it was being checked no longer leaves the form stuck reporting `validating`.
-  * `addSubform` and `removeSubform` recompute `wasModified`, so a removed subform no longer latches the parent as modified forever.
-  * Text typed into a read-only text field is reverted at once, instead of staying on screen until some later change.
-* **Breaking:** `AdvancedFormController` exposes `onValuesChanged` and `onStatusChanged` as `Listenable`s (previously `Stream`s named `onValuesChangedStream` / `onStatusChangedStream`). `onStatusChanged` carries no payload, where `onStatusChangedStream` emitted the changed `FieldStatus`.
-* `AdvancedTextFieldController` now owns a `TextEditingController` (`field.textController`) kept in two-way sync with the field value. Widgets bind to it directly; programmatic changes (`setValue`, `reset`) propagate to the text controller, and user input propagates back. Removes the dual-write bug class around resetting fields, set-to-initial flows, etc.
-* `AdvancedTextFieldController` now owns a `FocusNode` (`field.focusNode`) and exposes a `focus()` shortcut. Enables scroll-to-first-invalid, sequential focus navigation, and programmatic focus from validators without subclassing.
-* `AdvancedFieldController` gained an optional `String? name` parameter for debugging, logging, and serialization.
-* `Disposable` mixin removed (lifecycle is handled by `ChangeNotifier.dispose`).
-* **Deprecated:** `AdvancedFieldController.stream` replaces the `stream` that `FieldCubit` inherited from `Cubit`, so stream-based code keeps compiling through the migration. It ships deprecated and will be removed in 0.3.0 — use `addListener`, `subscribeToFields`, or the builder widgets instead.
-* **Breaking:** Removed `clear()` from the text, single-select, and multi-select controllers — it only called `reset()`. Call `reset()` instead.
+
+### Fixed
+
+* An async result arriving late no longer overwrites a newer value, nor undoes `reset()`, `clearErrors()`, `setError()` or `setValidationEnabled(false)`.
+* A validator that throws before its first `await` no longer leaves the field stuck on `validating` forever.
+* `markReadOnly()` stops a running check, and removing a subform mid-check no longer leaves the form stuck reporting `validating`.
+* `addSubform` and `removeSubform` recompute `wasModified`, so a removed subform no longer latches the parent as modified.
+* Text typed into a read-only text field is reverted immediately.
+
+### Deprecated
+
+* `AdvancedFieldController.stream` replaces the `stream` that `FieldCubit` inherited from `Cubit`. It ships deprecated and is removed in 0.3.0 — use `addListener`, `subscribeToFields`, or the builder widgets.
 
 ## 0.1.2
 
@@ -57,7 +69,7 @@
 
 ## 0.1.0
 
-* Write README.md
+* Documented the public API in README.md.
 
 ## 0.0.1
 

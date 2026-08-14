@@ -1,6 +1,10 @@
+# leancode_forms
+
+[![pub package](https://img.shields.io/pub/v/leancode_forms.svg)](https://pub.dev/packages/leancode_forms)
+[![test](https://github.com/leancodepl/leancode_forms/actions/workflows/test.yml/badge.svg)](https://github.com/leancodepl/leancode_forms/actions/workflows/test.yml)
+
 Forms in Flutter without a framework on top. `leancode_forms` gives you typed field controllers, composable validation, and form-level state tracking.
 
-Fields and forms mix in `ChangeNotifier` and implement `ValueListenable`, both from the Flutter SDK — the only dependencies are `flutter` and `collection`. A field is an `AdvancedFieldController<T, E>`: `T` is your value type, `E` is *your* error type, so errors stay values you can translate, pattern-match, and test.
 
 ## Installation
 
@@ -36,13 +40,33 @@ class SignupFormController extends AdvancedFormController {
 ```
 
 ```dart
-Column(
-  children: [
-    _SignupTextField(field: form.firstName, label: 'First name'),
-    _SignupTextField(field: form.lastName, label: 'Last name'),
-    ElevatedButton(onPressed: form.submit, child: const Text('Submit')),
-  ],
-)
+class SignupForm extends StatefulWidget {
+  const SignupForm({super.key});
+
+  @override
+  State<SignupForm> createState() => _SignupFormState();
+}
+
+class _SignupFormState extends State<SignupForm> {
+  final _form = SignupFormController();
+
+  @override
+  void dispose() {
+    _form.dispose();   // disposes the registered fields too
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _SignupTextField(field: _form.firstName, label: 'First name'),
+        _SignupTextField(field: _form.lastName, label: 'Last name'),
+        ElevatedButton(onPressed: _form.submit, child: const Text('Submit')),
+      ],
+    );
+  }
+}
 ```
 
 ```dart
@@ -72,13 +96,13 @@ Two rules to remember:
 - **Call `registerFields()` once, with every field.** The form then owns their lifecycle — it disposes them, tracks whether anything was modified, and includes them in `validate()`, `resetAll()`, and the other form-wide operations. Calling it a second time *replaces* the field list, so the earlier batch stops participating while still being disposed at teardown.
 - **Bind widgets to `field.textController`**, not to a controller of your own. See [Rendering fields](#rendering-fields).
 
-Own the controller wherever you like — it's a `ChangeNotifier`, so a `StatefulWidget` or any DI package works. `ChangeNotifierProvider` from `provider` is one widget (`provider` is used in the snippets below; it is not a dependency of this package).
+Own the controller wherever you like — it's a `ChangeNotifier`, so any DI package works as well as the `StatefulWidget` above. `ChangeNotifierProvider` from `provider` is one widget, and it disposes the controller for you (`provider` is used in the snippets below; it is not a dependency of this package). Whoever owns the form controller disposes it, and that one call disposes the registered fields and the attached subforms.
 
 ## Where to next
 
-- [EXAMPLES.md](./EXAMPLES.md) — copy-paste recipes, from a single text field to derived-state listening.
 - [MIGRATION.md](./MIGRATION.md) — coming from 0.1.x.
-- `example/` — a runnable app where every pattern in these docs has a working screen.
+- `example/` — a runnable app where every pattern in these docs has a working screen. See [example/README.md](./example/README.md) for the screen guide.
+- [API reference](https://pub.dev/documentation/leancode_forms/latest/) — the generated dartdoc, for every member and its edge cases.
 
 ## Rendering fields
 
@@ -98,11 +122,11 @@ AdvancedFieldBuilder<String, MyError>(
 
 It wraps `ValueListenableBuilder`, so the SDK widget works too if you'd rather spell out `ValueListenableBuilder<AdvancedFieldState<String, MyError>>` — the wrapper exists to hide that type argument.
 
-Note what's *not* in the snippet: no `TextEditingController` allocation, no `onChanged`, no `initialValue` seeding. `AdvancedTextFieldController` owns its `TextEditingController` (`field.textController`) and keeps it in two-way sync — user input flows into the field state, and programmatic changes (`setValue`, `reset`) flow back into the visible text. It also owns a `FocusNode` (`field.focusNode`), so "jump to the first invalid field" is `field.focus()`.
+Note what's *not* in the snippet: no `TextEditingController` allocation, no `onChanged`, no `initialValue` seeding. `AdvancedTextFieldController` owns its `TextEditingController` (`field.textController`) and keeps it in two-way sync — user input flows into the field state, and programmatic changes (`setValue`, `reset`) flow back into the visible text. It also owns a `FocusNode` (`field.focusNode`), so "jump to the first invalid field" is `field.focus()`. Working example: the "Scroll Form" screen in the example app (`example/lib/screens/scroll_form.dart`).
 
 Rebuilds are granular by construction: each builder subscribes to one field, so a keystroke rebuilds that field's subtree and nothing else. `AdvancedFieldState` is value-equal, so setting a field to the value it already holds notifies nobody.
 
-`builder`'s third parameter is a `child:` you can pass for a subtree that doesn't depend on field state — built once and reused on every rebuild. See [EXAMPLES.md](./EXAMPLES.md#2-using-the-child-optimization), `example/lib/widgets/form_text_field_with_icon.dart`, and the "Optimized Rendering" screen in the example app.
+`builder`'s third parameter is a `child:` you can pass for a subtree that doesn't depend on field state — built once and reused on every rebuild. See `example/lib/widgets/form_text_field_with_icon.dart` and the "Optimized Rendering" screen in the example app.
 
 For parent widgets, grab the controller with `context.read<SignupFormController>()` — no subscription, no parent rebuilds — and let each field widget subscribe to its own field.
 
@@ -120,12 +144,12 @@ ValueListenableBuilder<AdvancedFormState>(
 );
 ```
 
-`AdvancedFormState` carries `wasModified` (any field changed since `registerFields`), `fields` / `subforms`, and `validationEnabled`. Four members are derived from the fields on every read, so they can never outlive the child that justified them:
+`AdvancedFormState` carries `wasModified` (any field changed since `registerFields`), `fields` / `subforms`, and `validationEnabled`. Four members are derived from the fields on every read, so they never report a field or subform that has since been removed:
 
 | Member | Meaning |
 | --- | --- |
 | `validating` | An async check is in flight somewhere in the tree |
-| `canSubmit` | Every field is `valid` **right now** — a snapshot of *known* errors, so it is true on a quiet form nobody has checked yet. `await form.validate()` is the guarantee |
+| `canSubmit` | Every field is `valid` **right now** — a snapshot of *known* errors, so it is true on a quiet form nobody has checked yet, and false while any check is pending or in flight. `await form.validate()` is the guarantee |
 | `hasFailedValidation` | Some field's async check could not run — it threw or timed out. Drives one form-level banner |
 | `validationErrors` | Every error in the form tree, sync or async, keyed by field, for an error summary |
 
@@ -137,13 +161,7 @@ To react outside a builder, `form.onValuesChanged` and `form.onStatusChanged` ar
 
 ## Validation
 
-A validator is a function: value in, error out, `null` means valid.
-
-```dart
-typedef Validator<T, E extends Object> = E? Function(T);
-```
-
-`E` is whatever type you choose — plain `String`s are fine to start, and a form can switch to an enum or sealed class later, independently of every other form:
+A validator is a function — the `Validator<T, E extends Object>` typedef, `E? Function(T)`: value in, error out, `null` means valid. `E` is whatever type you choose, so plain `String`s are fine to start and a form can switch to an enum or sealed class later, independently of every other form:
 
 ```dart
 final firstName = AdvancedTextFieldController(
@@ -153,46 +171,24 @@ final firstName = AdvancedTextFieldController(
 
 Two rules cover every case:
 
-1. **The gate decides when a round starts.** The gate is `autovalidate`, per field.
-2. **A round runs the sync validator first, and the async validator only if sync passed.**
+1. **The gate decides when a pass starts.** The gate is `autovalidate`, per field.
+2. **A pass runs the sync validator first, and the async validator only if sync passed.**
 
 | `autovalidate` | on `setValue` | on `await validate()` |
 | --- | --- | --- |
 | `false` | Store the value, clear both errors. Nothing runs — a form nobody has submitted runs no async checks | Sync; async only if sync passed |
 | `true` | Sync; async only if sync passed (async debounced) | Sync; async only if sync passed (async immediate) |
 
-So you control *when* validators run:
+So you control *when* validators run. `await form.validate()` walks every field and subform, runs their async validators too, returns `false` if anything is invalid, and turns autovalidate on for every field — quiet until the first submit, live feedback after. Pass `validate(enableAutovalidate: false)` to check without switching that on, or open the gates up front with `field.setAutovalidate(true)` / `form.setAutovalidate(true)`.
 
-- **On submit** — `await form.validate()` walks every field and subform, runs their async validators too, and returns `false` if anything is invalid. It also turns autovalidate on for all fields, which gives the usual UX: quiet until the first submit, live feedback after. Pass `validate(enableAutovalidate: false)` to check without switching that on.
-- **As the user types** — `field.setAutovalidate(true)`, or `form.setAutovalidate(true)` for all of them.
-
-`validate()` is asynchronous because it may have to wait on the server. **Await it** — the result is the only thing that says the values were actually checked. Calling it again before the first call finishes gives you the same result, so a double-tapped submit button runs one pass.
-
-```dart
-Future<void> submit() async {
-  if (await form.validate()) {
-    await api.signUp(...);
-  }
-}
-```
-
-The form-level result is just a `bool` — "may this submit proceed?". The errors themselves stay on the fields, where the widgets displaying them are already subscribed.
-
-Note that `valid` means *no error recorded*, not *checked and passed*: a field nobody has validated yet is `valid`, which is why `canSubmit` is fine for enabling a button but not for deciding a submit.
+**Await it**, as in [Your first form](#your-first-form) — the result is the only thing that says the values were actually checked. Calling it again before the first call finishes gives you the same result, so a double-tapped submit button runs one pass. The result is only a `bool`; the errors themselves stay on the fields, where the widgets displaying them are already subscribed. And `valid` means *no error recorded*, not *checked and passed*: a field nobody has validated yet is `valid`, which is why `canSubmit` is fine for enabling a button but not for deciding a submit.
 
 ### Ready-to-use validators
 
-- `filled` — rejects null and empty strings, including whitespace-only ones,
-- `notLongerThan` / `atLeastLength` — string length bounds,
-- `positiveInteger`, `nonNegativeInteger`, `boundedNonNegativeInteger` — integer strings,
-- `positiveDecimal`, `nonNegativeDecimal` — decimal strings,
-- `exactly` — requires an exact string match,
-- `notNull` — rejects null values,
-- `notEmpty` — rejects null and empty lists,
-- `nothing` — requires an empty string,
-- `and` / `or` — combine validators (also available as `&` and `|`),
-- `conditionalValidator` — runs a validator only while a condition holds,
-- `dynamicValidator` — builds the validator lazily on each run, for parameters that change at runtime.
+- `filled`, `notEmpty`, `notNull` — reject empty strings (whitespace-only included), empty lists, and nulls,
+- `notLongerThan`, `atLeastLength`, `exactly`, `nothing` — string length bounds, an exact match, and "must be empty",
+- `positiveInteger`, `nonNegativeInteger`, `boundedNonNegativeInteger`, `positiveDecimal`, `nonNegativeDecimal` — numeric strings,
+- `and` / `or` (also `&` and `|`), `conditionalValidator`, `dynamicValidator` — combine two validators, run one only while a condition holds, or rebuild one on each run for parameters that change at runtime.
 
 ```dart
 final email = AdvancedTextFieldController(
@@ -202,7 +198,7 @@ final email = AdvancedTextFieldController(
 
 ### Async validation
 
-Some checks live on the server — "is this username taken?". Pass an `asyncValidation`:
+Some checks live on the server — "is this username taken?". Pass an `asyncValidation`, which all four field controllers accept:
 
 ```dart
 final email = AdvancedTextFieldController(
@@ -217,27 +213,15 @@ final email = AdvancedTextFieldController(
 );
 ```
 
-- **Debouncing** — the validator waits for a pause in typing rather than firing on every keystroke. `validate()` ignores the debounce: a check that is still waiting is run at once.
-- **Cancellation** — the value changing, `setError`, `clearErrors`, `reset`, `markReadOnly` and `dispose` all kill a live round. A killed round can never write state again, and its later result is dropped.
-- **No wasted calls** — a settled answer is reused while it still describes the value the field holds, so a second submit press on an unchanged form makes no calls. The async validator is treated as a function of its value; a check that depends on state *outside* the value must be invalidated explicitly with `clearErrors()`.
-- **Status you can render** — the status walks `pending` → `validating` → `valid`/`invalid`, so a spinner is one `state.isInProgress` check.
-- **Submit safety** — `await validate()` waits for the answer rather than reporting the field bad for being busy.
+The pass is debounced, and `await validate()` runs a waiting check at once rather than reporting the field bad for being busy. Changing the value — or `setError`, `clearErrors`, `reset`, `markReadOnly`, `dispose` — kills a live pass, and its later result is dropped. A settled answer is reused while it still describes the value, so a second submit press on an unchanged form makes no calls; a check that depends on state *outside* the value must be invalidated with `clearErrors()`. The status walks `pending` → `validating` → `valid`/`invalid`, so a spinner is one `state.isInProgress` check.
 
-#### When the check itself falls over
+A validator that throws, or a pass that times out, is a *failure* — a technical fault, not a verdict on the value. The field lands on `FieldStatus.failedValidation` (`state.isFailedValidation`) instead of hanging on `validating`, it does not count as valid, and `form.value.hasFailedValidation` drives one banner for the whole form. Failure is not sticky, so the next `await validate()` retries it.
 
-An *error* is a code describing what is wrong with the value. A *failure* is the validator throwing, or its round timing out — a technical fault, not a verdict. The two are kept apart:
-
-- The field lands on `FieldStatus.failedValidation` (`state.isFailedValidation`) instead of hanging on `validating`, and it does not count as valid, so `validate()` returns `false`.
-- The exception goes to `AsyncValidation.onFailure`, or to `FlutterError.reportError` if you don't pass one.
-- `field.lastFailure` carries the exception, its stack trace and whether it timed out, for logs and crash reporting. It is diagnostic only and takes no part in state comparison or rebuilds.
-- `form.value.hasFailedValidation` drives one banner for the whole form. Per-field text is opt-in: pass `failureToError` to turn the exception into an error code, which then displays through the normal path.
-- Failure is **not sticky**. A failed round records no answer, so the next `await validate()` re-runs it — submit is the retry, and there is no separate API for it.
-
-Every field controller accepts `asyncValidation`. Working example: `SimpleFormScreen` in the example app.
+Every parameter is documented in the dartdoc on [`AsyncValidation`](https://pub.dev/documentation/leancode_forms/latest/leancode_forms/AsyncValidation-class.html). Working example: `SimpleFormScreen` in the example app.
 
 ### Validation that depends on another field
 
-`subscribeToFields` re-runs this field's **sync** validator whenever the fields it depends on change value:
+`subscribeToFields` re-runs this field's **sync** validator whenever the fields it depends on change value — that one thing, and nothing at all while this field's own gate is closed:
 
 ```dart
 final password = AdvancedTextFieldController(
@@ -249,10 +233,6 @@ late final repeatPassword = AdvancedTextFieldController(
       value == password.fieldValue ? null : 'Passwords do not match',
 )..subscribeToFields([password]);
 ```
-
-Status changes on the observed fields — an async validator starting, say — are filtered out, so dependent fields don't churn for nothing. Nothing happens at all while this field's gate is closed. With the gate open `validationError` is rewritten, so an error pushed in with `setError` gives way to whatever the validator now returns.
-
-The async validator is deliberately *not* re-run: this field's own value did not change, so its last answer is still current and no async check is owed.
 
 It does exactly one thing: **re-run this field's sync validator.** It does not copy or derive values. For "when B changes, set A" — recompute a total, mirror one field into another, clear a dependent selection — use the form's `addRelation`:
 
@@ -271,7 +251,7 @@ Working example: `PasswordFormScreen` in the example app.
 - `AdvancedSingleSelectFieldController` — one choice from `options` (dropdowns, radio groups),
 - `AdvancedMultiSelectFieldController` — a set of choices, with `toggleElement` / `addValue` / `removeValue`.
 
-All support `reset()`, `markReadOnly()` / `unmarkReadOnly()`, and both sync and async validation. The text and boolean controllers default their `initialValue`; the two select controllers require both `initialValue` and `options`. All accept an optional `name`, which labels the field in diagnostics and gives logging or serialization a stable handle.
+All support `reset()`, `markReadOnly()` / `unmarkReadOnly()`, and both sync and async validation. The text and boolean controllers default their `initialValue`; the two select controllers require both `initialValue` and `options`. All accept an optional `name`, which labels the field in diagnostics and gives logging or serialization a stable handle. Working example: `ComplexFormScreen` in the example app.
 
 ### Reading the current state
 
@@ -285,14 +265,8 @@ field.error;        // the current error, or null — short for field.value.erro
 ### Read-only fields and server-side errors
 
 ```dart
-field.markReadOnly();          // setValue becomes a no-op
-Switch(
-  value: state.value,
-  onChanged: field.getValueSetter(),   // null while read-only, so the widget disables itself
-);
-
+field.markReadOnly();                  // setValue becomes a no-op unless force: true
 field.setError(MyError.emailTaken);    // push an error in from outside, e.g. a server response
-field.setError(null);                  // clear validationError — status follows
 field.clearErrors();                   // clear everything, including the last async answer
 ```
 
@@ -304,7 +278,9 @@ field.clearErrors();                   // clear everything, including the last a
 
 `reset()` restores the initial value and clears both errors. It **keeps** `autovalidate` and `readOnly` — those are configuration, and configuration changes only through its own API.
 
-`AdvancedFormController` has `markReadOnly()`, `clearErrors()`, and `setValidationEnabled(bool)` for the whole tree. `example/lib/screens/quiz_form.dart` uses `setError` for server-returned errors.
+`AdvancedFormController` has `markReadOnly()`, `clearErrors()`, and `setValidationEnabled(bool)` for the whole tree.
+
+Working example: `QuizFormScreen` in the example app applies a server response with `setError`.
 
 ### Writing your own
 
@@ -327,10 +303,6 @@ class IntegerFieldController<E extends Object> extends AdvancedFieldController<i
 
 This is the intended way to use the library. `example/lib/controllers/password_field_controller.dart` is a text field whose error type is `List<ValidationError>`, so one field reports several rule violations at once.
 
-## Reusable field widgets
-
-The package deliberately ships no styled widgets — it gives you what a widget needs to bind to: the text controller, the focus node, the typed state, the error. For the extract-once pattern see [EXAMPLES.md](./EXAMPLES.md#5-a-reusable-custom-form-widget) and the full set in `example/lib/widgets/`, ready to copy and restyle.
-
 ## Subforms
 
 `addSubform` attaches another `AdvancedFormController` as a child, and its fields join the parent's `validate`, `markReadOnly`, `setValidationEnabled`, and the other broadcast operations. Use it for sections that appear dynamically, or to split a large form into readable pieces:
@@ -349,3 +321,13 @@ class BaseFormController extends AdvancedFormController {
 ```
 
 `void removeSubform(form, {bool close = true})` detaches a subform and disposes it unless you pass `close: false`. The parent disposes attached subforms in its own `dispose()`, so don't dispose them yourself as well. Calling `addSubform` with — or on — a disposed controller throws a descriptive `StateError` rather than crashing later, and so do `registerFields`, `setValidationEnabled` and `removeSubform` on one.
+
+Working examples: `DeliveryListFormScreen` (a dynamic list) and `ComplexFormScreen` (swapping one subform for another).
+
+## Reusable field widgets
+
+The package deliberately ships no styled widgets — it gives you what a widget needs to bind to: the text controller, the focus node, the typed state, the error. For the extract-once pattern see the full set in `example/lib/widgets/`, ready to copy and restyle.
+
+---
+
+Maintained by [LeanCode](https://leancode.co). Licensed under the [Apache License 2.0](./LICENSE).
