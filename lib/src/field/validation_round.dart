@@ -5,18 +5,17 @@ typedef _Result<E extends Object> = ({
   AsyncValidationFailure? failure,
 });
 
-// Driving the async side of validation: starting a round, letting it settle,
-// and deciding whose answer is allowed to reach the state. The round's own
-// state lives on the controller — see `_currentRound`, `_hasVerdict` and
-// `_lastFailure`.
+// Runs async validation: starts a pass, waits for the result, and writes it
+// only if still current. Round tracking lives on the controller (`_currentRound`,
+// `_hasVerdict`, `_lastFailure`).
 extension _ValidationRounds<T, E extends Object>
     on AdvancedFieldController<T, E> {
   Future<bool> _runValidate() async {
     final validationError = _validator(_value.value);
 
     if (validationError != null) {
-      // No async check is owed for a value already known bad. The
-      // verdict survives — the value did not change.
+      // Sync error already failed — skip async. Keep any existing async verdict
+      // since the value did not change.
       _abortRound();
       _setState(
         _value._copyWithNullable(
@@ -48,7 +47,7 @@ extension _ValidationRounds<T, E extends Object>
     return _roundResult(await _beginRound(_value.value, debounced: false).done);
   }
 
-  // Turns the outcome of a round into what [validate] returns.
+  // Maps this pass's result to what validate() returns.
   bool _roundResult(bool notSuperseded) =>
       !_isDisposed && notSuperseded && _value.isValid;
 
@@ -58,8 +57,8 @@ extension _ValidationRounds<T, E extends Object>
 
     final asyncValidation = _asyncValidation;
     if (debounced && asyncValidation != null) {
-      // The timer starts before any state is published, so a listener
-      // re-entering during the `pending` notification cannot orphan it.
+      // Start the debounce timer before publishing pending state, so a listener
+      // triggered by that update cannot start a second timer.
       round.startDebounce(asyncValidation.debounce, () => _run(round));
       _lastFailure = null;
       _clearTo(value, status: FieldStatus.pending);
@@ -72,8 +71,7 @@ extension _ValidationRounds<T, E extends Object>
 
   Future<void> _run(_ValidationRound<T, E> round) async {
     final asyncValidation = _asyncValidation;
-    // A round only ever starts when there is an async validator, so the null
-    // case is unreachable rather than handled.
+    // Rounds only start when an async validator exists — null here is unreachable.
     if (asyncValidation == null || !identical(_currentRound, round)) {
       return;
     }
@@ -93,8 +91,8 @@ extension _ValidationRounds<T, E extends Object>
     final result = await round.runValidator(asyncValidation);
     round.cancelTimers();
 
-    // `_currentRound` no longer points at this round, so a newer round replaced
-    // it or `_abortRound` dropped it. Its answer must not be written.
+    // A newer validation replaced this one, or it was cancelled — don't write
+    // a stale result.
     if (!identical(_currentRound, round)) {
       return;
     }
@@ -113,7 +111,7 @@ extension _ValidationRounds<T, E extends Object>
       return;
     }
 
-    // A failed round records no verdict, so the next `validate()` re-runs it.
+    // Validation failed — don't cache a verdict, so the next validate() retries.
     _lastFailure = failure;
     _setState(
       _value._copyWithNullable(
@@ -125,8 +123,8 @@ extension _ValidationRounds<T, E extends Object>
     unawaited(asyncValidation._reportFailure(failure, name));
   }
 
-  // `_currentRound` is the liveness token: a round that is no longer it can
-  // never write state again. Cancelling stops anything awaiting it from hanging.
+  // Only the current round may update state. Cancelling also unblocks callers
+  // waiting on validate().
   void _abortRound() {
     _lastFailure = null;
     _currentRound?.cancel();
@@ -134,8 +132,8 @@ extension _ValidationRounds<T, E extends Object>
   }
 }
 
-// One validation pass over one value, from the debounce to the answer. Settles
-// exactly once, so a cancelled round is a completed round.
+// One async validation pass for one value, from debounce through to result.
+// Completes exactly once — cancellation counts as completion.
 class _ValidationRound<T, E extends Object> {
   _ValidationRound({required this.value});
 
@@ -145,9 +143,8 @@ class _ValidationRound<T, E extends Object> {
   Timer? _debounceTimer;
   Timer? _timeoutTimer;
 
-  // False if the round was superseded, cancelled or disposed; true otherwise,
-  // including for a round that failed. A failure is caught by the status, not
-  // here.
+  // false if this pass was replaced or cancelled; true if it finished (even
+  // on validator failure — that shows up in field status, not here).
   Future<bool> get done => _done.future;
 
   bool get isDebouncing => _debounceTimer?.isActive ?? false;
@@ -155,8 +152,8 @@ class _ValidationRound<T, E extends Object> {
   void startDebounce(Duration delay, void Function() run) =>
       _debounceTimer = Timer(delay, run);
 
-  // `Future.any` handles and drops the loser's error, so a validator that
-  // throws after the timeout cannot escape as an unhandled async error.
+  // Future.any absorbs the losing future's error, so a late throw after
+  // timeout does not become an unhandled async error.
   Future<_Result<E>> runValidator(AsyncValidation<T, E> validation) async {
     final timedOut = Completer<E?>();
 
@@ -171,8 +168,8 @@ class _ValidationRound<T, E extends Object> {
     }
 
     try {
-      // `Future.sync` turns a synchronous throw into a rejected future, so the
-      // sync and async failure paths end up in the same `catch` below.
+      // Future.sync turns a sync throw into a rejected future, so both paths hit
+      // the same catch below.
       final verdict = await Future.any([
         Future.sync(() => validation.validator(value)),
         timedOut.future,
@@ -190,8 +187,7 @@ class _ValidationRound<T, E extends Object> {
     }
   }
 
-  // Cancels both timers: the debounce and, once [runValidator] has set it, the
-  // timeout.
+  // Stops the debounce timer and the timeout timer (if one was started).
   void cancelTimers() {
     _debounceTimer?.cancel();
     _debounceTimer = null;
@@ -199,10 +195,10 @@ class _ValidationRound<T, E extends Object> {
     _timeoutTimer = null;
   }
 
-  // The round ran to completion, whether the validator passed or failed.
+  // This pass finished — validator passed or failed.
   void finish() => _complete(true);
 
-  // The round was superseded, aborted or disposed, so it never had its say.
+  // This pass was replaced or cancelled before it could update the field.
   void cancel() => _complete(false);
 
   void _complete(bool notSuperseded) {

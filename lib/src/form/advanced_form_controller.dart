@@ -62,8 +62,8 @@ class AdvancedFormController
   // null: follow the parent form's mode. Non-null: this form manages its own.
   ValidationMode? _ownMode;
 
-  // This form's own validation switch, and what its parent form last sent.
-  // `value.validationEnabled` is the two of them agreeing.
+  // This form's own on/off switch and what the parent last sent.
+  // validationEnabled is true only when both are on.
   var _ownEnabled = true;
   var _parentEnabled = true;
 
@@ -71,8 +71,8 @@ class AdvancedFormController
   /// disposing them when this form is disposed. Their current values become the
   /// [AdvancedFormState.wasModified] baseline.
   ///
-  /// The tree's mode reaches the new fields at once; a de-registered field goes
-  /// quiet unless it manages its own mode.
+  /// The tree's mode is applied to new fields immediately. Removed fields stop
+  /// validating unless they have their own mode.
   ///
   /// Replaces any earlier registration: those fields stop validating and
   /// notifying, but are still disposed with this form.
@@ -94,13 +94,13 @@ class AdvancedFormController
     _runChildCleanups();
     for (final field in value.fields) {
       if (!fields.contains(field)) {
-        // `enabled: true` so a field with a mode of its own keeps it; the rest
-        // fall to `disabled`, as quiet as a field that was never registered.
+        // enabled: true keeps a field's own mode; others get disabled, same as
+        // if they were never registered.
         field.applyValidationMode(ValidationMode.disabled, enabled: true);
       }
     }
-    // `value.fields` is replaced while `_ownedFields` accumulates, on purpose:
-    // a replaced batch stops participating but is still disposed with the form.
+    // value.fields is replaced but _ownedFields keeps growing on purpose —
+    // deregistered fields stop participating but are still disposed with the form.
     _setState(value._copyWith(fields: fields));
 
     _ownedFields.addAll(fields);
@@ -129,11 +129,11 @@ class AdvancedFormController
   /// subtree with [AdvancedFormState.validationEnabled] false, `false` once
   /// disposed.
   ///
-  /// Calling this again before the first call finishes gives you the same
-  /// result; it does not start a second pass.
+  /// Calling this again before the first call finishes returns the same
+  /// result; it does not start a second validation run.
   Future<bool> validate() {
-    // Checked before the disposal guard: a form disposed mid-pass still owes
-    // that pass's answer to whoever asks for it.
+    // Check in-flight first — callers mid-disposal still get the running
+    // validate() result.
     if (_validateCall.inFlight case final inFlight?) {
       return inFlight;
     }
@@ -144,10 +144,9 @@ class AdvancedFormController
   /// Re-runs the **sync** validator on every leaf field in the tree that its
   /// mode and the interaction guarantee allow.
   ///
-  /// Deliberately not [validate]: a sibling's edit does not change a field's own
-  /// value, so no async check is owed and a settled async answer still stands.
-  /// Read-only fields are included — freezing a value does not stop its rule
-  /// from being re-evaluated.
+  /// Deliberately not [validate]: a sibling's edit does not change a field's
+  /// own value, so async validation is not re-run. Read-only fields are
+  /// included — freezing a value does not stop its rule from being re-evaluated.
   @override
   void revalidateSync() => _broadcast(
         (field) => field.revalidateSync(),
@@ -166,14 +165,14 @@ class AdvancedFormController
         (subform) => subform.unmarkReadOnly(),
       );
 
-  /// Sets when this tree's fields validate, and offers the same mode to every
-  /// subform. A child with a mode of its own keeps it. Validates nothing.
+  /// Sets validation mode for this tree and passes it to subforms. Subforms
+  /// with their own mode keep it. Does not trigger validation by itself.
   void setValidationMode(ValidationMode mode) {
     _ownMode = mode;
     _publishValidationMode(mode);
   }
 
-  /// Takes the mode and switch the parent offers; this form's own mode wins.
+  /// Applies the parent's mode and enabled flag; this form's own mode wins if set.
   @internal
   void applyValidationMode(ValidationMode mode, {required bool enabled}) {
     _parentEnabled = enabled;
@@ -246,8 +245,8 @@ class AdvancedFormController
     _recomputeWasModified();
   }
 
-  /// Turns validation of this whole subtree on or off — a switch above every
-  /// mode. See [AdvancedFormState.validationEnabled].
+  /// Turns validation for this whole subtree on or off — above every mode.
+  /// See [AdvancedFormState.validationEnabled].
   ///
   /// Throws a [StateError] if this form has already been disposed — disposed
   /// controllers cannot be reused.
@@ -282,8 +281,8 @@ class AdvancedFormController
   }
 
   Future<bool> _runValidate() async {
-    // A subtree that does not count is not validated, exactly as it is not
-    // counted by [AdvancedFormState.canSubmit] — so the two cannot disagree.
+    // Disabled subtrees skip validation, same as canSubmit ignores them —
+    // so validate() and canSubmit always agree.
     if (!value.validationEnabled) {
       return true;
     }
@@ -296,21 +295,21 @@ class AdvancedFormController
     return results.every((result) => result);
   }
 
-  // The one place this tree's mode and switch reach its children.
+  // The only place mode and enabled reach this tree's children.
   void _publishValidationMode(ValidationMode mode) {
     final enabled = _ownEnabled && _parentEnabled;
     final enabledChanged = enabled != value.validationEnabled;
 
     if (mode != value.validationMode || enabledChanged) {
-      // A pass in flight answered under settings that no longer hold.
+      // Settings changed — drop any validate() still running under the old ones.
       _validateCall.invalidate();
       _setState(
         value._copyWith(validationMode: mode, validationEnabled: enabled),
       );
     }
 
-    // Unconditional: the set of children may have changed while the mode did
-    // not. A child already in this mode ignores it, so a re-broadcast is free.
+    // Always sent to children — they may have changed even if mode did not.
+    // Already-correct children ignore it, so this is cheap.
     for (final field in value.fields) {
       field.applyValidationMode(mode, enabled: enabled);
     }
@@ -329,8 +328,8 @@ class AdvancedFormController
     }
   }
 
-  // Recurses through the subforms' own methods rather than flattening to
-  // `allFields`, so a subclass that overrides one of them still gets called.
+  // Calls each subform's method instead of flattening allFields, so
+  // subclasses that override still run.
   void _broadcast(
     void Function(AdvancedFieldController<dynamic, dynamic> field) onField,
     void Function(AdvancedFormController subform) onSubform,

@@ -1,7 +1,6 @@
 part of 'advanced_form_controller.dart';
 
-// The form's side of its children: the listeners it keeps on them, and what a
-// child's change means for the aggregates this form publishes.
+// Listeners on child fields and subforms, and what to update when they change.
 mixin _ChildWiring on ChangeNotifier {
   /// The current state of this form.
   AdvancedFormState get value;
@@ -36,9 +35,8 @@ mixin _ChildWiring on ChangeNotifier {
     for (final field in value.fields) {
       var lastValue = field.value.value;
       var lastStatus = field.value.status;
-      // The error is watched next to the status because swapping one error code
-      // for another leaves the status `invalid` while [validationErrors]
-      // changes. Together the two cover every aggregate derived from a field.
+      // Track error separately from status — swapping one error for another
+      // keeps status invalid but changes validationErrors.
       Object? lastError = field.value.error;
       void listener() {
         final state = field.value;

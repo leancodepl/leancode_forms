@@ -82,8 +82,8 @@ class AdvancedFieldController<T, E extends Object>
   // Whether a settled verdict still describes the value the field holds.
   bool _hasVerdict = false;
 
-  // Spec's guarantee: an unedited field validates nothing on its own. One-way —
-  // only `reset()` clears it — so no pipeline write can disarm it mid-repair.
+  // Set when the user first edits the field. Only reset() clears it.
+  // While false, the field skips validation triggered by its mode.
   bool _hasInteracted = false;
 
   // null: follow the form's mode. Non-null: this field manages its own.
@@ -107,7 +107,7 @@ class AdvancedFieldController<T, E extends Object>
     _abortRound();
     _hasVerdict = false;
 
-    if (!_validatesOn(ValidationEvent.valueChanged)) {
+    if (!_shouldValidateOn(ValidationEvent.valueChanged)) {
       _clearTo(newValue);
       return;
     }
@@ -147,19 +147,19 @@ class AdvancedFieldController<T, E extends Object>
     _clearTo(newValue);
   }
 
-  /// Tells the field the user has left it — what [ValidationMode.onUnfocus]
-  /// validates on. Bind [focusNode] and this is called for you; a picker or a
-  /// dropdown calls it by hand. A round waiting out its debounce runs at once,
-  /// in every mode, and a read-only field validates, matching [validate].
+  /// Called when the user leaves the field. This is what [ValidationMode.onUnfocus]
+  /// reacts to. With [focusNode] bound, focus loss calls this for you; pickers and
+  /// dropdowns must call it themselves. Runs pending debounce immediately and
+  /// validates read-only fields, same as [validate].
   @override
   void handleUnfocus() {
-    // Leaving means typing is over, so a round still waiting out its debounce
-    // runs now. Only `onUserInteraction` can have one waiting.
+    // User left the field — finish any debounced validation now.
+    // Only onUserInteraction mode debounces validation.
     if (_currentRound case final round? when round.isDebouncing) {
       unawaited(_run(round));
     }
 
-    if (!_validatesOn(ValidationEvent.unfocus)) {
+    if (!_shouldValidateOn(ValidationEvent.unfocus)) {
       return;
     }
 
@@ -208,15 +208,15 @@ class AdvancedFieldController<T, E extends Object>
   Future<bool> validate() =>
       _isDisposed ? Future.value(false) : _validateCall.run(_runValidate);
 
-  /// Sets when this field validates itself, whatever its form's mode says.
-  /// From here on a change of the form's mode leaves it alone; there is no way
-  /// back to following the form. Validates nothing by itself.
+  /// Gives this field its own validation mode, ignoring the form's from now on.
+  /// Cannot be undone — the field no longer follows form mode changes.
+  /// Does not trigger validation by itself.
   void setValidationMode(ValidationMode mode) {
     _ownMode = mode;
     _publishValidationMode(_parentEnabled ? mode : ValidationMode.disabled);
   }
 
-  /// Takes the mode and switch the form offers; a field's own mode wins.
+  /// Applies the form's mode and enabled flag; this field's own mode wins if set.
   @internal
   void applyValidationMode(ValidationMode mode, {required bool enabled}) {
     _parentEnabled = enabled;
@@ -225,9 +225,8 @@ class AdvancedFieldController<T, E extends Object>
     );
   }
 
-  // A re-broadcast of the same mode must cost nothing — a form republishes on
-  // every registration — and a round from the old mode must not land under the
-  // new one.
+  // No-op when mode is unchanged — forms send it again on every registration.
+  // When it changes, cancel any validation still running under the old mode.
   void _publishValidationMode(ValidationMode mode) {
     if (mode == _value.mode) {
       return;
@@ -285,8 +284,10 @@ class AdvancedFieldController<T, E extends Object>
   /// whenever any of their values change. Replaces any earlier subscription.
   ///
   /// The async validator is not re-run: this field's value did not change, so
-  /// its verdict stands. Subject to [revalidateSync]'s gate; when it runs,
-  /// [AdvancedFieldState.validationError] is rewritten over any [setError] code.
+  /// its verdict stands. While this field's gate is closed nothing happens at
+  /// all. With it open [AdvancedFieldState.validationError] is rewritten, so a
+  /// code pushed there with [setError] gives way to whatever the validator now
+  /// returns.
   ///
   /// The subscription is dropped on [dispose]. Throws a [StateError] if this
   /// field has already been disposed — otherwise the listeners it attaches to
@@ -333,7 +334,7 @@ class AdvancedFieldController<T, E extends Object>
   ///
   /// The mechanism behind [subscribeToFields] and the form's `revalidateSync`.
   void revalidateSync() {
-    if (_validatesOn(ValidationEvent.dependencyChanged)) {
+    if (_shouldValidateOn(ValidationEvent.dependencyChanged)) {
       _setSyncError(_validator(_value.value));
     }
   }
@@ -358,7 +359,7 @@ class AdvancedFieldController<T, E extends Object>
     super.dispose();
   }
 
-  bool _validatesOn(ValidationEvent event) =>
+  bool _shouldValidateOn(ValidationEvent event) =>
       validatesOn(event, mode: _value.mode, hasInteracted: _hasInteracted);
 
   // Publishes [value] with both errors cleared and the given status.
@@ -379,9 +380,8 @@ class AdvancedFieldController<T, E extends Object>
         ),
       );
 
-  // Two ways to re-derive a status. After an abort, a failed round's status
-  // survives (it must still block submit) and everything else comes from the
-  // errors. After a plain sync write, a live round keeps its status too.
+  // After abort: keep failedValidation so submit stays blocked; else use errors.
+  // After sync write: keep current status if validation is running or failed.
   FieldStatus get _statusAfterAbort => _value.isFailedValidation
       ? FieldStatus.failedValidation
       : _statusFromErrors(_value.validationError, _value.asyncError);

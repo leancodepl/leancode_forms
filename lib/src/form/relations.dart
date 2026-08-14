@@ -1,7 +1,7 @@
 part of 'advanced_form_controller.dart';
 
-// Listeners this form keeps on fields it does not own, for the sake of code
-// outside the form. Nothing here feeds the form's own state.
+// Listeners on fields this form does not own — for external callbacks only.
+// Does not update the form's own state.
 mixin _Relations on ChangeNotifier {
   /// Whether this controller has been disposed. Once true it stays true.
   bool get isDisposed;

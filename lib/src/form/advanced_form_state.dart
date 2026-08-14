@@ -4,8 +4,8 @@ part of 'advanced_form_controller.dart';
 /// owns, whether the user has changed anything, and whether validation applies.
 ///
 /// [validating], [hasFailedValidation], [canSubmit] and [validationErrors] are
-/// derived from the child controllers on every read, so they follow the live
-/// tree. Only the stored members take part in `==`.
+/// computed from child fields on every read, so they always reflect the live
+/// tree. Only the stored fields take part in `==`.
 class AdvancedFormState with Equatable {
   /// Creates a new [AdvancedFormState].
   const AdvancedFormState({
@@ -26,23 +26,22 @@ class AdvancedFormState with Equatable {
   /// Set of registered subforms. Reference equality is assumed.
   final Set<AdvancedFormController> subforms;
 
-  /// Whether this subtree counts at all. While false nothing in it validates,
-  /// [AdvancedFormController.validate] returns true for it, and its fields
-  /// count toward neither [canSubmit] nor [validationErrors]. Effective: false
-  /// while any ancestor's is.
+  /// Whether this subtree participates in validation. When false, nothing
+  /// validates, [AdvancedFormController.validate] returns true, and fields
+  /// are excluded from [canSubmit] and [validationErrors]. False if any
+  /// ancestor disabled validation.
   final bool validationEnabled;
 
-  /// When this tree's fields validate themselves. The **configured** mode, not
-  /// reduced by [validationEnabled] — [AdvancedFieldState.mode] is the reduced
-  /// one.
+  /// When fields in this tree validate themselves. Ignores [validationEnabled] —
+  /// see [AdvancedFieldState.mode] for the effective mode.
   final ValidationMode validationMode;
 
   /// This form's fields including every subform's fields.
   Iterable<AdvancedFieldController<dynamic, dynamic>> get allFields =>
       fields.followedBy(subforms.expand((e) => e.value.allFields));
 
-  // Every field in the tree minus the switched-off subtrees — exactly the ones
-  // [AdvancedFormController.validate] skips, so the two agree by construction.
+  // Fields that count — disabled subtrees excluded, matching what validate()
+  // checks, so validate() and canSubmit always agree.
   Iterable<AdvancedFieldController<dynamic, dynamic>> get _countedFields sync* {
     if (!validationEnabled) {
       return;
@@ -53,21 +52,20 @@ class AdvancedFormState with Equatable {
     }
   }
 
-  /// Whether an async round is pending or in flight anywhere in the tree.
+  /// Whether async validation is pending or running anywhere in the tree.
   bool get validating =>
       _countedFields.any((field) => field.value.isInProgress);
 
-  /// Whether some field's async check could not complete. Not sticky: the next
-  /// [AdvancedFormController.validate] retries every failed round.
+  /// Whether some field's async validation failed. Clears on the next
+  /// [AdvancedFormController.validate] call.
   bool get hasFailedValidation =>
       _countedFields.any((field) => field.value.isFailedValidation);
 
-  /// Whether every field in the tree is [FieldStatus.valid] right now.
+  /// Whether every field in the tree is valid right now.
   ///
-  /// Only known errors count, so it is true on a form where nothing has been
-  /// checked yet. It is false while any round is pending or validating. Use it
-  /// to enable a submit button, and run [AdvancedFormController.validate]
-  /// before you trust the values.
+  /// True when nothing has been checked yet — only known errors count. False
+  /// while validation is pending or running. Use to enable a submit button;
+  /// call [AdvancedFormController.validate] before trusting the values.
   bool get canSubmit => _countedFields.every((field) => field.value.isValid);
 
   /// Every error in the tree, keyed by field.
