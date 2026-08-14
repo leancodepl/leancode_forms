@@ -43,14 +43,16 @@ class PasswordForm extends StatelessWidget {
             code('subscribeToFields'),
             plain(' and re-validates whenever the password changes. The '
                 'username field demonstrates '),
-            bold('autovalidation'),
-            plain(': it only starts showing errors after losing focus '
-                'for the first time.'),
+            bold('a per-field validation mode'),
+            plain(': it switches itself to '),
+            code('ValidationMode.onUserInteraction'),
+            plain(' after losing focus for the first time.'),
           ]),
           FormTextField(
             field: controller.username,
             onUnfocus: () {
-              controller.username.setAutovalidate(true);
+              controller.username
+                  .setValidationMode(ValidationMode.onUserInteraction);
               unawaited(controller.username.validate());
             },
             translateError: validatorTranslator,
@@ -122,13 +124,13 @@ class PasswordFormController extends AdvancedFormController {
     lowerCaseRequired: true,
   );
 
-  // `subscribeToFields` + `autovalidate: true`:
+  // `subscribeToFields` + `ValidationMode.onUserInteraction`:
   // We expect: no validation fires until one of the subscribed fields' value
   // actually changes (state-only changes, like status updates, are ignored).
   late final repeatPassword = AdvancedTextFieldController<ValidationError>(
     validator: passwordMatch(password, ValidationError.doesNotMatch),
   )
-    ..setAutovalidate(true)
+    ..setValidationMode(ValidationMode.onUserInteraction)
     ..subscribeToFields([switchField, password]);
 
   Future<void> submit() async {

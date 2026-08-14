@@ -71,7 +71,6 @@ void main() {
       }
 
       await expectLater(call.run(body), throwsStateError);
-      expect(call.inFlight, isNull);
 
       expect(await call.run(body), 2);
     });
@@ -125,27 +124,63 @@ void main() {
       final result = call.run(() => throw failure);
 
       await expectLater(result, throwsA(same(failure)));
-      expect(call.inFlight, isNull);
       expect(await call.run(() async => 1), 1);
     });
   });
 
-  group('inFlight', () {
-    test('is null when nothing is running', () {
-      expect(call.inFlight, isNull);
+  group('invalidate', () {
+    test('makes the next caller start a fresh run', () async {
+      final gate = Completer<int>();
+      var calls = 0;
+      final first = call.run(() {
+        calls++;
+        return gate.future;
+      });
+
+      call.invalidate();
+      final second = call.run(() async => ++calls);
+
+      expect(identical(first, second), isFalse);
+      expect(await second, 2);
+
+      gate.complete(1);
+      expect(await first, 1);
     });
 
-    test('is the shared run until the body settles', () async {
+    test('still settles the callers already waiting on the old run', () async {
+      final gate = Completer<int>();
+      final first = call.run(() => gate.future);
+      final joined = call.run(() async => -1);
+
+      call.invalidate();
+      gate.complete(7);
+
+      expect(await first, 7);
+      expect(await joined, 7);
+    });
+
+    test('an invalidated run does not free the slot the new run took',
+        () async {
       final gate = Completer<int>();
       final first = call.run(() => gate.future);
 
-      // Callers that join through `inFlight` must get this exact future.
-      expect(identical(call.inFlight, first), isTrue);
+      call.invalidate();
+      final blocker = Completer<int>();
+      final second = call.run(() => blocker.future);
 
+      // The first run settles while the second still holds the slot, so a
+      // third caller must join the second rather than start over.
       gate.complete(1);
       await first;
 
-      expect(call.inFlight, isNull);
+      expect(identical(call.run(() async => -1), second), isTrue);
+      blocker.complete(2);
+      expect(await second, 2);
+    });
+
+    test('is a no-op when nothing is running', () async {
+      call.invalidate();
+      expect(await call.run(() async => 1), 1);
     });
   });
 }

@@ -5,7 +5,8 @@
 - `flutter_bloc` and `rxdart` are no longer dependencies. Fields and forms mix in `ChangeNotifier` and implement `ValueListenable`, both from the Flutter SDK, so the library no longer constrains the app's state-management stack.
 - Every `*Cubit` class is now an `Advanced*Controller` (`FieldCubit` → `AdvancedFieldController`). Most members carry over unchanged; [section 3](#3-behavior-changes-that-are-not-renames) covers the ones that don't.
 - Lifecycle is synchronous: `void dispose()` replaces `Future<void> close()`.
-- `AdvancedTextFieldController` owns its `TextEditingController` and `FocusNode`.
+- `AdvancedTextFieldController` owns its `TextEditingController`; every `AdvancedFieldController` owns a `FocusNode`.
+- The `autovalidate` flag is gone, replaced by `ValidationMode` ([section 3](#validation-modes-replace-autovalidate)).
 
 ## 1. Migration checklist
 
@@ -18,7 +19,8 @@
 7. Convert `close()` overrides to `dispose()`, and `addDisposable(...)` registrations to explicit cleanup ([section 7](#7-lifecycle-close--dispose)).
 8. Replace form-level stream subscriptions with listeners ([section 6](#6-form-listenables-instead-of-streams)).
 9. Rewire custom cubit-stream patterns ([section 9](#9-migrating-a-custom-field)).
-10. Check the behavior changes in [section 3](#3-behavior-changes-that-are-not-renames) against your code — they compile but behave differently.
+10. Replace `setAutovalidate` and `validate(enableAutovalidate:)` with a `ValidationMode` ([section 3](#validation-modes-replace-autovalidate)).
+11. Check the behavior changes in [section 3](#3-behavior-changes-that-are-not-renames) against your code — they compile but behave differently.
 
 ---
 
@@ -44,6 +46,10 @@
 | `form.onStatusChangedStream` (`Stream<FieldStatus>`) | `form.onStatusChanged` (`Listenable`, no payload) |
 | `BlocBuilder<FormGroupCubit, FormGroupState>` | `ValueListenableBuilder<AdvancedFormState>` — there is no `AdvancedFormBuilder` |
 | `FieldCubit.stream` (inherited from `Cubit`) | `AdvancedFieldController.stream` — deprecated extension, removed in 0.3.0 ([section 9](#9-migrating-a-custom-field)) |
+| `field.autovalidate` (`bool`) | `field.mode` (`ValidationMode`, default `disabled`) |
+| `field.setAutovalidate(bool)`, `form.setAutovalidate(bool)` | `setValidationMode(ValidationMode)` |
+| `form.validate({enableAutovalidate})` | `form.validate()` — no parameter, and it never changes the mode ([section 3](#validation-modes-replace-autovalidate)) |
+| `form.validateWithAutovalidate()` | `form.revalidateSync()` |
 | `Future<void> close()` | `void dispose()` |
 | `addDisposable(...)`, the `Disposable` mixin | **Removed** — override `dispose()` ([section 7](#7-lifecycle-close--dispose)) |
 
@@ -71,9 +77,29 @@ Future<void> submit() async {       // 0.2.0
 
 Calling it again before the first call finishes gives you the same result, so a double-tapped submit button runs one pass. For a synchronous "can I enable the button?" read, use `form.value.canSubmit` — a snapshot of *known* errors, true on a form nobody has checked yet.
 
-### `autovalidate` now controls the async validator too
+### Validation modes replace `autovalidate`
 
-In 0.1.x `setValue` ran it whether or not autovalidate was on, so a form nobody had submitted still ran async validators, and `validate()` never reached an async validator. Now one rule covers both: `autovalidate` decides whether changing the value validates, and the sync validator runs first with the async one only if sync passed.
+**`autovalidate` is now `ValidationMode`.** The bool was a two-way switch; the enum has three positions and lives on the form as well as the field.
+
+| mode | edit (`setValue`) | unfocus | dependency changed |
+| --- | --- | --- | --- |
+| `disabled` (default) | — | — | — |
+| `onUserInteraction` | validate | flush a waiting debounce | sync validator only |
+| `onUnfocus` | — | validate | sync validator only |
+
+**`ValidationMode.onUserInteraction` is what 0.1.x's `autovalidate: true` did.** Replace `setAutovalidate(true)` with `setValidationMode(ValidationMode.onUserInteraction)` and `setAutovalidate(false)` with `setValidationMode(ValidationMode.disabled)`. `AdvancedFormController(validationMode: ...)` sets it up front; on a subform, leave it null to follow the parent.
+
+**Submit no longer escalates.** 0.1.x `form.validate()` turned autovalidate on for every field, so "quiet until the first submit, live afterwards" came for free and `validate(enableAutovalidate: false)` was the way out. In 0.2.0 `validate()` takes no parameter, ignores the mode, and never changes it. To keep the old UX, call `setValidationMode(ValidationMode.onUserInteraction)` yourself after a failed submit.
+
+**Two rules hold above every mode.** `validate()` always runs everything, and a field the user has never edited (never `setValue`d) validates nothing on its own. Use `field.prefill(value)` for data the user did not type — it stores the value without counting as an interaction and without validating. `setValidationEnabled(false)` still outranks every mode for the whole subtree.
+
+**`onUnfocus` needs a bound `focusNode`.** `AdvancedFieldController` owns one, so bind `field.focusNode` in the widget; a picker or a dropdown that manages focus itself calls `field.handleUnfocus()` by hand. Without either, nothing tells the field the user left it and it never validates on its own.
+
+**A field can opt out of the form's mode.** `field.setValidationMode(mode)` makes that field manage its own mode from then on, and a form-level broadcast leaves it alone.
+
+**The mode now controls the async validator too.** In 0.1.x `setValue` ran it whether or not autovalidate was on, so a form nobody had submitted still ran async validators, and `validate()` never reached an async validator. Now one rule covers both: the mode decides whether an edit or a blur validates, and the sync validator runs first with the async one only if sync passed.
+
+### Other behavior changes
 
 ### A throwing async validator no longer hangs the field
 
@@ -108,18 +134,18 @@ field.setError(null);        // 0.2.0: clears validationError, status follows
 
 `setError` writes `validationError` only. If an async check recorded a code, `setError(null)` leaves it and the field stays `invalid` — call `clearErrors()` to clear both. 0.1.x wiped `asyncError` on every `setError`, so an async code could not survive a server-response pass.
 
-### `reset()` keeps `autovalidate` and `readOnly`
+### `reset()` keeps the validation mode and `readOnly`
 
-0.1.x rebuilt a default state, so `form.resetAll()` unlocked fields business logic had locked and silently undid the autovalidate `form.validate()` had escalated. Call `setAutovalidate` / `unmarkReadOnly` explicitly if you relied on that:
+0.1.x rebuilt a default state, so `form.resetAll()` unlocked fields business logic had locked and silently undid the autovalidate `form.validate()` had escalated. Call `setValidationMode` / `unmarkReadOnly` explicitly if you relied on that:
 
 ```dart
 field.reset();               // 0.1.x: also cleared autovalidate and readOnly
-field.reset();               // 0.2.0: value and errors only; flags survive
+field.reset();               // 0.2.0: value and errors only; mode and flags survive
 ```
 
 ### `subscribeToFields` re-runs the sync validator only
 
-The dependent field's own value did not change, so its last async answer still stands and no async check is owed. It does nothing while that field's `autovalidate` is off. With it on, `validationError` is rewritten, so a code you pushed there with `setError` gives way to whatever the validator now returns — as in 0.1.x. The same goes for `validateWithAutovalidate()` and `validateAll: true`, which reach every field in the tree rather than the dependencies you named.
+The dependent field's own value did not change, so its last async answer still stands and no async check is owed. It does nothing while that field's mode is `disabled`, or while the user has never edited it. Otherwise `validationError` is rewritten, so a code you pushed there with `setError` gives way to whatever the validator now returns — as in 0.1.x. The same goes for `revalidateSync()` and `validateAll: true`, which reach every field in the tree rather than the dependencies you named.
 
 ### `subscribeToFields` fires more eagerly
 
@@ -152,15 +178,17 @@ await removeSubform(subform);   // 0.1.x
 removeSubform(subform);         // 0.2.0
 ```
 
-### `validate()` on a form with `validationEnabled: false` leaves the gates alone
+### `validate()` on a form with `validationEnabled: false` leaves the modes alone
 
-0.1.x turned autovalidate on for every field in the tree before noticing that validation was disabled, so the next keystroke ran the async validators the caller had just switched off, and the form could not be submitted afterwards. 0.2.0 returns `true` without validating and leaves each gate as it found it. If your code relied on the side effect to open the gates, call `form.setAutovalidate(true)` explicitly:
+0.1.x turned autovalidate on for every field in the tree before noticing that validation was disabled, so the next keystroke ran the async validators the caller had just switched off, and the form could not be submitted afterwards. 0.2.0 returns `true` without validating and leaves each field's validation mode as it found it. While validation is off, every field in the subtree reads `ValidationMode.disabled`; turning it back on restores each child's mode. If your code relied on the side effect to switch validation on, call `form.setValidationMode(ValidationMode.onUserInteraction)` explicitly:
 
 ```dart
 form.setValidationEnabled(false);
-await form.validate();          // 0.1.x: true, and every gate now open
-await form.validate();          // 0.2.0: true, gates untouched
+await form.validate();          // 0.1.x: true, and every field's autovalidate now on
+await form.validate();          // 0.2.0: true, validation modes untouched
 ```
+
+**`setValue` clears both errors while the mode is `disabled`.** 0.1.x carried the stored error over, so an error outlived the value that produced it and suppressed the async validator for every later edit. If you push a server error onto such a field and expect it to survive typing, re-push it after the change.
 
 ### Form state settles synchronously
 
@@ -169,10 +197,6 @@ await form.validate();          // 0.2.0: true, gates untouched
 ### Debounce timers and in-flight async validations are cancelled on dispose
 
 0.1.x `close()` cancelled only the field subscription, so a timer could fire after close.
-
-### `setValue` clears both errors while `autovalidate` is off
-
-0.1.x carried the stored error over, so an error outlived the value that produced it and suppressed the async validator for every later edit. If you push a server error onto such a field and expect it to survive typing, re-push it after the change.
 
 ### The error goes blank while a check runs
 
@@ -253,7 +277,7 @@ To migrate a custom text widget:
 1. Delete the `useTextEditingController` call or the manually allocated `TextEditingController`, and do not dispose `field.textController` externally.
 2. Delete the `initialValue: state.value` and `onChanged: field.setValue` plumbing.
 3. Pass `controller: field.textController` to the underlying `TextField` or `TextFormField`.
-4. Delete any `FocusNode`-adding field subclass — `AdvancedTextFieldController` owns a `focusNode` and a `focus()` shortcut, so a separate "focusable" variant of the widget is no longer needed.
+4. Delete any `FocusNode`-adding field subclass — every `AdvancedFieldController` owns a `focusNode` and a `focus()` shortcut, so a separate "focusable" variant of the widget is no longer needed.
 
 ---
 
@@ -364,7 +388,7 @@ class QuantityFieldController                                    // was: Quantit
 }
 ```
 
-If the field holds a `String` and its widget binds a text controller, extend `AdvancedTextFieldController<E>` rather than `AdvancedFieldController<String, E>` — you get `textController` and `focusNode` with it.
+If the field holds a `String` and its widget binds a text controller, extend `AdvancedTextFieldController<E>` rather than `AdvancedFieldController<String, E>` — you get `textController` with it. A `focusNode` comes from `AdvancedFieldController` either way.
 
 ### The protected `emit` is gone
 
@@ -381,7 +405,7 @@ setValue(newValue);              // clears both errors, then validates if the ga
 setError(MyError.rejected);      // pushes the error back on
 ```
 
-Two differences to plan for. Each call notifies, so listeners see an intermediate state — bind widgets to `state.error` and they render blank for one frame in between. And `setValue` runs the validators when `autovalidate` is on, so a validator that disagrees overwrites the error you push next; `setError` aborts a running async check, so the order above is the one that holds.
+Two differences to plan for. Each call notifies, so listeners see an intermediate state — bind widgets to `state.error` and they render blank for one frame in between. And `setValue` runs the validators under `ValidationMode.onUserInteraction`, so a validator that disagrees overwrites the error you push next; `setError` aborts a running async check, so the order above is the one that holds.
 
 `onChange` and the `Change` class are gone as well — a `ChangeNotifier` reports that something changed, not what. Diff it yourself in a listener, as in [section 6](#6-form-listenables-instead-of-streams).
 
@@ -423,7 +447,7 @@ Three caveats: every read allocates a new `StreamController`, so store it rather
 ## 10. What didn't change
 
 - Every validator and the `Validator` / `AsyncValidator` / `ErrorTranslator` typedefs, so custom validators compile as-is.
-- Every field and form method name not listed in [section 2](#2-rename-reference) — `setValue`, `setAutovalidate`, `markReadOnly`, `setError`, `getValueSetter`, `registerFields`, `addSubform`, `resetAll`, `setValidationEnabled`, `validateWithAutovalidate`. [Section 3](#3-behavior-changes-that-are-not-renames) lists the ones whose behavior moved.
+- Every field and form method name not listed in [section 2](#2-rename-reference) — `setValue`, `markReadOnly`, `setError`, `getValueSetter`, `registerFields`, `addSubform`, `resetAll`, `setValidationEnabled`. [Section 3](#3-behavior-changes-that-are-not-renames) lists the ones whose behavior moved.
 - The `pending` → `validating` → `valid`/`invalid` sequence, the debounce, and cancel-on-new-value.
 - `wasModified`, still computed with `DeepCollectionEquality` against the baseline values.
 

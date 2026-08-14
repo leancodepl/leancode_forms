@@ -41,6 +41,11 @@ class HomePage extends StatelessWidget {
             onPressed: () => Navigator.of(context).pushNamed(Routes.optimized),
             child: const Text('Optimized Rendering'),
           ),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.of(context).pushNamed(Routes.validationModes),
+            child: const Text('Validation Modes'),
+          ),
         ],
       ),
     );

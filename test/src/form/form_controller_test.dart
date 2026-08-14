@@ -182,29 +182,17 @@ void main() {
     });
 
     group('validate', () {
-      test('enables autovalidate in fields', () async {
+      test('leaves the mode as the developer set it, everywhere', () async {
         subform.registerFields([subformField]);
         form
           ..registerFields([field1, field2])
           ..addSubform(subform);
         await form.validate();
 
-        expect(field1.value.autovalidate, true);
-        expect(field2.value.autovalidate, true);
-        expect(subformField.value.autovalidate, true);
-        form.dispose();
-      });
-
-      test('does not enable autovalidate in fields', () async {
-        subform.registerFields([subformField]);
-        form
-          ..registerFields([field1, field2])
-          ..addSubform(subform);
-        await form.validate(enableAutovalidate: false);
-
-        expect(field1.value.autovalidate, false);
-        expect(field2.value.autovalidate, false);
-        expect(subformField.value.autovalidate, false);
+        expect(form.value.validationMode, ValidationMode.disabled);
+        expect(field1.value.mode, ValidationMode.disabled);
+        expect(field2.value.mode, ValidationMode.disabled);
+        expect(subformField.value.mode, ValidationMode.disabled);
         form.dispose();
       });
 
@@ -252,7 +240,7 @@ void main() {
         form
           ..registerFields([field1, field2])
           ..addSubform(subform);
-        await form.validate(enableAutovalidate: false);
+        await form.validate();
 
         expect(field1.value.error, _Error1.valueRequired);
         expect(field2.value.error, _Error2.malformed);
@@ -281,7 +269,7 @@ void main() {
 
         // Opening them would make the next keystroke run the async validators
         // the caller just disabled.
-        expect(field1.value.autovalidate, false);
+        expect(field1.value.mode, ValidationMode.disabled);
         form.dispose();
         field2.dispose();
         subform.dispose();
@@ -324,7 +312,7 @@ void main() {
             },
             debounce: const Duration(milliseconds: 10),
           ),
-        )..setAutovalidate(true);
+        )..setValidationMode(ValidationMode.onUserInteraction);
         form.registerFields([asyncField]);
         addTearDown(form.dispose);
         addTearDown(field1.dispose);
@@ -347,7 +335,7 @@ void main() {
           asyncValidation: AsyncValidation(
             validator: (_) async => validator1.validationResult,
           ),
-        )..setAutovalidate(true);
+        )..setValidationMode(ValidationMode.onUserInteraction);
         form.registerFields([asyncField]);
 
         asyncField.setValue('value');
@@ -436,18 +424,19 @@ void main() {
         addTearDown(subform.dispose);
         addTearDown(subformField.dispose);
 
+        validator1.validationResult = _Error1.valueRequired;
         form.setValidationEnabled(false);
-        form.validate(enableAutovalidate: false).ignore();
+        form.validate().ignore();
 
         // The disabled call claimed nothing, so once validation is back on the
-        // next call takes the full path and opens the gate itself.
+        // next call takes the full path and validates for real.
         form.setValidationEnabled(true);
         await form.validate();
 
-        expect(field1.value.autovalidate, isTrue);
+        expect(field1.value.error, _Error1.valueRequired);
       });
 
-      test('a genuinely coalesced call does not re-broadcast autovalidate',
+      test('two concurrent calls share one pass, leaving the mode alone',
           () async {
         final asyncField = AdvancedTextFieldController<_Error1>(
           initialValue: _initialValue1,
@@ -467,15 +456,15 @@ void main() {
 
         // A real run is in flight, so the second call must return it untouched
         // rather than broadcast its own gate setting.
-        final first = form.validate(enableAutovalidate: false);
+        final first = form.validate();
         final second = form.validate();
 
         expect(identical(first, second), isTrue);
-        expect(asyncField.value.autovalidate, isFalse);
+        expect(asyncField.value.mode, ValidationMode.disabled);
         await first;
       });
 
-      test('a disposed form with a call in flight returns that call', () async {
+      test('a disposed form reports failure, whatever is in flight', () async {
         final asyncField = AdvancedTextFieldController<_Error1>(
           initialValue: _initialValue1,
           asyncValidation: AsyncValidation(
@@ -494,7 +483,7 @@ void main() {
         final first = form.validate();
         form.dispose();
 
-        expect(identical(form.validate(), first), isTrue);
+        expect(await form.validate(), isFalse);
         await first;
         // `first` resolves at dispose, so drain the validator before the next
         // test starts — this suite runs on wall-clock delays.
@@ -578,7 +567,7 @@ void main() {
         await pumpEventQueue();
         final getCount = _countCalls(form.onValuesChanged);
 
-        field1.setAutovalidate(true);
+        field1.setValidationMode(ValidationMode.onUserInteraction);
         await Future<void>.delayed(const Duration(milliseconds: 10));
 
         expect(getCount(), 0);
@@ -643,11 +632,11 @@ void main() {
         form
           ..registerFields([field1, field2])
           ..addSubform(subform)
-          ..setAutovalidate(true);
+          ..setValidationMode(ValidationMode.onUserInteraction);
 
-        expect(field1.value.autovalidate, true);
-        expect(field2.value.autovalidate, true);
-        expect(subformField.value.autovalidate, true);
+        expect(field1.value.mode, ValidationMode.onUserInteraction);
+        expect(field2.value.mode, ValidationMode.onUserInteraction);
+        expect(subformField.value.mode, ValidationMode.onUserInteraction);
         form.dispose();
       });
 
@@ -656,12 +645,12 @@ void main() {
         form
           ..registerFields([field1, field2])
           ..addSubform(subform)
-          ..setAutovalidate(true)
-          ..setAutovalidate(false);
+          ..setValidationMode(ValidationMode.onUserInteraction)
+          ..setValidationMode(ValidationMode.disabled);
 
-        expect(field1.value.autovalidate, false);
-        expect(field2.value.autovalidate, false);
-        expect(subformField.value.autovalidate, false);
+        expect(field1.value.mode, ValidationMode.disabled);
+        expect(field2.value.mode, ValidationMode.disabled);
+        expect(subformField.value.mode, ValidationMode.disabled);
         form.dispose();
       });
     });
@@ -698,12 +687,14 @@ void main() {
         validateAllForm = AdvancedFormController(validateAll: true);
       });
 
-      test('validate is called on other autovalidate fields', () async {
+      test('validate is called on other edited fields', () async {
         subform.registerFields([subformField]);
         validateAllForm
           ..registerFields([field1, field2])
           ..addSubform(subform);
-        field1.setAutovalidate(true);
+        field1
+          ..setValidationMode(ValidationMode.onUserInteraction)
+          ..setValue('edited');
         validator1.validationResult = _Error1.valueRequired;
 
         field2.setValue(42);
@@ -715,12 +706,14 @@ void main() {
         validateAllForm.dispose();
       });
 
-      test('validate is called on other autovalidate subforms', () async {
+      test('validate is called on other edited subform fields', () async {
         subform.registerFields([subformField]);
         validateAllForm
           ..registerFields([field1, field2])
           ..addSubform(subform);
-        subformField.setAutovalidate(true);
+        subformField
+          ..setValidationMode(ValidationMode.onUserInteraction)
+          ..setValue(1);
         validator2.validationResult = _Error2.malformed;
 
         field2.setValue(42);
@@ -908,21 +901,27 @@ void main() {
       });
     });
 
-    group('validateWithAutovalidate', () {
-      test('validates only the fields which have set autovalidate to true', () {
+    group('revalidateSync', () {
+      test('validates only the fields whose mode lets a dependency in', () {
         subform.registerFields([subformField]);
         form
           ..registerFields([field1, field2])
           ..addSubform(subform);
 
-        field1.setAutovalidate(true);
-        field2.setAutovalidate(false);
-        subformField.setAutovalidate(true);
+        field1
+          ..setValidationMode(ValidationMode.onUserInteraction)
+          ..setValue('edited');
+        field2
+          ..setValidationMode(ValidationMode.disabled)
+          ..setValue(1);
+        subformField
+          ..setValidationMode(ValidationMode.onUserInteraction)
+          ..setValue(1);
 
         validator1.validationResult = _Error1.valueRequired;
         validator2.validationResult = _Error2.malformed;
 
-        form.validateWithAutovalidate();
+        form.revalidateSync();
 
         expect(field1.value.error, _Error1.valueRequired);
         expect(field2.value.error, null);
@@ -933,11 +932,12 @@ void main() {
       test('re-runs the sync validator of a read-only field', () {
         form.registerFields([field1]);
         field1
-          ..setAutovalidate(true)
+          ..setValidationMode(ValidationMode.onUserInteraction)
+          ..setValue('edited')
           ..markReadOnly();
         validator1.validationResult = _Error1.valueRequired;
 
-        form.validateWithAutovalidate();
+        form.revalidateSync();
 
         expect(field1.value.error, _Error1.valueRequired);
         form.dispose();
@@ -962,7 +962,7 @@ void main() {
           ..registerFields([email, confirm]);
 
         email.setValue('a@x.com');
-        crossForm.setAutovalidate(true);
+        crossForm.setValidationMode(ValidationMode.onUserInteraction);
         confirm.setValue('a@x.com');
         await Future<void>.delayed(const Duration(milliseconds: 120));
 
@@ -1004,7 +1004,7 @@ void main() {
               debounce: const Duration(milliseconds: 10),
               onFailure: (error, stackTrace) async {},
             ),
-          )..setAutovalidate(true);
+          )..setValidationMode(ValidationMode.onUserInteraction);
 
       test('validating follows the fields rather than a stored flag', () async {
         final live = asyncField();
@@ -1331,6 +1331,225 @@ void main() {
       );
 
       expect(unhandled, isEmpty);
+    });
+
+    group('setValidationMode', () {
+      test('reaches the fields and subforms registered before it', () {
+        subform.registerFields([subformField]);
+        form
+          ..registerFields([field1, field2])
+          ..addSubform(subform)
+          ..setValidationMode(ValidationMode.onUnfocus);
+
+        expect(form.value.validationMode, ValidationMode.onUnfocus);
+        expect(field1.value.mode, ValidationMode.onUnfocus);
+        expect(field2.value.mode, ValidationMode.onUnfocus);
+        expect(subform.value.validationMode, ValidationMode.onUnfocus);
+        expect(subformField.value.mode, ValidationMode.onUnfocus);
+        form.dispose();
+      });
+
+      test('reaches fields registered after it', () {
+        form
+          ..setValidationMode(ValidationMode.onUserInteraction)
+          ..registerFields([field1, field2]);
+
+        expect(field1.value.mode, ValidationMode.onUserInteraction);
+        expect(field2.value.mode, ValidationMode.onUserInteraction);
+        form.dispose();
+        subform.dispose();
+        subformField.dispose();
+      });
+
+      test('reaches a subform attached after a submit', () async {
+        form
+          ..registerFields([field1, field2])
+          ..setValidationMode(ValidationMode.onUserInteraction);
+        await form.validate();
+
+        subform.registerFields([subformField]);
+        form.addSubform(subform);
+
+        // The bug this design removes: a subtree added after the first submit
+        // used to miss the escalation broadcast and behave differently.
+        expect(subform.value.validationMode, ValidationMode.onUserInteraction);
+        expect(subformField.value.mode, ValidationMode.onUserInteraction);
+        form.dispose();
+      });
+
+      test('is passed on by a constructor argument on a subform', () {
+        final child = AdvancedFormController(
+          validationMode: ValidationMode.onUnfocus,
+        )..registerFields([subformField]);
+        form
+          ..registerFields([field1, field2])
+          ..addSubform(child)
+          ..setValidationMode(ValidationMode.onUserInteraction);
+
+        // The child was constructed with a mode of its own, so the parent's
+        // broadcast does not clobber it.
+        expect(child.value.validationMode, ValidationMode.onUnfocus);
+        expect(subformField.value.mode, ValidationMode.onUnfocus);
+        expect(field1.value.mode, ValidationMode.onUserInteraction);
+        form.dispose();
+      });
+
+      test('leaves a de-registered field quiet', () {
+        form
+          ..setValidationMode(ValidationMode.onUserInteraction)
+          ..registerFields([field1])
+          ..registerFields([field2]);
+
+        expect(field1.value.mode, ValidationMode.disabled);
+        expect(field2.value.mode, ValidationMode.onUserInteraction);
+        form.dispose();
+        subform.dispose();
+        subformField.dispose();
+      });
+    });
+
+    group('per-child validation mode', () {
+      test('a field that claimed its mode survives a parent mode change', () {
+        form
+          ..registerFields([field1, field2])
+          ..setValidationMode(ValidationMode.onUserInteraction);
+        field1.setValidationMode(ValidationMode.onUnfocus);
+
+        form.setValidationMode(ValidationMode.disabled);
+
+        expect(field1.value.mode, ValidationMode.onUnfocus);
+        expect(field2.value.mode, ValidationMode.disabled);
+        form.dispose();
+        subform.dispose();
+        subformField.dispose();
+      });
+
+      test('a claimed field keeps a live round through a parent mode change',
+          () async {
+        final asyncField = AdvancedTextFieldController<_Error1>(
+          asyncValidation: AsyncValidation(
+            validator: (_) async => null,
+            debounce: const Duration(milliseconds: 50),
+          ),
+        );
+        form.registerFields([asyncField]);
+        asyncField
+          ..setValidationMode(ValidationMode.onUserInteraction)
+          ..setValue('typed');
+        expect(asyncField.value.isPending, isTrue);
+
+        // Resolving to the mode it already has must cost nothing at all.
+        form.setValidationMode(ValidationMode.onUnfocus);
+
+        expect(asyncField.value.isPending, isTrue);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(asyncField.value.isValid, isTrue);
+        form.dispose();
+        field1.dispose();
+        field2.dispose();
+        subform.dispose();
+        subformField.dispose();
+      });
+
+      test('a subform that claimed its mode survives a parent mode change', () {
+        subform
+          ..registerFields([subformField])
+          ..setValidationMode(ValidationMode.onUnfocus);
+        form
+          ..registerFields([field1])
+          ..addSubform(subform)
+          ..setValidationMode(ValidationMode.onUserInteraction);
+
+        expect(subform.value.validationMode, ValidationMode.onUnfocus);
+        expect(subformField.value.mode, ValidationMode.onUnfocus);
+        expect(field1.value.mode, ValidationMode.onUserInteraction);
+        form.dispose();
+        field2.dispose();
+      });
+
+      test('validationEnabled outranks a claimed mode, and restores it', () {
+        form
+          ..registerFields([field1, field2])
+          ..setValidationMode(ValidationMode.onUserInteraction);
+        field1.setValidationMode(ValidationMode.onUnfocus);
+
+        form.setValidationEnabled(false);
+
+        expect(field1.value.mode, ValidationMode.disabled);
+        expect(field2.value.mode, ValidationMode.disabled);
+
+        form.setValidationEnabled(true);
+
+        expect(field1.value.mode, ValidationMode.onUnfocus);
+        expect(field2.value.mode, ValidationMode.onUserInteraction);
+        form.dispose();
+        subform.dispose();
+        subformField.dispose();
+      });
+    });
+
+    group('validationEnabled', () {
+      test('silences a nested subtree, including its own subforms', () {
+        subform
+          ..registerFields([subformField])
+          ..setValidationMode(ValidationMode.onUserInteraction);
+        form
+          ..registerFields([field1])
+          ..addSubform(subform)
+          ..setValidationEnabled(false);
+
+        expect(subformField.value.mode, ValidationMode.disabled);
+        expect(field1.value.mode, ValidationMode.disabled);
+        form.dispose();
+        field2.dispose();
+      });
+
+      test('makes a nested subform validate to true', () async {
+        validator2.validationResult = _Error2.malformed;
+        subform.registerFields([subformField]);
+        form
+          ..registerFields([field1])
+          ..addSubform(subform)
+          ..setValidationEnabled(false);
+
+        expect(await form.validate(), isTrue);
+        expect(await subform.validate(), isTrue);
+        expect(subformField.value.error, isNull);
+        form.dispose();
+        field2.dispose();
+      });
+    });
+
+    group('validate ignores the mode', () {
+      test('checks a field the user never touched', () async {
+        validator1.validationResult = _Error1.valueRequired;
+        form
+          ..setValidationMode(ValidationMode.onUnfocus)
+          ..registerFields([field1]);
+        field1.prefill('from the profile');
+
+        expect(await form.validate(), isFalse);
+        expect(field1.value.error, _Error1.valueRequired);
+        form.dispose();
+        field2.dispose();
+        subform.dispose();
+        subformField.dispose();
+      });
+
+      test('runs everything in disabled mode', () async {
+        validator1.validationResult = _Error1.valueRequired;
+        validator2.validationResult = _Error2.malformed;
+        subform.registerFields([subformField]);
+        form
+          ..registerFields([field1, field2])
+          ..addSubform(subform);
+
+        expect(await form.validate(), isFalse);
+        expect(field1.value.error, _Error1.valueRequired);
+        expect(field2.value.error, _Error2.malformed);
+        expect(subformField.value.error, _Error2.malformed);
+        form.dispose();
+      });
     });
   });
 }

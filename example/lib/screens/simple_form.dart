@@ -7,7 +7,8 @@ import 'package:leancode_forms_example/widgets/screen_description.dart';
 import 'package:provider/provider.dart';
 
 /// This is an example of a simple form with two basic fields and one field with async validation.
-/// The form is validated ONLY when the submit button is pressed.
+/// The form keeps the default [ValidationMode.disabled], so it is validated
+/// ONLY when the submit button is pressed.
 class SimpleFormScreen extends StatelessWidget {
   const SimpleFormScreen({super.key});
 
@@ -153,7 +154,7 @@ class SimpleFormController extends AdvancedFormController {
 
   Future<void> submit() async {
     // `await` is what makes this a guarantee: it runs the async validators too.
-    if (await validate(enableAutovalidate: false)) {
+    if (await validate()) {
       debugPrint('First name: ${firstName.value.value}');
       debugPrint('Last name: ${lastName.value.value}');
       debugPrint('Email: ${email.value.value}');
