@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/controllers/password_field_controller.dart';
@@ -43,16 +41,13 @@ class PasswordForm extends StatelessWidget {
             code('subscribeToFields'),
             plain(' and re-validates whenever the password changes. The '
                 'username field demonstrates '),
-            bold('autovalidation'),
-            plain(': it only starts showing errors after losing focus '
-                'for the first time.'),
+            code('ValidationMode.onUnfocus'),
+            plain(': it only shows errors once you have edited it and '
+                'moved on.'),
           ]),
           FormTextField(
             field: controller.username,
-            onUnfocus: () {
-              controller.username.setAutovalidate(true);
-              unawaited(controller.username.validate());
-            },
+            onUnfocus: controller.username.handleUnfocus,
             translateError: validatorTranslator,
             labelText: 'Username',
             hintText: 'Enter your username',
@@ -99,7 +94,8 @@ Validator<String, E> passwordMatch<E extends Object>(
     };
 
 class PasswordFormController extends AdvancedFormController {
-  PasswordFormController() {
+  PasswordFormController()
+      : super(validationMode: ValidationMode.onUserInteraction) {
     registerFields([
       username,
       switchField,
@@ -108,10 +104,12 @@ class PasswordFormController extends AdvancedFormController {
     ]);
   }
 
+  // One field opting out of the form's mode: the username is checked when the
+  // user leaves it, not on every keystroke.
   final username = AdvancedTextFieldController(
     validator: filled(ValidationError.empty) &
         atLeastLength(5, ValidationError.toShort),
-  );
+  )..setValidationMode(ValidationMode.onUnfocus);
 
   final switchField = AdvancedBooleanFieldController();
 
@@ -122,14 +120,12 @@ class PasswordFormController extends AdvancedFormController {
     lowerCaseRequired: true,
   );
 
-  // `subscribeToFields` + `autovalidate: true`:
-  // We expect: no validation fires until one of the subscribed fields' value
-  // actually changes (state-only changes, like status updates, are ignored).
+  // `subscribeToFields` under the form's `onUserInteraction` mode:
+  // no validation fires until one of the subscribed fields' value actually
+  // changes, and never before the user has edited this field.
   late final repeatPassword = AdvancedTextFieldController<ValidationError>(
     validator: passwordMatch(password, ValidationError.doesNotMatch),
-  )
-    ..setAutovalidate(true)
-    ..subscribeToFields([switchField, password]);
+  )..subscribeToFields([switchField, password]);
 
   Future<void> submit() async {
     if (await validate()) {

@@ -38,7 +38,7 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
     required this.value,
     this.validationError,
     this.asyncError,
-    this.autovalidate = false,
+    this.mode = ValidationMode.disabled,
     this.readOnly = false,
     this.status = FieldStatus.valid,
   });
@@ -53,10 +53,13 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
   /// The error the async round recorded. Only the async pipeline writes it.
   final E? asyncError;
 
-  /// Whether a value change runs the validators. With it off,
-  /// [AdvancedFieldController.setValue] stores the value, clears both errors
-  /// and resets the status to [FieldStatus.valid].
-  final bool autovalidate;
+  /// When this field validates itself. Set it on the form, which broadcasts it
+  /// to every field and subform, or on the field with
+  /// [AdvancedFieldController.setValidationMode] to opt one field out.
+  ///
+  /// This is the **effective** mode: a field whose form has validation switched
+  /// off reports [ValidationMode.disabled], because that is what it behaves as.
+  final ValidationMode mode;
 
   /// Whether the value is frozen against [AdvancedFieldController.setValue].
   final bool readOnly;
@@ -93,7 +96,7 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
     Object? value = _unset,
     Object? validationError = _unset,
     Object? asyncError = _unset,
-    bool? autovalidate,
+    ValidationMode? mode,
     bool? readOnly,
     FieldStatus? status,
   }) =>
@@ -104,7 +107,7 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
             : validationError as E?,
         asyncError:
             identical(asyncError, _unset) ? this.asyncError : asyncError as E?,
-        autovalidate: autovalidate ?? this.autovalidate,
+        mode: mode ?? this.mode,
         readOnly: readOnly ?? this.readOnly,
         status: status ?? this.status,
       );
@@ -114,7 +117,7 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
         value,
         validationError,
         asyncError,
-        autovalidate,
+        mode,
         readOnly,
         status,
       ];

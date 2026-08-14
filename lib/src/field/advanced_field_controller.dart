@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:leancode_forms/src/utils/shared_call.dart';
+import 'package:leancode_forms/src/validation_mode.dart';
 
 part 'advanced_field_state.dart';
 part 'async_validation.dart';
@@ -24,10 +26,11 @@ FieldStatus _statusFromErrors(Object? validationError, Object? asyncError) =>
 /// A single form field which can be validated. [T] is the held value, [E] the
 /// error code; [E] cannot be nullable, so lack of an error is unambiguous.
 ///
-/// Validation follows two rules. [AdvancedFieldState.autovalidate] is the gate
-/// that decides whether a value change starts a round, and a round runs the
-/// sync validator first, the async one only if sync passed. [validate]
-/// validates on demand, whatever the gate says.
+/// Validation follows three rules. [AdvancedFieldState.mode] decides which
+/// events make the field validate itself, and a round runs the sync validator
+/// first, the async one only if sync passed. A field the user has never edited
+/// validates nothing on its own, in any mode. [validate] validates on demand,
+/// whatever the mode says, and never changes it.
 class AdvancedFieldController<T, E extends Object>
     with ChangeNotifier
     implements ValueListenable<AdvancedFieldState<T, E>> {
@@ -81,21 +84,74 @@ class AdvancedFieldController<T, E extends Object>
   // Whether a settled verdict still describes the value the field holds.
   bool _hasVerdict = false;
 
-  /// Sets a new [newValue]. A no-op on a read-only field unless [force] is
-  /// true.
+  // The ticket's guarantee: a field the user has never edited validates nothing
+  // on its own. One-way — only `reset()` clears it — so nothing in the pipeline
+  // can disarm it halfway through a repair.
+  bool _hasInteracted = false;
+
+  // null: follow the form's mode. Non-null: this field manages its own.
+  ValidationMode? _ownMode;
+
+  // Whether the form this field belongs to has validation switched on. It
+  // outranks every mode, this field's own included.
+  bool _formEnabled = true;
+
+  FocusNode? _focusNode;
+
+  // Mirrors `focusNode.hasFocus`, because a `FocusNode` notifies for changes
+  // other than focus itself; without it a blur would fire more than once.
+  bool _hadFocus = false;
+
+  /// The [FocusNode] bound to this field, created on first use.
   ///
-  /// Both errors are cleared, because they described the old value. If the gate
-  /// is open the validators run; if it is closed nothing runs, so a form nobody
-  /// has submitted yet starts no async checks.
+  /// Bind it in the widget for [ValidationMode.onUnfocus] to work — losing
+  /// focus is what makes the field validate in that mode. A widget that has no
+  /// focus node of its own, such as a picker, calls [handleUnfocus] instead.
+  ///
+  /// Throws a [StateError] if this field has already been disposed.
+  FocusNode get focusNode {
+    if (_isDisposed) {
+      throw StateError(
+        'Cannot use the focusNode of a disposed AdvancedFieldController.',
+      );
+    }
+
+    return _focusNode ??= FocusNode(
+      debugLabel:
+          'AdvancedFieldController${name?.isNotEmpty ?? false ? '($name)' : ''}',
+    )..addListener(_handleFocusChange);
+  }
+
+  /// Requests focus for the field via [focusNode]. A no-op once the controller
+  /// has been disposed, so `focus()` after a teardown is safe.
+  void focus() {
+    if (_isDisposed) {
+      return;
+    }
+
+    focusNode.requestFocus();
+  }
+
+  /// Sets a new [newValue] on behalf of the user. A no-op on a read-only field
+  /// unless [force] is true.
+  ///
+  /// Both errors are cleared, because they described the old value. This is
+  /// what counts as the user having edited the field, so it is what arms every
+  /// mode. Use [prefill] to write a value the user did not type.
   void setValue(T newValue, {bool force = false}) {
     if (_value.readOnly && !force) {
       return;
     }
 
+    _hasInteracted = true;
     _abortRound();
     _hasVerdict = false;
 
-    if (!_value.autovalidate) {
+    if (!validatesOn(
+      ValidationEvent.valueChanged,
+      mode: _value.mode,
+      hasInteracted: _hasInteracted,
+    )) {
       _clearTo(newValue);
       return;
     }
@@ -119,6 +175,55 @@ class AdvancedFieldController<T, E extends Object>
   /// Returns `null` if the field is readonly, otherwise [setValue]. Useful
   /// where a null `onChange` is what disables a widget.
   ValueSetter<T>? getValueSetter() => _value.readOnly ? null : setValue;
+
+  /// Writes [newValue] on behalf of the program, not the user. A no-op on a
+  /// read-only field unless [force] is true.
+  ///
+  /// Both errors are cleared and nothing validates, in any mode. Unlike
+  /// [setValue] this does not count as the user having edited the field, so a
+  /// form prefilled from a profile fetch does not greet the user with errors.
+  /// Only [validate] checks a value written this way.
+  void prefill(T newValue, {bool force = false}) {
+    if (_value.readOnly && !force) {
+      return;
+    }
+
+    _abortRound();
+    _hasVerdict = false;
+    _clearTo(newValue);
+  }
+
+  /// Tells the field the user has left it, which is what
+  /// [ValidationMode.onUnfocus] validates on.
+  ///
+  /// Bind [focusNode] in the widget and this is called for you. Call it by hand
+  /// from a widget that manages focus itself, such as a picker or a dropdown.
+  ///
+  /// A round still waiting out its debounce runs at once in every mode, because
+  /// leaving the field means typing is over. Beyond that, only a field the user
+  /// has edited validates, and only in [ValidationMode.onUnfocus]; a value that
+  /// has not changed since its last check reuses that answer, so tabbing in and
+  /// out costs no requests. Read-only fields validate too, matching [validate].
+  void handleUnfocus() {
+    _flushDebounce();
+
+    if (!validatesOn(
+      ValidationEvent.unfocus,
+      mode: _value.mode,
+      hasInteracted: _hasInteracted,
+    )) {
+      return;
+    }
+
+    // Nobody awaits this, so a throwing validator would escape as an unhandled
+    // error in the zone instead of reaching the caller.
+    unawaited(
+      validate().catchError((Object error, StackTrace stackTrace) {
+        _report(name, 'validating after focus loss', error, stackTrace);
+        return false;
+      }),
+    );
+  }
 
   /// Sets a new [error] on [AdvancedFieldState.validationError]. Passing null
   /// clears it and the status follows.
@@ -156,14 +261,44 @@ class AdvancedFieldController<T, E extends Object>
   Future<bool> validate() =>
       _isDisposed ? Future.value(false) : _validateCall.run(_runValidate);
 
-  /// When autovalidate is true, setting a new value triggers validation.
-  /// Flipping the gate validates nothing by itself.
-  void setAutovalidate(bool autovalidate) => _setState(
-        _value._copyWithNullable(
-          autovalidate: autovalidate,
-          status: _statusAfter(_value.validationError),
-        ),
-      );
+  /// Sets when this field validates itself, whatever its form's mode says.
+  ///
+  /// From here on the field manages its own mode: a later change of the form's
+  /// mode leaves it alone. There is no way back to following the form — call
+  /// this again with the form's current mode to match it.
+  ///
+  /// A form with validation switched off still silences the field: that switch
+  /// outranks every mode, this one included, and the mode set here takes effect
+  /// when validation comes back on.
+  ///
+  /// Changing the mode validates nothing by itself, and drops a round the old
+  /// mode started.
+  void setValidationMode(ValidationMode mode) {
+    _ownMode = mode;
+    _applyMode(_formEnabled ? mode : ValidationMode.disabled);
+  }
+
+  /// Applies the mode the field's form offers, and whether that form validates
+  /// at all. A field with a mode of its own keeps it; [enabled] outranks both.
+  @internal
+  void applyValidationMode(ValidationMode mode, {required bool enabled}) {
+    _formEnabled = enabled;
+    _applyMode(enabled ? (_ownMode ?? mode) : ValidationMode.disabled);
+  }
+
+  // Publishing the same mode again must cost nothing: a form re-broadcasts on
+  // every registration, and aborting here would kill a round in flight.
+  void _applyMode(ValidationMode mode) {
+    if (mode == _value.mode) {
+      return;
+    }
+
+    // A round started under the old mode must not land under the new one.
+    _abortRound();
+    _setState(
+      _value._copyWithNullable(mode: mode, status: _statusKeepingFailure),
+    );
+  }
 
   /// Prevents further changes of value [T]. [validate] still validates a
   /// read-only field.
@@ -176,12 +311,7 @@ class AdvancedFieldController<T, E extends Object>
   void markReadOnly() {
     _abortRound();
     _setState(
-      _value._copyWithNullable(
-        readOnly: true,
-        status: _value.isFailedValidation
-            ? FieldStatus.failedValidation
-            : _statusFromErrors(_value.validationError, _value.asyncError),
-      ),
+      _value._copyWithNullable(readOnly: true, status: _statusKeepingFailure),
     );
   }
 
@@ -203,11 +333,15 @@ class AdvancedFieldController<T, E extends Object>
   }
 
   /// Resets the field to its initial value, clearing both errors, the status,
-  /// the verdict and [lastFailure]. Keeps
-  /// [AdvancedFieldState.autovalidate] and [AdvancedFieldState.readOnly].
+  /// the verdict and [lastFailure]. Keeps [AdvancedFieldState.mode] and
+  /// [AdvancedFieldState.readOnly].
+  ///
+  /// The field counts as untouched again, so it validates nothing on its own
+  /// until the user edits it.
   void reset() {
     _abortRound();
     _hasVerdict = false;
+    _hasInteracted = false;
     _clearTo(_initialValue);
   }
 
@@ -215,10 +349,10 @@ class AdvancedFieldController<T, E extends Object>
   /// whenever any of their values change. Replaces any earlier subscription.
   ///
   /// The async validator is not re-run: this field's value did not change, so
-  /// its verdict stands. While this field's gate is closed nothing happens at
-  /// all. With it open [AdvancedFieldState.validationError] is rewritten, so a
-  /// code pushed there with [setError] gives way to whatever the validator now
-  /// returns.
+  /// its verdict stands. A field the user has never edited, or one in
+  /// [ValidationMode.disabled], does nothing at all. Otherwise
+  /// [AdvancedFieldState.validationError] is rewritten, so a code pushed there
+  /// with [setError] gives way to whatever the validator now returns.
   ///
   /// The subscription is dropped on [dispose]. Throws a [StateError] if this
   /// field has already been disposed — otherwise the listeners it attaches to
@@ -255,7 +389,8 @@ class AdvancedFieldController<T, E extends Object>
     };
   }
 
-  /// Re-runs the **sync** validator if the gate is open, and nothing otherwise.
+  /// Re-runs the **sync** validator if this field's mode and the interaction
+  /// guarantee allow it, and nothing otherwise.
   ///
   /// This is what a dependency's change means for this field: its own value did
   /// not change, so [AdvancedFieldState.asyncError], the verdict and
@@ -263,11 +398,15 @@ class AdvancedFieldController<T, E extends Object>
   /// are included — freezing a value does not stop its rule from being
   /// re-evaluated.
   ///
-  /// The mechanism behind [subscribeToFields] and the form's
-  /// `validateWithAutovalidate`. Prefer those: they say *when* to re-run, which
-  /// is the part a form actually has to get right.
+  /// The mechanism behind [subscribeToFields] and the form's own
+  /// `revalidateSync`. Prefer those: they say *when* to re-run, which is the
+  /// part a form actually has to get right.
   void revalidateSync() {
-    if (_value.autovalidate) {
+    if (validatesOn(
+      ValidationEvent.dependencyChanged,
+      mode: _value.mode,
+      hasInteracted: _hasInteracted,
+    )) {
       _setSyncError(_validator(_value.value));
     }
   }
@@ -288,7 +427,28 @@ class AdvancedFieldController<T, E extends Object>
     _abortRound();
     _fieldsSubscriptionCleanup?.call();
     _fieldsSubscriptionCleanup = null;
+    _focusNode?.dispose();
+    _focusNode = null;
     super.dispose();
+  }
+
+  void _handleFocusChange() {
+    final hasFocus = _focusNode?.hasFocus ?? false;
+    if (hasFocus == _hadFocus) {
+      return;
+    }
+    _hadFocus = hasFocus;
+    if (!hasFocus) {
+      handleUnfocus();
+    }
+  }
+
+  // Leaving a field means typing is over, so a round still waiting out its
+  // debounce runs now. Only `onUserInteraction` can have one waiting.
+  void _flushDebounce() {
+    if (_currentRound case final round? when round.isDebouncing) {
+      unawaited(_run(round));
+    }
   }
 
   Future<bool> _runValidate() async {
@@ -318,18 +478,18 @@ class AdvancedFieldController<T, E extends Object>
       if (live.isDebouncing) {
         unawaited(_run(live));
       }
-      return _report(await live.done);
+      return _roundResult(await live.done);
     }
 
     if (_hasVerdict) {
       return _value.isValid;
     }
 
-    return _report(await _beginRound(_value.value, debounced: false).done);
+    return _roundResult(await _beginRound(_value.value, debounced: false).done);
   }
 
   // Turns the outcome of a round into what [validate] returns.
-  bool _report(bool notSuperseded) =>
+  bool _roundResult(bool notSuperseded) =>
       !_isDisposed && notSuperseded && _value.isValid;
 
   _ValidationRound<T, E> _beginRound(T value, {required bool debounced}) {
@@ -430,6 +590,13 @@ class AdvancedFieldController<T, E extends Object>
           status: _statusAfter(syncError),
         ),
       );
+
+  // The status to publish right after a round was aborted: the aborted round no
+  // longer owns it, so it is re-derived from both errors, while a failed round's
+  // status survives because the field must still block submit.
+  FieldStatus get _statusKeepingFailure => _value.isFailedValidation
+      ? FieldStatus.failedValidation
+      : _statusFromErrors(_value.validationError, _value.asyncError);
 
   // A live or failed round owns the status, so it is carried through. A settled
   // field re-derives it from both errors, which is how a state seeded with a

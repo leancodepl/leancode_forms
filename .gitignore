@@ -31,3 +31,6 @@ migrate_working_dir/
 .dart_tool/
 .packages
 build/
+
+# Scratch space for design notes — never part of the published package.
+.scratch/

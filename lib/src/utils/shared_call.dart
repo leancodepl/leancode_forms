@@ -20,20 +20,34 @@ class SharedCall<T> {
     }
 
     final completer = Completer<T>();
-    _inFlight = completer.future;
+    final future = completer.future;
+    _inFlight = future;
+
+    // Only clears its own run: [invalidate] may already have replaced it.
+    void clear() {
+      if (identical(_inFlight, future)) {
+        _inFlight = null;
+      }
+    }
+
     // Clear in callbacks (not whenComplete) to avoid an unhandled async error.
     // Future.sync lets sync throws reject without leaving _inFlight set forever.
     Future.sync(body).then(
       (value) {
-        _inFlight = null;
+        clear();
         completer.complete(value);
       },
       onError: (Object error, StackTrace stackTrace) {
-        _inFlight = null;
+        clear();
         completer.completeError(error, stackTrace);
       },
     );
 
-    return completer.future;
+    return future;
   }
+
+  /// Drops the run in flight, so the next [run] starts a fresh one instead of
+  /// joining an answer that was reached under conditions that no longer hold.
+  /// Whoever already awaited the dropped run still gets its result.
+  void invalidate() => _inFlight = null;
 }
