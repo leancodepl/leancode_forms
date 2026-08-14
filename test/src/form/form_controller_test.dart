@@ -1242,6 +1242,60 @@ void main() {
       });
     });
 
+    group('addRelation', () {
+      test('calls onChange with the new part when the selected part changes',
+          () {
+        form.registerFields([field2]);
+        final parts = <int>[];
+        form.addRelation(field2, (value) => value ~/ 10, parts.add);
+
+        field2.setValue(9);
+        expect(parts, isEmpty);
+
+        field2.setValue(25);
+        expect(parts, [2]);
+
+        form.dispose();
+      });
+
+      test('does not fire on a status-only change', () {
+        form.registerFields([field2]);
+        final parts = <int>[];
+        form.addRelation(field2, (value) => value, parts.add);
+
+        field2.setError(_Error2.malformed);
+        expect(parts, isEmpty);
+
+        form.dispose();
+      });
+
+      test('stops listening when the form is disposed', () {
+        addTearDown(field2.dispose);
+        final parts = <int>[];
+        form
+          ..addRelation(field2, (value) => value, parts.add)
+          ..dispose();
+
+        field2.setValue(42);
+        expect(parts, isEmpty);
+      });
+
+      test('throws StateError when the form or the source is disposed', () {
+        final disposedForm = AdvancedFormController()..dispose();
+        expect(
+          () => disposedForm.addRelation(field2, (value) => value, (_) {}),
+          throwsStateError,
+        );
+
+        field2.dispose();
+        expect(
+          () => form.addRelation(field2, (value) => value, (_) {}),
+          throwsStateError,
+        );
+        form.dispose();
+      });
+    });
+
     group('AdvancedTextFieldController focusNode', () {
       test('throws StateError when read after dispose', () {
         final field = AdvancedTextFieldController<_Error1>()..dispose();

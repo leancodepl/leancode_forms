@@ -56,6 +56,7 @@ class AdvancedFormController
   // Explicit type — inference would widen the error type from dynamic to Object.
   final Set<AdvancedFieldController<dynamic, dynamic>> _ownedFields = {};
   final _childCleanups = <VoidCallback>[];
+  final _relationCleanups = <VoidCallback>[];
   final _validateCall = SharedCall<bool>();
   var _initialFieldsState = const <dynamic>[];
 
@@ -90,6 +91,40 @@ class AdvancedFormController
     _wireChildren();
     _recomputeWasModified();
     _onValuesChanged.notifyListeners();
+  }
+
+  /// Calls [onChange] whenever the part of [source]'s value selected by
+  /// [select] changes. Parts are compared with `==`, so a status-only change
+  /// on [source] never fires.
+  ///
+  /// The relation lives as long as this form: the listener is removed on
+  /// [dispose], so no manual cleanup is needed.
+  ///
+  /// Throws a [StateError] if this form or [source] has already been
+  /// disposed — disposed controllers cannot be reused.
+  void addRelation<T, R>(
+    AdvancedFieldController<T, dynamic> source,
+    R Function(T value) select,
+    void Function(R value) onChange,
+  ) {
+    if (isDisposed || source.isDisposed) {
+      throw StateError(
+        'Cannot add a relation on a disposed controller.',
+      );
+    }
+
+    var last = select(source.fieldValue);
+    void listener() {
+      final next = select(source.fieldValue);
+      if (next == last) {
+        return;
+      }
+      last = next;
+      onChange(next);
+    }
+
+    source.addListener(listener);
+    _relationCleanups.add(() => source.removeListener(listener));
   }
 
   /// Returns this form's own field values, excluding subforms'.
@@ -255,6 +290,10 @@ class AdvancedFormController
   void dispose() {
     _isDisposed = true;
     _runChildCleanups();
+    for (final cleanup in _relationCleanups) {
+      cleanup();
+    }
+    _relationCleanups.clear();
     for (final field in _ownedFields) {
       field.dispose();
     }

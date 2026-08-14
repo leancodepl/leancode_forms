@@ -134,7 +134,7 @@ class PasswordFormController extends AdvancedFormController {
 }
 ```
 
-`subscribeToFields` listens to the given fields and re-runs this field's **sync** validator whenever any of their values change. The async validator is not re-run: this field's own value did not change, so its last answer is still current. It only revalidates — it does not update this field's *value* in response to another field. For a value dependency ("when B changes, set A"), use `addListener` on the source field and `setValue` on the target.
+`subscribeToFields` listens to the given fields and re-runs this field's **sync** validator whenever any of their values change. The async validator is not re-run: this field's own value did not change, so its last answer is still current. It only revalidates — it does not update this field's *value* in response to another field. For a value dependency ("when B changes, set A"), use the form's `addRelation(source, select, onChange)` — it fires when the selected part of `source`'s value changes and is cleaned up when the form is disposed.
 
 ### 5. A reusable custom form widget
 
