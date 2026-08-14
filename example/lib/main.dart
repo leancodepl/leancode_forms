@@ -7,6 +7,7 @@ import 'package:leancode_forms_example/screens/password_form.dart';
 import 'package:leancode_forms_example/screens/quiz_form.dart';
 import 'package:leancode_forms_example/screens/scroll_form.dart';
 import 'package:leancode_forms_example/screens/simple_form.dart';
+import 'package:leancode_forms_example/screens/validation_modes_form.dart';
 
 void main() {
   runApp(const MainApp());
@@ -21,6 +22,7 @@ class Routes {
   static const complex = '/complex';
   static const scroll = '/scroll';
   static const optimized = '/optimized';
+  static const validationModes = '/validation-modes';
 }
 
 enum ValidationError {
@@ -81,6 +83,7 @@ class MainApp extends StatelessWidget {
         Routes.complex: (context) => const ComplexFormScreen(),
         Routes.scroll: (context) => const ScrollFormScreen(),
         Routes.optimized: (context) => const OptimizedRenderingFormScreen(),
+        Routes.validationModes: (context) => const ValidationModesFormScreen(),
       },
     );
   }

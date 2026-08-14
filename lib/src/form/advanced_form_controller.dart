@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:leancode_forms/src/field/advanced_field_controller.dart';
+import 'package:leancode_forms/src/field/validation_mode.dart';
 import 'package:leancode_forms/src/utils/shared_call.dart';
 
 /// A parent of multiple [AdvancedFieldController]s. Manages group validation,
@@ -16,20 +17,42 @@ class AdvancedFormController
     with ChangeNotifier
     implements ValueListenable<AdvancedFormState> {
   /// Creates a new [AdvancedFormController].
+  ///
+  /// A [validationMode] given here is this form's own: a parent form's mode
+  /// does not replace it. Leave it out to follow the parent, or to stay
+  /// [ValidationMode.disabled] when there is no parent.
   AdvancedFormController({
     this.debugName = '',
     this.validateAll = false,
-  });
+    ValidationMode? validationMode,
+  })  : _hasOwnMode = validationMode != null,
+        _mode = validationMode ?? ValidationMode.disabled,
+        _value = AdvancedFormState(
+          validationMode: validationMode ?? ValidationMode.disabled,
+        );
 
   /// A label you can log to tell nested subforms apart. The package never reads
   /// it.
   final String debugName;
 
   /// When true, any field's change re-runs the sync validator on every field in
-  /// the tree whose gate is open. See [validateWithAutovalidate].
+  /// the tree that validates on a dependency's change. See [revalidateSync].
   final bool validateAll;
 
-  var _value = const AdvancedFormState();
+  AdvancedFormState _value;
+
+  // This subtree's mode. A parent's broadcast replaces it unless this form
+  // claimed one of its own.
+  ValidationMode _mode;
+
+  // One-way: once this form manages its own mode, a parent never replaces it.
+  bool _hasOwnMode;
+
+  // The two halves of `validationEnabled`: this form's own switch, and what its
+  // parent last sent. They are AND-ed, so an opted-out section stays out when
+  // its parent switches back on.
+  bool _ownEnabled = true;
+  bool _parentEnabled = true;
 
   @override
   AdvancedFormState get value => _value;
@@ -82,9 +105,17 @@ class AdvancedFormController
     }
 
     _runChildCleanups();
+    // A field dropped from the form stops hearing from it. One that claimed its
+    // own mode keeps it — it manages its own, parent or no parent.
+    for (final field in value.fields) {
+      if (!fields.contains(field)) {
+        field.applyValidationSettings(defaultValidationSettings);
+      }
+    }
     // `value.fields` is replaced while `_ownedFields` accumulates, on purpose:
     // a replaced batch stops participating but is still disposed with the form.
     _setState(value._copyWith(fields: fields));
+    _publishSettings();
 
     _ownedFields.addAll(fields);
     _initialFieldsState = getFieldValues();
@@ -140,33 +171,26 @@ class AdvancedFormController
   /// what is already known. Fields and subforms run concurrently and none is
   /// short-circuited.
   ///
-  /// [enableAutovalidate] turns autovalidate on across the tree first.
+  /// The [AdvancedFormState.validationMode] is neither read nor changed: the
+  /// mode a developer set is the mode the form has for its whole life, so it
+  /// behaves the same before and after the first submit.
+  ///
+  /// A subtree with [AdvancedFormState.validationEnabled] false skips its own
+  /// fields, exactly as [AdvancedFormState.canSubmit] leaves them out, so the
+  /// two cannot disagree about the same subtree.
   ///
   /// Calling this again before the first call finishes gives you the same
-  /// result; it does not start a second pass, and the first call's
-  /// [enableAutovalidate] is the one that applies. Returns `true` when
-  /// `state.validationEnabled` is false, and `false` on a disposed form.
-  Future<bool> validate({bool enableAutovalidate = true}) {
-    // Checked before anything is broadcast: a caller joining the run in flight
-    // must not re-run `setAutovalidate`, and a disabled form must not start a
-    // run — a later, enabled call would then return this one's trivial `true`.
+  /// result; it does not start a second pass. Returns `false` on a disposed
+  /// form.
+  Future<bool> validate() {
     if (_validateCall.inFlight case final inFlight?) {
       return inFlight;
     }
     if (isDisposed) {
       return Future.value(false);
     }
-    if (!value.validationEnabled) {
-      return Future.value(true);
-    }
 
-    if (enableAutovalidate) {
-      setAutovalidate(true);
-    }
-
-    return _validateCall.run(
-      () => _runValidate(enableAutovalidate: enableAutovalidate),
-    );
+    return _validateCall.run(_runValidate);
   }
 
   /// Re-runs the **sync** validator on every leaf field whose gate is open.
@@ -175,9 +199,9 @@ class AdvancedFormController
   /// value, so no async check is owed and a settled async answer still stands.
   /// Read-only fields are included — freezing a value does not stop its rule
   /// from being re-evaluated.
-  void validateWithAutovalidate() => _broadcast(
+  void revalidateSync() => _broadcast(
         (field) => field.revalidateSync(),
-        (subform) => subform.validateWithAutovalidate(),
+        (subform) => subform.revalidateSync(),
       );
 
   /// Marks all leaf fields as readonly.
@@ -190,12 +214,6 @@ class AdvancedFormController
   void unmarkReadOnly() => _broadcast(
         (field) => field.unmarkReadOnly(),
         (subform) => subform.unmarkReadOnly(),
-      );
-
-  /// Sets autovalidate on all leaf fields.
-  void setAutovalidate(bool autovalidate) => _broadcast(
-        (field) => field.setAutovalidate(autovalidate),
-        (subform) => subform.setAutovalidate(autovalidate),
       );
 
   /// Resets all leaf fields to their initial states.
@@ -232,6 +250,7 @@ class AdvancedFormController
 
     _runChildCleanups();
     _setState(value._copyWith(subforms: {...value.subforms, form}));
+    _publishSettings();
     _wireChildren();
     _recomputeWasModified();
   }
@@ -258,14 +277,21 @@ class AdvancedFormController
     _setState(value._copyWith(subforms: {...value.subforms}..remove(form)));
     if (close) {
       form.dispose();
+    } else {
+      // It stops hearing from this form. A mode it claimed is its own to keep.
+      form.applyValidationSettings(defaultValidationSettings);
     }
     _wireChildren();
     _recomputeWasModified();
   }
 
-  /// Turns validation of this form on or off. When
-  /// [AdvancedFormState.validationEnabled] is set to false, all errors are
-  /// cleared.
+  /// Turns validation of this tree on or off — whether this section counts at
+  /// all, which outranks every [ValidationMode].
+  ///
+  /// While it is off, every field in the tree behaves as
+  /// [ValidationMode.disabled], [validate] skips them, and their errors are
+  /// cleared. Subforms inherit it: a section that switched itself off stays off
+  /// when its parent switches on.
   ///
   /// Throws a [StateError] if this form has already been disposed — disposed
   /// controllers cannot be reused.
@@ -275,15 +301,40 @@ class AdvancedFormController
         'Cannot change validation on a disposed AdvancedFormController.',
       );
     }
-    if (validationEnabled == value.validationEnabled) {
-      return;
+
+    _ownEnabled = validationEnabled;
+    _publishSettings();
+  }
+
+  /// Sets when the fields of this tree validate themselves. Reaches every leaf
+  /// field and subform that has no mode of its own; those keep theirs.
+  ///
+  /// A parent form's mode does not replace what you set here. Changing the mode
+  /// validates nothing by itself, and drops validation the old mode started.
+  ///
+  /// Throws a [StateError] if this form has already been disposed — disposed
+  /// controllers cannot be reused.
+  void setValidationMode(ValidationMode validationMode) {
+    if (isDisposed) {
+      throw StateError(
+        'Cannot change validation on a disposed AdvancedFormController.',
+      );
     }
-    _setState(value._copyWith(validationEnabled: validationEnabled));
-    if (validationEnabled) {
-      validateWithAutovalidate();
-    } else {
-      clearErrors();
-    }
+
+    _hasOwnMode = true;
+    _mode = validationMode;
+    _publishSettings();
+  }
+
+  /// Applies the settings of the form this one is a subform of. A mode this
+  /// form claimed wins over `settings.mode`; `settings.enabled` applies either
+  /// way, AND-ed with this form's own switch.
+  @internal
+  void applyValidationSettings(ValidationSettings settings) {
+    final inherited = _hasOwnMode ? settings.overriddenBy(_mode) : settings;
+    _mode = inherited.mode;
+    _parentEnabled = inherited.enabled;
+    _publishSettings();
   }
 
   @override
@@ -306,11 +357,11 @@ class AdvancedFormController
     super.dispose();
   }
 
-  Future<bool> _runValidate({required bool enableAutovalidate}) async {
+  Future<bool> _runValidate() async {
     final results = await Future.wait<bool>([
-      for (final field in value.fields) field.validate(),
-      for (final subform in value.subforms)
-        subform.validate(enableAutovalidate: enableAutovalidate),
+      if (value.validationEnabled)
+        for (final field in value.fields) field.validate(),
+      for (final subform in value.subforms) subform.validate(),
     ]);
 
     return results.every((result) => result);
@@ -361,6 +412,41 @@ class AdvancedFormController
     }
   }
 
+  // The only place a child hears what to validate under, so a new attach path
+  // cannot skip the rule.
+  void _publishSettings() {
+    final settings = (mode: _mode, enabled: _ownEnabled && _parentEnabled);
+    final enabledChanged = settings.enabled != value.validationEnabled;
+
+    if (settings != value._settings) {
+      // A pass in flight answered under the old settings, so it must not be
+      // handed to a caller asking under the new ones.
+      _validateCall.invalidate();
+      _setState(
+        value._copyWith(
+          validationMode: settings.mode,
+          validationEnabled: settings.enabled,
+        ),
+      );
+    }
+
+    // Unconditional, while the state write is guarded: the children may have
+    // changed even when the settings did not, and applying them twice costs
+    // nothing.
+    for (final field in value.fields) {
+      field.applyValidationSettings(settings);
+    }
+    for (final subform in value.subforms) {
+      subform.applyValidationSettings(settings);
+    }
+
+    if (enabledChanged) {
+      for (final field in value.fields) {
+        settings.enabled ? field.revalidateSync() : field.clearErrors();
+      }
+    }
+  }
+
   void _runChildCleanups() {
     for (final cleanup in _childCleanups) {
       cleanup();
@@ -370,7 +456,7 @@ class AdvancedFormController
 
   void _handleValuesChanged() {
     if (validateAll) {
-      validateWithAutovalidate();
+      revalidateSync();
     }
     _recomputeWasModified();
     _onValuesChanged.notifyListeners();
@@ -414,6 +500,7 @@ class AdvancedFormState with Equatable {
     this.wasModified = false,
     this.fields = const [],
     this.subforms = const {},
+    this.validationMode = ValidationMode.disabled,
     this.validationEnabled = true,
   });
 
@@ -427,8 +514,18 @@ class AdvancedFormState with Equatable {
   /// Set of registered subforms. Reference equality is assumed.
   final Set<AdvancedFormController> subforms;
 
-  /// If false, [AdvancedFormController.validate] returns true without
-  /// validating. Errors already on the fields still count toward [canSubmit].
+  /// When the fields of this tree validate themselves, with nobody calling
+  /// [AdvancedFormController.validate]. Set it with
+  /// [AdvancedFormController.setValidationMode].
+  ///
+  /// A field or a subform that claimed a mode of its own does not follow this
+  /// one.
+  final ValidationMode validationMode;
+
+  /// Whether this section counts at all. While it is false every field in the
+  /// tree behaves as [ValidationMode.disabled] and
+  /// [AdvancedFormController.validate] skips them. Errors already on the fields
+  /// still count toward [canSubmit].
   final bool validationEnabled;
 
   /// This form's fields including every subform's fields.
@@ -458,16 +555,22 @@ class AdvancedFormState with Equatable {
               if (field.value.error case final error?) field: error,
           };
 
+  // What this form is running under, as one value.
+  ValidationSettings get _settings =>
+      (mode: validationMode, enabled: validationEnabled);
+
   AdvancedFormState _copyWith({
     bool? wasModified,
     List<AdvancedFieldController<dynamic, dynamic>>? fields,
     Set<AdvancedFormController>? subforms,
+    ValidationMode? validationMode,
     bool? validationEnabled,
   }) =>
       AdvancedFormState(
         wasModified: wasModified ?? this.wasModified,
         fields: fields ?? this.fields,
         subforms: subforms ?? this.subforms,
+        validationMode: validationMode ?? this.validationMode,
         validationEnabled: validationEnabled ?? this.validationEnabled,
       );
 
@@ -476,6 +579,7 @@ class AdvancedFormState with Equatable {
         wasModified,
         fields,
         subforms,
+        validationMode,
         validationEnabled,
       ];
 }

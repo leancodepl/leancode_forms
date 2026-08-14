@@ -43,7 +43,7 @@ List<_State> _record(_Field notifier) {
   AsyncValidationFailureHandler? onFailure,
   AsyncValidationFailureMapper<_Error>? failureToError,
   Validator<int, _Error>? validator,
-  bool autovalidate = true,
+  ValidationMode mode = ValidationMode.onUserInteraction,
 }) {
   final validated = <int>[];
   late _Field field;
@@ -62,10 +62,7 @@ List<_State> _record(_Field notifier) {
       onFailure: onFailure,
       failureToError: failureToError,
     ),
-  );
-  if (autovalidate) {
-    field.setAutovalidate(true);
-  }
+  )..setValidationMode(mode);
   return (field: field, validated: validated);
 }
 
@@ -116,7 +113,7 @@ void main() {
     });
 
     test('updates error if autovalidate is on', () {
-      field.setAutovalidate(true);
+      field.setValidationMode(ValidationMode.onUserInteraction);
       validator.validationResult = _Error.malformed;
       final emissions = _record(field);
       field.setValue(10);
@@ -124,7 +121,7 @@ void main() {
         _State(
           value: 10,
           validationError: _Error.malformed,
-          autovalidate: true,
+          mode: ValidationMode.onUserInteraction,
           status: FieldStatus.invalid,
         ),
       ]);
@@ -162,7 +159,7 @@ void main() {
 
     test('keeps autovalidate and readOnly', () {
       field
-        ..setAutovalidate(true)
+        ..setValidationMode(ValidationMode.onUserInteraction)
         ..markReadOnly()
         ..setValue(10, force: true);
       final emissions = _record(field);
@@ -170,7 +167,7 @@ void main() {
       field.reset();
 
       expect(emissions, const [
-        _State(value: 0, autovalidate: true, readOnly: true),
+        _State(value: 0, mode: ValidationMode.onUserInteraction, readOnly: true),
       ]);
     });
   });
@@ -254,7 +251,7 @@ void main() {
         () async {
       final (:field, :validated) = _asyncField(
         validator: (_) => _Error.malformed,
-        autovalidate: false,
+        mode: ValidationMode.disabled,
       );
       addTearDown(field.dispose);
 
@@ -264,7 +261,7 @@ void main() {
     });
 
     test('runs the async validator even with the gate closed', () async {
-      final (:field, :validated) = _asyncField(autovalidate: false);
+      final (:field, :validated) = _asyncField(mode: ValidationMode.disabled);
       addTearDown(field.dispose);
 
       expect(await field.validate(), true);
@@ -287,7 +284,7 @@ void main() {
     test('reports a superseded round as not known good', () async {
       final (:field, :validated) = _asyncField(
         validatorDelay: const Duration(milliseconds: 100),
-        autovalidate: false,
+        mode: ValidationMode.disabled,
       );
       addTearDown(field.dispose);
 
@@ -348,7 +345,7 @@ void main() {
     });
 
     test('reuses a verdict that still describes the current value', () async {
-      final (:field, :validated) = _asyncField(autovalidate: false);
+      final (:field, :validated) = _asyncField(mode: ValidationMode.disabled);
       addTearDown(field.dispose);
 
       expect(await field.validate(), true);
@@ -358,7 +355,7 @@ void main() {
     });
 
     test('a value change invalidates the verdict', () async {
-      final (:field, :validated) = _asyncField(autovalidate: false);
+      final (:field, :validated) = _asyncField(mode: ValidationMode.disabled);
       addTearDown(field.dispose);
 
       await field.validate();
@@ -418,7 +415,7 @@ void main() {
             return validator.validationResult;
           },
         ),
-      )..setAutovalidate(true);
+      )..setValidationMode(ValidationMode.onUserInteraction);
     });
 
     tearDown(() {
@@ -426,7 +423,7 @@ void main() {
     });
 
     test('does not run while the gate is closed', () async {
-      final (:field, :validated) = _asyncField(autovalidate: false);
+      final (:field, :validated) = _asyncField(mode: ValidationMode.disabled);
       addTearDown(field.dispose);
       final emissions = _record(field);
 
@@ -445,13 +442,13 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 600));
 
       expect(emissions, const [
-        _State(value: 10, status: FieldStatus.pending, autovalidate: true),
-        _State(value: 10, status: FieldStatus.validating, autovalidate: true),
+        _State(value: 10, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
+        _State(value: 10, status: FieldStatus.validating, mode: ValidationMode.onUserInteraction),
         _State(
           value: 10,
           status: FieldStatus.invalid,
           asyncError: _Error.malformed,
-          autovalidate: true,
+          mode: ValidationMode.onUserInteraction,
         ),
       ]);
     });
@@ -467,14 +464,14 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 600));
 
       expect(emissions, const [
-        _State(value: 10, status: FieldStatus.pending, autovalidate: true),
-        _State(value: 20, status: FieldStatus.pending, autovalidate: true),
-        _State(value: 20, status: FieldStatus.validating, autovalidate: true),
+        _State(value: 10, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
+        _State(value: 20, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
+        _State(value: 20, status: FieldStatus.validating, mode: ValidationMode.onUserInteraction),
         _State(
           value: 20,
           status: FieldStatus.invalid,
           asyncError: _Error.malformed,
-          autovalidate: true,
+          mode: ValidationMode.onUserInteraction,
         ),
       ]);
     });
@@ -490,15 +487,15 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 600));
 
       expect(emissions, const [
-        _State(value: 10, status: FieldStatus.pending, autovalidate: true),
-        _State(value: 10, status: FieldStatus.validating, autovalidate: true),
-        _State(value: 20, status: FieldStatus.pending, autovalidate: true),
-        _State(value: 20, status: FieldStatus.validating, autovalidate: true),
+        _State(value: 10, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
+        _State(value: 10, status: FieldStatus.validating, mode: ValidationMode.onUserInteraction),
+        _State(value: 20, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
+        _State(value: 20, status: FieldStatus.validating, mode: ValidationMode.onUserInteraction),
         _State(
           value: 20,
           status: FieldStatus.invalid,
           asyncError: _Error.malformed,
-          autovalidate: true,
+          mode: ValidationMode.onUserInteraction,
         ),
       ]);
     });
@@ -537,7 +534,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       // Field is in pending state, debounce not yet elapsed.
       expect(emissions, const [
-        _State(value: 10, status: FieldStatus.pending, autovalidate: true),
+        _State(value: 10, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
       ]);
 
       f.dispose();
@@ -545,7 +542,7 @@ void main() {
 
       // No further emissions after dispose.
       expect(emissions, const [
-        _State(value: 10, status: FieldStatus.pending, autovalidate: true),
+        _State(value: 10, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
       ]);
     });
 
@@ -560,8 +557,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 100));
       // Debounce (50ms) has elapsed; validator (200ms) is running.
       expect(emissions, const [
-        _State(value: 10, status: FieldStatus.pending, autovalidate: true),
-        _State(value: 10, status: FieldStatus.validating, autovalidate: true),
+        _State(value: 10, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
+        _State(value: 10, status: FieldStatus.validating, mode: ValidationMode.onUserInteraction),
       ]);
 
       f.dispose();
@@ -569,8 +566,8 @@ void main() {
 
       // Validator's natural completion arrives AFTER dispose; no emission.
       expect(emissions, const [
-        _State(value: 10, status: FieldStatus.pending, autovalidate: true),
-        _State(value: 10, status: FieldStatus.validating, autovalidate: true),
+        _State(value: 10, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
+        _State(value: 10, status: FieldStatus.validating, mode: ValidationMode.onUserInteraction),
       ]);
     });
 
@@ -591,8 +588,8 @@ void main() {
       // The validator resolved against a disposed controller, so the final
       // state is never emitted.
       expect(emissions, const [
-        _State(value: 10, status: FieldStatus.pending, autovalidate: true),
-        _State(value: 10, status: FieldStatus.validating, autovalidate: true),
+        _State(value: 10, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
+        _State(value: 10, status: FieldStatus.validating, mode: ValidationMode.onUserInteraction),
       ]);
     });
   });
@@ -800,7 +797,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 40));
 
       field
-        ..setAutovalidate(false)
+        ..setValidationMode(ValidationMode.disabled)
         ..setValue(10, force: true);
       final emissions = _record(field);
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -829,7 +826,7 @@ void main() {
             throw StateError('validator exploded');
           },
         ),
-      )..setAutovalidate(true);
+      )..setValidationMode(ValidationMode.onUserInteraction);
     });
 
     tearDown(() {
@@ -845,12 +842,12 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 600));
 
       expect(emissions, const [
-        _State(value: 10, status: FieldStatus.pending, autovalidate: true),
-        _State(value: 10, status: FieldStatus.validating, autovalidate: true),
+        _State(value: 10, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
+        _State(value: 10, status: FieldStatus.validating, mode: ValidationMode.onUserInteraction),
         _State(
           value: 10,
           status: FieldStatus.failedValidation,
-          autovalidate: true,
+          mode: ValidationMode.onUserInteraction,
         ),
       ]);
       expect(throwingField.value.isInProgress, isFalse);
@@ -870,7 +867,7 @@ void main() {
           validator: (value) => throw StateError('validator exploded'),
           onFailure: (error, stackTrace) async => handled.add(error),
         ),
-      )..setAutovalidate(true);
+      )..setValidationMode(ValidationMode.onUserInteraction);
       addTearDown(syncThrower.dispose);
       final emissions = _record(syncThrower);
 
@@ -878,12 +875,12 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 600));
 
       expect(emissions, const [
-        _State(value: 10, status: FieldStatus.pending, autovalidate: true),
-        _State(value: 10, status: FieldStatus.validating, autovalidate: true),
+        _State(value: 10, status: FieldStatus.pending, mode: ValidationMode.onUserInteraction),
+        _State(value: 10, status: FieldStatus.validating, mode: ValidationMode.onUserInteraction),
         _State(
           value: 10,
           status: FieldStatus.failedValidation,
-          autovalidate: true,
+          mode: ValidationMode.onUserInteraction,
         ),
       ]);
       expect(syncThrower.lastFailure?.error, isStateError);
@@ -1007,7 +1004,7 @@ void main() {
             },
             onFailure: onFailure,
           ),
-        )..setAutovalidate(true);
+        )..setValidationMode(ValidationMode.onUserInteraction);
         addTearDown(field.dispose);
         return field;
       }
@@ -1088,7 +1085,7 @@ void main() {
     });
 
     test('leaves a still-current verdict reusable', () async {
-      final (:field, :validated) = _asyncField(autovalidate: false);
+      final (:field, :validated) = _asyncField(mode: ValidationMode.disabled);
       addTearDown(field.dispose);
 
       await field.validate();
@@ -1110,7 +1107,7 @@ void main() {
       final (:field, :validated) = _asyncField(
         validator: (_) => mismatch ? _Error.malformed : null,
         result: () => _Error.unavailable,
-        autovalidate: false,
+        mode: ValidationMode.disabled,
       );
       addTearDown(field.dispose);
 
@@ -1135,7 +1132,7 @@ void main() {
       // write that touches only a flag still has to settle the status rather
       // than carry the stale one through.
       for (final write in <void Function(_Field)>[
-        (field) => field.setAutovalidate(true),
+        (field) => field.setValidationMode(ValidationMode.onUserInteraction),
         (field) => field.unmarkReadOnly(),
       ]) {
         final field = _Field(initialValue: _initialValue)
@@ -1164,7 +1161,7 @@ void main() {
           return null;
         },
       )
-        ..setAutovalidate(true)
+        ..setValidationMode(ValidationMode.onUserInteraction)
         ..dispose();
 
       expect(() => field.subscribeToFields([observed]), throwsStateError);
@@ -1186,8 +1183,11 @@ void main() {
           return null;
         },
       )
-        ..setAutovalidate(true)
+        ..setValidationMode(ValidationMode.onUserInteraction)
+        // A field the user never edited stays quiet on a dependency's change.
+        ..setValue(1)
         ..subscribeToFields([observed]);
+      validatorCalls = 0;
 
       observed.setValue(10);
 
@@ -1201,16 +1201,18 @@ void main() {
 
     test('re-runs the sync validator when a subscribed field changes',
         () async {
-      validator.validationResult = _Error.malformed;
       final field2 = AdvancedFieldController<int, _Error>(initialValue: 0);
       final field1 = AdvancedFieldController<int, _Error>(
         initialValue: 0,
         validator: validator,
       )
-        ..setAutovalidate(true)
+        ..setValidationMode(ValidationMode.onUserInteraction)
+        // A field the user never edited stays quiet on a dependency's change.
+        ..setValue(1)
         ..subscribeToFields([field2]);
       addTearDown(field1.dispose);
       addTearDown(field2.dispose);
+      validator.validationResult = _Error.malformed;
 
       field2.setValue(10);
       await pumpEventQueue();
@@ -1261,11 +1263,393 @@ void main() {
       addTearDown(field1.dispose);
       addTearDown(field2.dispose);
 
-      field1.setAutovalidate(true);
+      field1.setValidationMode(ValidationMode.onUserInteraction);
       await pumpEventQueue();
 
       expect(field1.value.error, isNull);
       expect(field1.value.isValid, isTrue);
+    });
+  });
+
+  group('validation modes', () {
+    ({_Field field, _ValidatorMock validator}) syncField(ValidationMode mode) {
+      final fieldValidator = _ValidatorMock();
+      final controller = AdvancedFieldController<int, _Error>(
+        initialValue: _initialValue,
+        validator: fieldValidator,
+      )..setValidationMode(mode);
+      addTearDown(controller.dispose);
+      return (field: controller, validator: fieldValidator);
+    }
+
+    group('disabled', () {
+      test('an edit validates nothing', () {
+        final (:field, :validator) = syncField(ValidationMode.disabled);
+        validator.validationResult = _Error.malformed;
+
+        field.setValue(10);
+
+        expect(field.value.error, isNull);
+        expect(field.value.isValid, isTrue);
+      });
+
+      test('unfocus validates nothing', () {
+        final (:field, :validator) = syncField(ValidationMode.disabled);
+        field.setValue(10);
+        validator.validationResult = _Error.malformed;
+
+        field.handleUnfocus();
+
+        expect(field.value.error, isNull);
+      });
+
+      test('a dependency change validates nothing', () {
+        final (:field, :validator) = syncField(ValidationMode.disabled);
+        field.setValue(10);
+        validator.validationResult = _Error.malformed;
+
+        field.revalidateSync();
+
+        expect(field.value.error, isNull);
+      });
+
+      test('an edit clears an error pushed onto the field', () {
+        final (:field, :validator) = syncField(ValidationMode.disabled);
+        field.setError(_Error.valueRequired);
+        validator.validationResult = _Error.malformed;
+
+        field.setValue(10);
+
+        // The error described the old value, so it goes; nothing runs to put a
+        // new one there until the next validate().
+        expect(field.value.error, isNull);
+        expect(field.value.isValid, isTrue);
+      });
+
+      test('validate() runs anyway and leaves the mode alone', () async {
+        final (:field, :validator) = syncField(ValidationMode.disabled);
+        validator.validationResult = _Error.malformed;
+
+        expect(await field.validate(), isFalse);
+        expect(field.value.error, _Error.malformed);
+        expect(field.value.mode, ValidationMode.disabled);
+      });
+    });
+
+    group('onUserInteraction', () {
+      test('an edit validates', () {
+        final (:field, :validator) =
+            syncField(ValidationMode.onUserInteraction);
+        validator.validationResult = _Error.malformed;
+
+        field.setValue(10);
+
+        expect(field.value.error, _Error.malformed);
+      });
+
+      test('unfocus validates nothing: the edit already did', () {
+        final (:field, :validator) =
+            syncField(ValidationMode.onUserInteraction);
+        field.setValue(10);
+        validator.validationResult = _Error.malformed;
+
+        field.handleUnfocus();
+
+        expect(field.value.error, isNull);
+      });
+
+      test('a dependency change re-runs the sync validator only', () async {
+        final (:field, :validated) = _asyncField();
+        addTearDown(field.dispose);
+        field.setValue(10);
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+        expect(validated, const [10]);
+
+        field.revalidateSync();
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+
+        expect(validated, const [10]);
+      });
+
+      test('unfocus flushes a round still waiting out its debounce', () async {
+        final (:field, :validated) =
+            _asyncField(debounce: const Duration(seconds: 10));
+        addTearDown(field.dispose);
+
+        field.setValue(10);
+        expect(field.value.isPending, isTrue);
+
+        field.handleUnfocus();
+        await pumpEventQueue();
+
+        expect(validated, const [10]);
+      });
+    });
+
+    group('onUnfocus', () {
+      test('an edit validates nothing', () {
+        final (:field, :validator) = syncField(ValidationMode.onUnfocus);
+        validator.validationResult = _Error.malformed;
+
+        field.setValue(10);
+
+        expect(field.value.error, isNull);
+      });
+
+      test('unfocus validates', () {
+        final (:field, :validator) = syncField(ValidationMode.onUnfocus);
+        field.setValue(10);
+        validator.validationResult = _Error.malformed;
+
+        field.handleUnfocus();
+
+        expect(field.value.error, _Error.malformed);
+      });
+
+      test('a dependency change re-runs the sync validator only', () async {
+        final (:field, :validated) = _asyncField(
+          mode: ValidationMode.onUnfocus,
+          validator: (value) => value == 10 ? _Error.malformed : null,
+        );
+        addTearDown(field.dispose);
+        field
+          ..setValue(10)
+          ..revalidateSync();
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+
+        expect(field.value.validationError, _Error.malformed);
+        expect(validated, isEmpty);
+      });
+
+      test('a second focus cycle with no edit costs no request', () async {
+        final (:field, :validated) =
+            _asyncField(mode: ValidationMode.onUnfocus);
+        addTearDown(field.dispose);
+
+        field
+          ..setValue(10)
+          ..handleUnfocus();
+        await pumpEventQueue();
+        expect(validated, const [10]);
+
+        field.handleUnfocus();
+        await pumpEventQueue();
+
+        expect(validated, const [10]);
+      });
+
+      test('unfocus retries a round that failed', () async {
+        var attempts = 0;
+        final (:field, :validated) = _asyncField(
+          mode: ValidationMode.onUnfocus,
+          onFailure: (_, __) async {},
+          result: () {
+            attempts++;
+            if (attempts == 1) {
+              throw StateError('validator exploded');
+            }
+            return null;
+          },
+        );
+        addTearDown(field.dispose);
+
+        field
+          ..setValue(10)
+          ..handleUnfocus();
+        await pumpEventQueue();
+        expect(field.value.isFailedValidation, isTrue);
+
+        field.handleUnfocus();
+        await pumpEventQueue();
+
+        expect(validated, const [10, 10]);
+        expect(field.value.isValid, isTrue);
+      });
+
+      test('unfocus validates a read-only field', () {
+        final (:field, :validator) = syncField(ValidationMode.onUnfocus);
+        field.setValue(10);
+        validator.validationResult = _Error.malformed;
+        field
+          ..markReadOnly()
+          ..handleUnfocus();
+
+        expect(field.value.error, _Error.malformed);
+      });
+
+      test('a throwing validator reports to Flutter rather than the zone',
+          () async {
+        final unhandled = <Object>[];
+        final errors = <FlutterErrorDetails>[];
+        final previous = FlutterError.onError;
+        FlutterError.onError = errors.add;
+        addTearDown(() => FlutterError.onError = previous);
+
+        await runZonedGuarded(
+          () async {
+            final field = AdvancedFieldController<int, _Error>(
+              initialValue: _initialValue,
+              validator: (_) => throw StateError('validator exploded'),
+            )..setValidationMode(ValidationMode.onUnfocus);
+            addTearDown(field.dispose);
+
+            field
+              ..setValue(10)
+              ..handleUnfocus();
+            await pumpEventQueue();
+          },
+          (error, stackTrace) => unhandled.add(error),
+        );
+
+        expect(unhandled, isEmpty);
+        expect(errors, hasLength(1));
+      });
+
+      testWidgets('losing focus in a real focus tree validates',
+          (tester) async {
+        final validator = _ValidatorMock();
+        final field = AdvancedTextFieldController<_Error>(
+          validator: (_) => validator.validationResult,
+        )..setValidationMode(ValidationMode.onUnfocus);
+        final other = FocusNode();
+        addTearDown(field.dispose);
+        addTearDown(other.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Column(
+                children: [
+                  TextField(
+                    focusNode: field.focusNode,
+                    controller: field.textController,
+                  ),
+                  TextField(focusNode: other),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byType(TextField).first);
+        await tester.pump();
+        await tester.enterText(find.byType(TextField).first, 'value');
+        await tester.pump();
+        validator.validationResult = _Error.malformed;
+        expect(field.value.error, isNull);
+
+        other.requestFocus();
+        await tester.pump();
+
+        expect(field.value.error, _Error.malformed);
+      });
+    });
+
+    group('the interaction guarantee', () {
+      for (final mode in ValidationMode.values) {
+        test('an untouched field validates nothing on unfocus in $mode', () {
+          final (:field, :validator) = syncField(mode);
+          validator.validationResult = _Error.malformed;
+
+          field.handleUnfocus();
+
+          expect(field.value.error, isNull);
+        });
+
+        test('an untouched field validates nothing on a dependency change '
+            'in $mode', () {
+          final (:field, :validator) = syncField(mode);
+          validator.validationResult = _Error.malformed;
+
+          field.revalidateSync();
+
+          expect(field.value.error, isNull);
+        });
+
+        test('validate() checks an untouched field in $mode', () async {
+          final (:field, :validator) = syncField(mode);
+          validator.validationResult = _Error.malformed;
+
+          expect(await field.validate(), isFalse);
+          expect(field.value.error, _Error.malformed);
+        });
+
+        test('a prefilled value does not arm the field in $mode', () {
+          final (:field, :validator) = syncField(mode);
+          validator.validationResult = _Error.malformed;
+
+          field
+            ..prefill(10)
+            ..handleUnfocus()
+            ..revalidateSync();
+
+          expect(field.value.value, 10);
+          expect(field.value.error, isNull);
+        });
+      }
+
+      test('an edit arms the field for the events its mode names', () {
+        final (:field, :validator) = syncField(ValidationMode.onUnfocus);
+
+        field.setValue(10);
+        validator.validationResult = _Error.malformed;
+        field.revalidateSync();
+
+        expect(field.value.error, _Error.malformed);
+      });
+
+      test('reset makes the field untouched again', () {
+        final (:field, :validator) =
+            syncField(ValidationMode.onUserInteraction);
+        field
+          ..setValue(10)
+          ..reset();
+        validator.validationResult = _Error.malformed;
+        field.revalidateSync();
+
+        expect(field.value.error, isNull);
+      });
+
+      test('prefill on a read-only field is a no-op unless forced', () {
+        final (:field, validator: _) = syncField(ValidationMode.disabled);
+        field
+          ..markReadOnly()
+          ..prefill(10);
+        expect(field.value.value, _initialValue);
+
+        field.prefill(20, force: true);
+        expect(field.value.value, 20);
+      });
+    });
+
+    group('setValidationMode', () {
+      test('changing the mode validates nothing by itself', () {
+        final (:field, :validator) = syncField(ValidationMode.disabled);
+        field.setValue(10);
+        validator.validationResult = _Error.malformed;
+
+        field.setValidationMode(ValidationMode.onUserInteraction);
+
+        expect(field.value.error, isNull);
+        expect(field.value.mode, ValidationMode.onUserInteraction);
+      });
+
+      test('a mode change drops a round the old mode started', () async {
+        final (:field, :validated) = _asyncField(
+          validatorDelay: const Duration(milliseconds: 100),
+        );
+        addTearDown(field.dispose);
+
+        field.setValue(10);
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        expect(field.value.isValidating, isTrue);
+
+        field.setValidationMode(ValidationMode.disabled);
+
+        expect(field.value.isInProgress, isFalse);
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        expect(field.value.isValid, isTrue);
+      });
     });
   });
 }
