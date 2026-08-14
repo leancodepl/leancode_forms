@@ -91,7 +91,7 @@ class _OptimizedRenderingForm extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: controller.submit,
+            onPressed: controller.value.validating ? null : controller.submit,
             child: const Text('Submit'),
           ),
         ],
@@ -251,8 +251,8 @@ class OptimizedRenderingFormController extends AdvancedFormController {
     return takenEmail.contains(value) ? ValidationError.emailTaken : null;
   }
 
-  void submit() {
-    if (validate()) {
+  Future<void> submit() async {
+    if (await validate()) {
       debugPrint('First name: ${firstName.value.value}');
       debugPrint('Nickname: ${nickname.value.value}');
       debugPrint('Email: ${email.value.value}');

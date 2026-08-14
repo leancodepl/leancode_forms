@@ -27,8 +27,8 @@ class SignupFormController extends AdvancedFormController {
     validator: filled('Last name is required'),
   );
 
-  void submit() {
-    if (validate()) {
+  Future<void> submit() async {
+    if (await validate()) {
       // send it
     }
   }
@@ -120,11 +120,20 @@ ValueListenableBuilder<AdvancedFormState>(
 );
 ```
 
-`AdvancedFormState` carries `wasModified` (any field changed since `registerFields`), `validating` (an async check is in flight), `fields` / `subforms`, `validationEnabled`, and `validationErrors` — every error in the form tree, keyed by field, for an error summary. With `provider`, `context.select<SignupFormController, bool>((c) => c.value.validating)` subscribes to one slice.
+`AdvancedFormState` carries `wasModified` (any field changed since `registerFields`), `fields` / `subforms`, and `validationEnabled`. Four members are derived from the fields on every read, so they can never outlive the child that justified them:
+
+| Member | Meaning |
+| --- | --- |
+| `validating` | An async check is in flight somewhere in the tree |
+| `canSubmit` | Every field is `valid` **right now** — a snapshot of *known* errors, so it is true on a quiet form nobody has checked yet. `await form.validate()` is the guarantee |
+| `hasFailedValidation` | Some field's async check could not run — it threw or timed out. Drives one form-level banner |
+| `validationErrors` | Every error in the form tree, sync or async, keyed by field, for an error summary |
+
+With `provider`, `context.select<SignupFormController, bool>((c) => c.value.validating)` subscribes to one slice.
 
 To react outside a builder, `form.onValuesChanged` and `form.onStatusChanged` are `Listenable`s covering the whole tree, subforms included. Pass a named callback so you can `removeListener` it later.
 
-`AdvancedFormController` takes two optional constructor arguments: `debugName`, a label for logging across nested subforms, and `validateAll` — when true, a change to any field re-runs the validators of every *other* autovalidating field, which is what you want when fields validate against each other.
+`AdvancedFormController` takes two optional constructor arguments: `debugName`, a label for logging across nested subforms, and `validateAll` — when true, a change to any field re-runs the **sync** validator on every *other* autovalidating field, which is what you want when fields validate against each other. No async check is restarted: a field whose own value did not change keeps its last answer, so typing starts no async checks. It is the blunt version of `subscribeToFields`, reaching the whole tree instead of the dependencies you name.
 
 ## Validation
 
@@ -142,14 +151,34 @@ final firstName = AdvancedTextFieldController(
 );
 ```
 
-You control *when* validators run:
+Two rules cover every case:
 
-- **On submit** — `form.validate()` walks every field and subform and returns `false` if anything is invalid. It also turns autovalidate on for all fields, which gives the usual UX: quiet until the first submit, live feedback after. Pass `validate(enableAutovalidate: false)` to check without switching that on.
+1. **The gate decides when a round starts.** The gate is `autovalidate`, per field.
+2. **A round runs the sync validator first, and the async validator only if sync passed.**
+
+| `autovalidate` | on `setValue` | on `await validate()` |
+| --- | --- | --- |
+| `false` | Store the value, clear both errors. Nothing runs — a form nobody has submitted runs no async checks | Sync; async only if sync passed |
+| `true` | Sync; async only if sync passed (async debounced) | Sync; async only if sync passed (async immediate) |
+
+So you control *when* validators run:
+
+- **On submit** — `await form.validate()` walks every field and subform, runs their async validators too, and returns `false` if anything is invalid. It also turns autovalidate on for all fields, which gives the usual UX: quiet until the first submit, live feedback after. Pass `validate(enableAutovalidate: false)` to check without switching that on.
 - **As the user types** — `field.setAutovalidate(true)`, or `form.setAutovalidate(true)` for all of them.
 
-Until autovalidate is on, a field's sync validator does not run at all.
+`validate()` is asynchronous because it may have to wait on the server. **Await it** — the result is the only thing that says the values were actually checked. Calling it again before the first call finishes gives you the same result, so a double-tapped submit button runs one pass.
+
+```dart
+Future<void> submit() async {
+  if (await form.validate()) {
+    await api.signUp(...);
+  }
+}
+```
 
 The form-level result is just a `bool` — "may this submit proceed?". The errors themselves stay on the fields, where the widgets displaying them are already subscribed.
+
+Note that `valid` means *no error recorded*, not *checked and passed*: a field nobody has validated yet is `valid`, which is why `canSubmit` is fine for enabling a button but not for deciding a submit.
 
 ### Ready-to-use validators
 
@@ -181,24 +210,34 @@ final email = AdvancedTextFieldController(
   asyncValidation: AsyncValidation(
     validator: _checkEmailTaken,                   // Future<MyError?> Function(String)
     debounce: const Duration(milliseconds: 500),   // default 300ms
-    onError: _reportCheckFailure,                  // optional
+    timeout: const Duration(seconds: 5),           // optional, default: no bound
+    onFailure: _reportCheckFailure,                // optional
+    failureToError: (e, s) => MyError.checkFailed, // optional
   ),
 );
 ```
 
-- **Debouncing** — the validator waits for a pause in typing rather than firing on every keystroke.
-- **Cancellation** — if the value changes while a check is in flight, the stale result is discarded.
+- **Debouncing** — the validator waits for a pause in typing rather than firing on every keystroke. `validate()` ignores the debounce: a check that is still waiting is run at once.
+- **Cancellation** — the value changing, `setError`, `clearErrors`, `reset`, `markReadOnly` and `dispose` all kill a live round. A killed round can never write state again, and its later result is dropped.
+- **No wasted calls** — a settled answer is reused while it still describes the value the field holds, so a second submit press on an unchanged form makes no calls. The async validator is treated as a function of its value; a check that depends on state *outside* the value must be invalidated explicitly with `clearErrors()`.
 - **Status you can render** — the status walks `pending` → `validating` → `valid`/`invalid`, so a spinner is one `state.isInProgress` check.
-- **Submit safety** — `validate()` returns `false` while an async check is unresolved.
-- **Crash safety** — if the validator throws, the field lands on `FieldStatus.failed` (`state.isFailed`) instead of hanging on `validating`. There's no error code to render, but `validate()` still returns `false`. The exception goes to `AsyncValidation.onError`, or to `FlutterError.reportError` if you don't pass one.
+- **Submit safety** — `await validate()` waits for the answer rather than reporting the field bad for being busy.
 
-Once autovalidate is on, the async validator only runs if the sync one passes. Before that the sync validator doesn't run, so the async one fires on any change.
+#### When the check itself falls over
+
+An *error* is a code describing what is wrong with the value. A *failure* is the validator throwing, or its round timing out — a technical fault, not a verdict. The two are kept apart:
+
+- The field lands on `FieldStatus.failedValidation` (`state.isFailedValidation`) instead of hanging on `validating`, and it does not count as valid, so `validate()` returns `false`.
+- The exception goes to `AsyncValidation.onFailure`, or to `FlutterError.reportError` if you don't pass one.
+- `field.lastFailure` carries the exception, its stack trace and whether it timed out, for logs and crash reporting. It is diagnostic only and takes no part in state comparison or rebuilds.
+- `form.value.hasFailedValidation` drives one banner for the whole form. Per-field text is opt-in: pass `failureToError` to turn the exception into an error code, which then displays through the normal path.
+- Failure is **not sticky**. A failed round records no answer, so the next `await validate()` re-runs it — submit is the retry, and there is no separate API for it.
 
 Only `AdvancedTextFieldController` and `AdvancedBooleanFieldController` accept `asyncValidation`. Working example: `SimpleFormScreen` in the example app.
 
 ### Validation that depends on another field
 
-`subscribeToFields` re-runs this field's validator whenever the fields it depends on change value:
+`subscribeToFields` re-runs this field's **sync** validator whenever the fields it depends on change value:
 
 ```dart
 final password = AdvancedTextFieldController(
@@ -211,9 +250,11 @@ late final repeatPassword = AdvancedTextFieldController(
 )..subscribeToFields([password]);
 ```
 
-Status changes on the observed fields — an async validator starting, say — are filtered out, so dependent fields don't churn for nothing. Revalidation kicks in once autovalidate is on.
+Status changes on the observed fields — an async validator starting, say — are filtered out, so dependent fields don't churn for nothing. Nothing happens at all while this field's gate is closed. With the gate open `validationError` is rewritten, so an error pushed in with `setError` gives way to whatever the validator now returns.
 
-It does exactly one thing: **re-run this field's validator.** It does not copy or derive values. For "when B changes, set A" — recompute a total, mirror one field into another, clear a dependent selection — use `addListener` and `setValue`:
+The async validator is deliberately *not* re-run: this field's own value did not change, so its last answer is still current and no async check is owed.
+
+It does exactly one thing: **re-run this field's sync validator.** It does not copy or derive values. For "when B changes, set A" — recompute a total, mirror one field into another, clear a dependent selection — use `addListener` and `setValue`:
 
 ```dart
 quantity.addListener(() => total.setValue(quantity.fieldValue * unitPrice));
@@ -249,8 +290,15 @@ Switch(
 );
 
 field.setError(MyError.emailTaken);    // push an error in from outside, e.g. a server response
-field.clearErrors();                   // and clear it again
+field.setError(null);                  // clear validationError — status follows
+field.clearErrors();                   // clear everything, including the last async answer
 ```
+
+`setError(null)` is what makes the "apply the server's response to every field" pattern work: fields the server accepted end up `valid` with nothing to show, rather than `invalid` with nothing to show.
+
+`setError` writes `validationError` only. A code an async check recorded survives it, and the field stays `invalid` showing that code — use `clearErrors()` when you mean "forget everything, including the async answer". A pushed error is also not protected from the validators: while the field's gate is open, anything that re-runs its sync validator — an edit, `subscribeToFields`, `validateAll` — overwrites `validationError` with whatever the validator returns.
+
+`reset()` restores the initial value and clears both errors. It **keeps** `autovalidate` and `readOnly` — those are configuration, and configuration changes only through its own API.
 
 `AdvancedFormController` has `markReadOnly()`, `clearErrors()`, and `setValidationEnabled(bool)` for the whole tree. `example/lib/screens/quiz_form.dart` uses `setError` for server-returned errors.
 
@@ -296,4 +344,4 @@ class BaseFormController extends AdvancedFormController {
 }
 ```
 
-`Future<void> removeSubform(form, {bool close = true})` detaches a subform and disposes it unless you pass `close: false`. The parent disposes attached subforms in its own `dispose()`, so don't dispose them yourself as well. Calling `addSubform` with — or on — a disposed controller throws a descriptive `StateError` rather than crashing later.
+`void removeSubform(form, {bool close = true})` detaches a subform and disposes it unless you pass `close: false`. The parent disposes attached subforms in its own `dispose()`, so don't dispose them yourself as well. Calling `addSubform` with — or on — a disposed controller throws a descriptive `StateError` rather than crashing later, and so do `registerFields`, `setValidationEnabled` and `removeSubform` on one.

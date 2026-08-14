@@ -180,18 +180,18 @@ class ComplexFormController extends AdvancedFormController {
       addSubform(humanSubform);
     } else {
       humanSubform.resetAll();
-      await removeSubform(humanSubform, close: false);
+      removeSubform(humanSubform, close: false);
     }
     if (type == SubformType.dog) {
       addSubform(dogSubform);
     } else {
       dogSubform.resetAll();
-      await removeSubform(dogSubform, close: false);
+      removeSubform(dogSubform, close: false);
     }
   }
 
-  void submit() {
-    if (validate()) {
+  Future<void> submit() async {
+    if (await validate()) {
       debugPrint('Form is valid!');
     } else {
       debugPrint('Form is invalid!');

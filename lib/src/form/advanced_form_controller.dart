@@ -1,21 +1,17 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:leancode_forms/src/field/advanced_field_controller.dart';
+import 'package:leancode_forms/src/utils/shared_call.dart';
 
-/// A parent of multiple [AdvancedFieldController]s. Manages group validation and tracks
-/// changes as well as cleans up needed resources.
+/// A parent of multiple [AdvancedFieldController]s. Manages group validation,
+/// tracks changes, and cleans up the resources it owns.
 ///
-/// A form is a tree which can be recursively defined:
-///   1. A form is the root of its own form tree
-///   2. A form has direct leaves, which are fields
-///   3. A form can have subtrees, which are forms (this is called subforms)
-///
-/// Most methods broadcast to all subforms.
-///
-/// Introducing cycles in forms is not supported and not checked against (most
-/// likely will cause a stack overflow somewhere).
+/// A form is a tree: it is the root of its own tree, its direct leaves are
+/// fields, and its subtrees are subforms. Most methods broadcast to the whole
+/// tree. Cycles are not supported and not checked against.
 class AdvancedFormController
     with ChangeNotifier
     implements ValueListenable<AdvancedFormState> {
@@ -25,142 +21,162 @@ class AdvancedFormController
     this.validateAll = false,
   });
 
-  AdvancedFormState _value = const AdvancedFormState();
+  /// A label you can log to tell nested subforms apart. The package never reads
+  /// it.
+  final String debugName;
+
+  /// When true, any field's change re-runs the sync validator on every field in
+  /// the tree whose gate is open. See [validateWithAutovalidate].
+  final bool validateAll;
+
+  var _value = const AdvancedFormState();
 
   @override
   AdvancedFormState get value => _value;
 
-  void _setState(AdvancedFormState newValue) {
-    if (newValue == _value) {
-      return;
-    }
-    _value = newValue;
-    notifyListeners();
-  }
-
-  /// A label for this form used for logging, or tracing
-  /// across nested subforms. Has no effect on form behavior.
-  final String debugName;
-
-  /// When true, whenever any field changes, all other fields get
-  /// their validator called if they have autovalidate enabled.
-  final bool validateAll;
-
-  /// Flag about whether controller has been disposed. Once true it stays true.
-  /// Disposed controllers are not to be reused
   bool _isDisposed = false;
 
-  /// Getter for the isDisposed flag
+  /// Whether this controller has been disposed. Once true it stays true;
+  /// disposed controllers are not to be reused.
   bool get isDisposed => _isDisposed;
+
+  final _onValuesChanged = ChangeNotifier();
 
   /// Fires when any leaf field's value changes (recursively through subforms),
   /// or when fields are registered.
   Listenable get onValuesChanged => _onValuesChanged;
-  final ChangeNotifier _onValuesChanged = ChangeNotifier();
 
-  /// Fires when any leaf field's status changes (recursively through subforms).
+  final _onStatusChanged = ChangeNotifier();
+
+  /// Fires when any leaf field's status or error changes (recursively through
+  /// subforms).
   Listenable get onStatusChanged => _onStatusChanged;
-  final ChangeNotifier _onStatusChanged = ChangeNotifier();
 
-  List<dynamic> _initialFieldsState = const <dynamic>[];
-
+  // Internals with no public surface.
+  // Explicit type — inference would widen the error type from dynamic to Object.
   final Set<AdvancedFieldController<dynamic, dynamic>> _ownedFields = {};
-  final List<VoidCallback> _childCleanups = [];
+  final _childCleanups = <VoidCallback>[];
+  final _validateCall = SharedCall<bool>();
+  var _initialFieldsState = const <dynamic>[];
 
-  /// Takes ownership of registered fields. Will dispose all controllers when
-  /// the form group is disposed.
-  /// Fields are expected to be filled with initial states.
+  /// Registers [fields] as this form's own fields and takes ownership of them,
+  /// disposing them when this form is disposed. Their current values become the
+  /// [AdvancedFormState.wasModified] baseline.
+  ///
+  /// Replaces any earlier registration: those fields stop validating and
+  /// notifying, but are still disposed with this form.
+  ///
+  /// Throws a [StateError] if this form or any of the [fields] has already been
+  /// disposed — disposed controllers cannot be reused.
   void registerFields(List<AdvancedFieldController<dynamic, dynamic>> fields) {
-    _runChildCleanups();
+    if (isDisposed) {
+      throw StateError(
+        'Cannot register fields on a disposed AdvancedFormController.',
+      );
+    }
+    if (fields.any((field) => field.isDisposed)) {
+      throw StateError(
+        'Cannot register a disposed AdvancedFieldController.',
+      );
+    }
 
-    _setState(value.copyWith(fields: fields));
+    _runChildCleanups();
+    // `value.fields` is replaced while `_ownedFields` accumulates, on purpose:
+    // a replaced batch stops participating but is still disposed with the form.
+    _setState(value._copyWith(fields: fields));
 
     _ownedFields.addAll(fields);
     _initialFieldsState = getFieldValues();
     _wireChildren();
+    _recomputeWasModified();
     _onValuesChanged.notifyListeners();
   }
 
-  /// Returns a list of all field values.
+  /// Returns this form's own field values, excluding subforms'.
   @visibleForTesting
-  List<dynamic> getFieldValues() {
-    return value.fields.map<dynamic>((f) => f.value.value).toList();
-  }
+  List<dynamic> getFieldValues() =>
+      value.fields.map<dynamic>((f) => f.value.value).toList();
 
-  /// Recursively calls validate on all subforms/fields if
-  /// `state.validationEnabled` is true.
-  /// [enableAutovalidate] can enable autovalidate on all leaf fields.
+  /// Recursively validates every field and subform, and reports whether all of
+  /// them ended up valid.
   ///
-  /// Returns the result of validate calls, or always `true` if
-  /// `state.validationEnabled` is false.
-  bool validate({bool enableAutovalidate = true}) {
+  /// Every field validates, so awaiting this is the guarantee that the
+  /// values were checked; [AdvancedFormState.canSubmit] is only a snapshot of
+  /// what is already known. Fields and subforms run concurrently and none is
+  /// short-circuited.
+  ///
+  /// [enableAutovalidate] turns autovalidate on across the tree first.
+  ///
+  /// Calling this again before the first call finishes gives you the same
+  /// result; it does not start a second pass, and the first call's
+  /// [enableAutovalidate] is the one that applies. Returns `true` when
+  /// `state.validationEnabled` is false, and `false` on a disposed form.
+  Future<bool> validate({bool enableAutovalidate = true}) {
+    // Checked before anything is broadcast: a caller joining the run in flight
+    // must not re-run `setAutovalidate`, and a disabled form must not start a
+    // run — a later, enabled call would then return this one's trivial `true`.
+    if (_validateCall.inFlight case final inFlight?) {
+      return inFlight;
+    }
+    if (isDisposed) {
+      return Future.value(false);
+    }
+    if (!value.validationEnabled) {
+      return Future.value(true);
+    }
+
     if (enableAutovalidate) {
       setAutovalidate(true);
     }
-    if (!value.validationEnabled) {
-      return true;
-    }
 
-    // Eager list to prevent short circuits; all fields/subforms must be called.
-    return [
-      for (final field in value.fields) field.validate(),
-      for (final subform in value.subforms)
-        subform.validate(enableAutovalidate: enableAutovalidate),
-    ].every((e) => e);
+    return _validateCall.run(
+      () => _runValidate(enableAutovalidate: enableAutovalidate),
+    );
   }
+
+  /// Re-runs the **sync** validator on every leaf field whose gate is open.
+  ///
+  /// Deliberately not [validate]: a sibling's edit does not change a field's own
+  /// value, so no async check is owed and a settled async answer still stands.
+  /// Read-only fields are included — freezing a value does not stop its rule
+  /// from being re-evaluated.
+  void validateWithAutovalidate() => _broadcast(
+        (field) => field.revalidateSync(),
+        (subform) => subform.validateWithAutovalidate(),
+      );
 
   /// Marks all leaf fields as readonly.
-  void markReadOnly() {
-    for (final field in value.fields) {
-      field.markReadOnly();
-    }
-    for (final subform in value.subforms) {
-      subform.markReadOnly();
-    }
-  }
+  void markReadOnly() => _broadcast(
+        (field) => field.markReadOnly(),
+        (subform) => subform.markReadOnly(),
+      );
 
   /// Unmarks all leaf fields as readonly.
-  void unmarkReadOnly() {
-    for (final field in value.fields) {
-      field.unmarkReadOnly();
-    }
-    for (final subform in value.subforms) {
-      subform.unmarkReadOnly();
-    }
-  }
+  void unmarkReadOnly() => _broadcast(
+        (field) => field.unmarkReadOnly(),
+        (subform) => subform.unmarkReadOnly(),
+      );
 
   /// Sets autovalidate on all leaf fields.
-  void setAutovalidate(bool autovalidate) {
-    for (final field in value.fields) {
-      field.setAutovalidate(autovalidate);
-    }
-    for (final subform in value.subforms) {
-      subform.setAutovalidate(autovalidate);
-    }
-  }
+  void setAutovalidate(bool autovalidate) => _broadcast(
+        (field) => field.setAutovalidate(autovalidate),
+        (subform) => subform.setAutovalidate(autovalidate),
+      );
 
   /// Resets all leaf fields to their initial states.
-  void resetAll() {
-    for (final field in value.fields) {
-      field.reset();
-    }
-    for (final subform in value.subforms) {
-      subform.resetAll();
-    }
-  }
+  void resetAll() => _broadcast(
+        (field) => field.reset(),
+        (subform) => subform.resetAll(),
+      );
 
   /// Clears all errors on all leaf fields.
-  void clearErrors() {
-    for (final field in value.fields) {
-      field.clearErrors();
-    }
-    for (final subform in value.subforms) {
-      subform.clearErrors();
-    }
-  }
+  void clearErrors() => _broadcast(
+        (field) => field.clearErrors(),
+        (subform) => subform.clearErrors(),
+      );
 
-  /// Adds a subform to the current form.
-  /// If [form] was already added as a subform this is a noop.
+  /// Adds an owned subform to the current form. A noop if [form] is already a
+  /// subform.
   ///
   /// Throws a [StateError] if either controller has already been disposed —
   /// disposed controllers cannot be reused.
@@ -180,52 +196,54 @@ class AdvancedFormController
     }
 
     _runChildCleanups();
-
-    _setState(value.copyWith(subforms: {...value.subforms, form}));
-
+    _setState(value._copyWith(subforms: {...value.subforms, form}));
     _wireChildren();
+    _recomputeWasModified();
   }
 
-  /// Removes an owned subform.
-  /// If [close] is true, the subform will be disposed.
-  /// If [form] was not a subform this is a noop.
-  Future<void> removeSubform(
+  /// Removes an owned subform, disposing it unless [close] is false. A noop if
+  /// [form] was not a subform.
+  ///
+  /// Throws a [StateError] if this form has already been disposed — disposed
+  /// controllers cannot be reused.
+  void removeSubform(
     AdvancedFormController form, {
     bool close = true,
-  }) async {
+  }) {
+    if (isDisposed) {
+      throw StateError(
+        'Cannot remove a subform from a disposed AdvancedFormController.',
+      );
+    }
     if (!value.subforms.contains(form)) {
       return;
     }
+
     _runChildCleanups();
-
-    _setState(value.copyWith(subforms: {...value.subforms}..remove(form)));
-
+    _setState(value._copyWith(subforms: {...value.subforms}..remove(form)));
     if (close) {
       form.dispose();
     }
-
     _wireChildren();
+    _recomputeWasModified();
   }
 
-  /// Calls validate on all leaf fields with autovalidate on.
-  void validateWithAutovalidate() {
-    for (final field in value.fields) {
-      if (field.value.autovalidate) {
-        field.validate();
-      }
-    }
-    for (final subform in value.subforms) {
-      subform.validateWithAutovalidate();
-    }
-  }
-
-  /// Changes optionality of this form. When `validationEnabled` is set to
-  /// false, all errors are cleared.
+  /// Turns validation of this form on or off. When
+  /// [AdvancedFormState.validationEnabled] is set to false, all errors are
+  /// cleared.
+  ///
+  /// Throws a [StateError] if this form has already been disposed — disposed
+  /// controllers cannot be reused.
   void setValidationEnabled(bool validationEnabled) {
+    if (isDisposed) {
+      throw StateError(
+        'Cannot change validation on a disposed AdvancedFormController.',
+      );
+    }
     if (validationEnabled == value.validationEnabled) {
       return;
     }
-    _setState(value.copyWith(validationEnabled: validationEnabled));
+    _setState(value._copyWith(validationEnabled: validationEnabled));
     if (validationEnabled) {
       validateWithAutovalidate();
     } else {
@@ -233,20 +251,59 @@ class AdvancedFormController
     }
   }
 
-  /// Wires listeners to each subform
-  /// in order to track and handle value/status changes
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _runChildCleanups();
+    for (final field in _ownedFields) {
+      field.dispose();
+    }
+    _ownedFields.clear();
+    for (final subform in value.subforms) {
+      subform.dispose();
+    }
+    _onValuesChanged.dispose();
+    _onStatusChanged.dispose();
+    super.dispose();
+  }
+
+  Future<bool> _runValidate({required bool enableAutovalidate}) async {
+    final results = await Future.wait<bool>([
+      for (final field in value.fields) field.validate(),
+      for (final subform in value.subforms)
+        subform.validate(enableAutovalidate: enableAutovalidate),
+    ]);
+
+    return results.every((result) => result);
+  }
+
+  // Recurses through the subforms' own methods rather than flattening to
+  // `allFields`, so a subclass that overrides one of them still gets called.
+  void _broadcast(
+    void Function(AdvancedFieldController<dynamic, dynamic> field) onField,
+    void Function(AdvancedFormController subform) onSubform,
+  ) {
+    value.fields.forEach(onField);
+    value.subforms.forEach(onSubform);
+  }
+
   void _wireChildren() {
     for (final field in value.fields) {
       var lastValue = field.value.value;
       var lastStatus = field.value.status;
+      // The error is watched next to the status because swapping one error code
+      // for another leaves the status `invalid` while [validationErrors]
+      // changes. Together the two cover every aggregate derived from a field.
+      Object? lastError = field.value.error;
       void listener() {
-        final s = field.value;
-        if (s.value != lastValue) {
-          lastValue = s.value;
+        final state = field.value;
+        if (state.value != lastValue) {
+          lastValue = state.value;
           _handleValuesChanged();
         }
-        if (s.status != lastStatus) {
-          lastStatus = s.status;
+        if (state.status != lastStatus || state.error != lastError) {
+          lastStatus = state.status;
+          lastError = state.error;
           _handleStatusChanged();
         }
       }
@@ -273,71 +330,56 @@ class AdvancedFormController
   }
 
   void _handleValuesChanged() {
+    if (validateAll) {
+      validateWithAutovalidate();
+    }
+    _recomputeWasModified();
+    _onValuesChanged.notifyListeners();
+  }
+
+  void _handleStatusChanged() {
+    notifyListeners();
+    _onStatusChanged.notifyListeners();
+  }
+
+  void _recomputeWasModified() {
     final subformsWereModified = value.subforms.any(
       (subform) => subform.value.wasModified,
     );
     final fieldsWereModified = !const DeepCollectionEquality()
         .equals(_initialFieldsState, getFieldValues());
 
-    if (validateAll) {
-      validateWithAutovalidate();
-    }
-
     _setState(
-      value.copyWith(wasModified: subformsWereModified || fieldsWereModified),
+      value._copyWith(wasModified: subformsWereModified || fieldsWereModified),
     );
-    _onValuesChanged.notifyListeners();
   }
 
-  void _handleStatusChanged() {
-    final subformsValidating = value.subforms.any(
-      (subform) => subform.value.validating,
-    );
-    final fieldsValidating = value.fields.any(
-      (field) => field.value.isInProgress,
-    );
-
-    _setState(
-      value.copyWith(validating: fieldsValidating || subformsValidating),
-    );
-    _onStatusChanged.notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    _isDisposed = true;
-    _runChildCleanups();
-    for (final field in _ownedFields) {
-      field.dispose();
+  void _setState(AdvancedFormState newValue) {
+    if (_isDisposed || newValue == _value) {
+      return;
     }
-    _ownedFields.clear();
-    for (final subform in value.subforms) {
-      subform.dispose();
-    }
-    _onValuesChanged.dispose();
-    _onStatusChanged.dispose();
-    super.dispose();
+    _value = newValue;
+    notifyListeners();
   }
 }
 
-/// An immutable snapshot of an [AdvancedFormController] — which fields and
-/// subforms it owns, whether the user has changed anything, whether validation
-/// applies, and whether async validation is still running.
+/// The state of an [AdvancedFormController] — which fields and subforms it
+/// owns, whether the user has changed anything, and whether validation applies.
 ///
-/// Obtain it from [AdvancedFormController.value], or listen to the controller
-/// to be notified whenever it changes.
-class AdvancedFormState {
+/// [validating], [hasFailedValidation], [canSubmit] and [validationErrors] are
+/// derived from the child controllers on every read, so they follow the live
+/// tree. Only the stored members take part in `==`.
+class AdvancedFormState with Equatable {
   /// Creates a new [AdvancedFormState].
   const AdvancedFormState({
     this.wasModified = false,
     this.fields = const [],
     this.subforms = const {},
     this.validationEnabled = true,
-    this.validating = false,
   });
 
-  /// wasModified is true when any of the field values differ since the
-  /// last `registerFields` or when any of the subforms has wasModified=true.
+  /// Whether any field value differs from the last `registerFields`, or any
+  /// subform was itself modified.
   final bool wasModified;
 
   /// List of all registered fields by this form.
@@ -346,56 +388,55 @@ class AdvancedFormState {
   /// Set of registered subforms. Reference equality is assumed.
   final Set<AdvancedFormController> subforms;
 
-  /// If false, validators are not ran and `validate` always returns true.
+  /// If false, [AdvancedFormController.validate] returns true without
+  /// validating. Errors already on the fields still count toward [canSubmit].
   final bool validationEnabled;
 
-  /// Returns true if fields are currently being validated.
-  final bool validating;
-
-  /// List of this form's fields including subforms' fields.
+  /// This form's fields including every subform's fields.
   Iterable<AdvancedFieldController<dynamic, dynamic>> get allFields =>
       fields.followedBy(subforms.expand((e) => e.value.allFields));
 
-  /// Map of all validation errors (including subforms') grouped by fields.
+  /// Whether an async round is pending or in flight anywhere in the tree.
+  bool get validating => allFields.any((field) => field.value.isInProgress);
+
+  /// Whether some field's async check could not complete. Not sticky: the next
+  /// [AdvancedFormController.validate] retries every failed round.
+  bool get hasFailedValidation =>
+      allFields.any((field) => field.value.isFailedValidation);
+
+  /// Whether every field in the tree is [FieldStatus.valid] right now.
+  ///
+  /// Only known errors count, so it is true on a form where nothing has been
+  /// checked yet. It is false while any round is pending or validating. Use it
+  /// to enable a submit button, and run [AdvancedFormController.validate]
+  /// before you trust the values.
+  bool get canSubmit => allFields.every((field) => field.value.isValid);
+
+  /// Every error in the tree, keyed by field.
   Map<AdvancedFieldController<dynamic, dynamic>, dynamic>
       get validationErrors => {
             for (final field in allFields)
-              if (field.value.validationError case final error?) field: error,
+              if (field.value.error case final error?) field: error,
           };
 
-  /// Returns a copy of this state with the given fields replaced.
-  AdvancedFormState copyWith({
+  AdvancedFormState _copyWith({
     bool? wasModified,
     List<AdvancedFieldController<dynamic, dynamic>>? fields,
     Set<AdvancedFormController>? subforms,
     bool? validationEnabled,
-    bool? validating,
   }) =>
       AdvancedFormState(
         wasModified: wasModified ?? this.wasModified,
         fields: fields ?? this.fields,
         subforms: subforms ?? this.subforms,
         validationEnabled: validationEnabled ?? this.validationEnabled,
-        validating: validating ?? this.validating,
       );
 
-  // ⚠️ Maintainer: keep these and `copyWith` in sync with the fields above.
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AdvancedFormState &&
-          wasModified == other.wasModified &&
-          listEquals(fields, other.fields) &&
-          setEquals(subforms, other.subforms) &&
-          validationEnabled == other.validationEnabled &&
-          validating == other.validating;
-
-  @override
-  int get hashCode => Object.hash(
+  List<Object?> get props => [
         wasModified,
-        Object.hashAll(fields),
-        Object.hashAllUnordered(subforms),
+        fields,
+        subforms,
         validationEnabled,
-        validating,
-      );
+      ];
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/controllers/password_field_controller.dart';
@@ -47,9 +49,10 @@ class PasswordForm extends StatelessWidget {
           ]),
           FormTextField(
             field: controller.username,
-            onUnfocus: () => controller.username
-              ..setAutovalidate(true)
-              ..validate(),
+            onUnfocus: () {
+              controller.username.setAutovalidate(true);
+              unawaited(controller.username.validate());
+            },
             translateError: validatorTranslator,
             labelText: 'Username',
             hintText: 'Enter your username',
@@ -128,8 +131,8 @@ class PasswordFormController extends AdvancedFormController {
     ..setAutovalidate(true)
     ..subscribeToFields([switchField, password]);
 
-  void submit() {
-    if (validate()) {
+  Future<void> submit() async {
+    if (await validate()) {
       debugPrint('Username: ${username.value.value}');
       debugPrint('Switch field: ${switchField.value.value}');
       debugPrint('Password: ${password.value.value}');

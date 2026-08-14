@@ -33,11 +33,13 @@
 | `MultiSelectFieldCubit<V, E>` | `AdvancedMultiSelectFieldController<V, E>` |
 | `FormGroupCubit` | `AdvancedFormController` |
 | `FieldState<T, E>` | `AdvancedFieldState<T, E>` |
-| `FormGroupState` | `AdvancedFormState` (same members) |
+| `FormGroupState` | `AdvancedFormState` — `validating` is now a getter, so `AdvancedFormState(validating: …)` no longer compiles |
 | `FieldBuilder<T, E>` | `AdvancedFieldBuilder<T, E>` — wraps `ValueListenableBuilder`; `builder` gains a third `child` param |
 | `cubit.state` | `controller.value` (plus the `fieldValue` and `error` shortcuts) |
+| `cubit.isClosed` (from `Cubit`) | `controller.isDisposed` |
 | `field.clear()` | **Removed** — call `field.reset()` |
-| `asyncValidator:`, `asyncValidationDebounce:` | `asyncValidation: AsyncValidation(validator:, debounce:, onError:)` |
+| `asyncValidator:`, `asyncValidationDebounce:` | `asyncValidation: AsyncValidation(validator:, debounce:, timeout:, onFailure:, failureToError:)` |
+| `bool field.validate()`, `bool form.validate()` | `Future<bool> validate()` — **await it** ([section 3](#3-behavior-changes-that-are-not-renames)) |
 | `form.onValuesChangedStream` (`Stream<void>`) | `form.onValuesChanged` (`Listenable`) |
 | `form.onStatusChangedStream` (`Stream<FieldStatus>`) | `form.onStatusChanged` (`Listenable`, no payload) |
 | `BlocBuilder<FormGroupCubit, FormGroupState>` | `ValueListenableBuilder<AdvancedFormState>` — there is no `AdvancedFormBuilder` |
@@ -51,19 +53,81 @@
 
 These compile after the renames but behave differently.
 
-**A throwing async validator no longer hangs the field.** In 0.1.x an exception from `asyncValidator` left the internal `Completer` uncompleted, so the field stayed in `FieldStatus.validating` indefinitely and the exception surfaced as an uncaught async error. In 0.2.0 the field moves to `FieldStatus.failed` and the exception is reported through `FlutterError.reportError`, or through `AsyncValidation.onError` if you supply a handler. A `failed` field is not valid — `validate()` returns `false`, so a failed availability check cannot let a submit through. Setting a new value re-runs the validator.
+**`validate()` is asynchronous, on both the field and the form.** It now runs the async validators too, so its result is the only thing that says the values were actually checked. Every call site needs `await`, and every enclosing method becomes `async`:
 
-**`FieldStatus` gained a `failed` value.** Previously exhaustive `switch`es over `FieldStatus` stop compiling until you add a `failed` arm. Map it alongside `invalid` unless you want to distinguish "the check could not run" from "the check returned an error".
+```dart
+void submit() {                     // 0.1.x
+  if (validate()) { ... }
+}
+
+Future<void> submit() async {       // 0.2.0
+  if (await validate()) { ... }
+}
+```
+
+Calling it again before the first call finishes gives you the same result, so a double-tapped submit button runs one pass. For a synchronous "can I enable the button?" read, use `form.value.canSubmit` — a snapshot of *known* errors, true on a form nobody has checked yet.
+
+**`autovalidate` now controls the async validator too.** In 0.1.x `setValue` ran it whether or not autovalidate was on, so a form nobody had submitted still ran async validators, and `validate()` never reached an async validator. Now one rule covers both: `autovalidate` decides whether changing the value validates, and the sync validator runs first with the async one only if sync passed.
+
+**A throwing async validator no longer hangs the field.** In 0.1.x an exception from `asyncValidator` left the internal `Completer` uncompleted, so the field stayed in `FieldStatus.validating` indefinitely and the exception surfaced as an uncaught async error. In 0.2.0 the field moves to `FieldStatus.failedValidation` and the exception is reported through `FlutterError.reportError`, or through `AsyncValidation.onFailure` if you supply a handler. A failed field is not valid — `validate()` returns `false`, so a failed availability check cannot let a submit through. It is not sticky: the next `validate()` re-runs the round.
+
+```dart
+asyncValidation: AsyncValidation(
+  validator: _check,
+  onError: _report,                                  // 0.1.x
+);
+
+asyncValidation: AsyncValidation(
+  validator: _check,
+  onFailure: _report,                                // 0.2.0 — new; takes a non-nullable stackTrace
+  failureToError: (e, s) => MyError.checkFailed,     // optional: give it something to show
+);
+
+field.setError(null);        // 0.1.x: status invalid, nothing to show
+field.setError(null);        // 0.2.0: clears validationError, status follows
+
+field.reset();               // 0.1.x: also cleared autovalidate and readOnly
+field.reset();               // 0.2.0: value and errors only; flags survive
+```
+
+**`FieldStatus` gained a `failedValidation` value.** Previously exhaustive `switch`es over `FieldStatus` stop compiling until you add a `failedValidation` arm. Map it alongside `invalid` unless you want to distinguish "the check could not run" from "the check returned an error".
+
+**`setError(null)` clears instead of marking the field invalid.** 0.1.x pinned the status to `invalid` whatever it was handed, so applying a server response field-by-field marked every accepted field invalid with nothing to show. The status now follows what the field actually holds.
+
+`setError` writes `validationError` only. If an async check recorded a code, `setError(null)` leaves it and the field stays `invalid` — call `clearErrors()` to clear both. 0.1.x wiped `asyncError` on every `setError`, so an async code could not survive a server-response pass.
+
+**`reset()` keeps `autovalidate` and `readOnly`.** 0.1.x rebuilt a default state, so `form.resetAll()` unlocked fields business logic had locked and silently undid the autovalidate `form.validate()` had escalated. Call `setAutovalidate` / `unmarkReadOnly` explicitly if you relied on that.
+
+**`subscribeToFields` re-runs the sync validator only.** The dependent field's own value did not change, so its last async answer still stands and no async check is owed. It does nothing while that field's `autovalidate` is off. With it on, `validationError` is rewritten, so a code you pushed there with `setError` gives way to whatever the validator now returns — as in 0.1.x. The same goes for `validateWithAutovalidate()` and `validateAll: true`, which reach every field in the tree rather than the dependencies you named.
 
 **`subscribeToFields` fires more eagerly.** 0.1.x combined the observed fields with `Rx.combineLatest`, so nothing fired until *every* observed field had emitted at least once, and the first emission always passed `.distinct()` even for a status-only change. 0.2.0 compares each observed field's value against a cached baseline: it fires on the first value change to any one field, and never on a status-only change. Dependent fields that appeared not to revalidate in 0.1.x now will.
 
-**Value equality is no longer deep.** `equatable` is gone, and `AdvancedFieldState.operator ==` compares members with `==`. For scalars and records this matches 0.1.x. For `List`/`Set`/`Map` values or error types, two equal-content-but-distinct instances now compare unequal, so `setValue` notifies where 0.1.x deduplicated. Most visible on `AdvancedMultiSelectFieldController`, whose value *is* a `Set` and whose `addValue` / `removeValue` allocate a new set on every call.
+**`markReadOnly()` stops a running check.** A frozen field no longer changes status by itself, and it drops `lastFailure` while keeping a `failedValidation` status.
+
+**`validationErrors` keys on `error`, not `validationError`.** A field invalid from an async check now appears in an error summary, as the docs always claimed.
 
 **`addSubform` throws instead of failing quietly.** It raises a `StateError` if either the parent or the subform has already been disposed.
+
+**A disposed form also throws on `registerFields`, `setValidationEnabled` and `removeSubform`.** All three raise a `StateError` instead of touching a disposed controller. Code that tore a form down and then called one of them was already broken; it now says so at the call site.
+
+**`removeSubform` returns `void`.** Disposal is synchronous now, so there is nothing left to await. Drop the `await`, and the `async` it forced on the enclosing method:
+
+```dart
+await removeSubform(subform);   // 0.1.x
+removeSubform(subform);         // 0.2.0
+```
 
 **Form state settles synchronously.** 0.1.x routed field changes through a `.distinct()` subscription, so `wasModified` and `validating` updated a microtask later. They now update in the same call stack as the field change.
 
 **Debounce timers and in-flight async validations are cancelled on dispose.** 0.1.x `close()` cancelled only the field subscription, so a timer could fire after close.
+
+**`setValue` clears both errors while `autovalidate` is off.** 0.1.x carried the stored error over, so an error outlived the value that produced it and suppressed the async validator for every later edit. If you push a server error onto such a field and expect it to survive typing, re-push it after the change.
+
+**The error goes blank while a check runs.** Both errors are cleared when a check starts, because they described the previous value, so the message is absent for the debounce plus the request and returns if the answer is still bad. 0.1.x kept the stale message up throughout. To hold the old text, render `state.error` only when `!state.isInProgress`.
+
+**The select controllers assert that the value is one of `options`.** `select` and `addValue` throw in debug builds if handed a value outside the list, and so does `toggleElement` when it adds; removing an off-list value stays silent. Release builds keep 0.1.x behavior. `select(null)` clears the selection and is always allowed, and `initialValue` is never checked — an off-list initial value is accepted silently, which is the way out if you cannot reorder.
+
+**`addSubform` and `removeSubform` recompute `wasModified`.** Attaching an already-modified subform marks the parent modified at once, and removing the only modified child clears the flag; in 0.1.x neither happened until the next field change. An unsaved-changes guard will trip and clear at different moments.
 
 ---
 
@@ -151,7 +215,7 @@ To migrate a custom text widget:
 Two consequences:
 
 - `removeListener` needs the same callback instance that was passed to `addListener`, so a listener you intend to remove has to be a named function or a stored closure, not an inline one.
-- `onStatusChanged` carries no payload, where `onStatusChangedStream` emitted the changed `FieldStatus`. Read the status off the field, or `form.value.validating` for the aggregate.
+- `onStatusChanged` carries no payload, where `onStatusChangedStream` emitted the changed `FieldStatus`. Read the status off the field, or `form.value.validating` for the aggregate (now derived on read).
 
 To rebuild on form state, `AdvancedFormController` is itself a `ValueListenable<AdvancedFormState>`:
 
@@ -252,6 +316,25 @@ class QuantityFieldController                                    // was: Quantit
 
 If the field holds a `String` and its widget binds a text controller, extend `AdvancedTextFieldController<E>` rather than `AdvancedFieldController<String, E>` — you get `textController` and `focusNode` with it.
 
+### The protected `emit` is gone
+
+`FieldCubit` subclasses wrote state with the `emit` they inherited from `Cubit`, usually to set a value and an error in one go:
+
+```dart
+emit(state.copyWith(value: newValue, validationError: MyError.rejected));   // 0.1.x
+```
+
+There is no replacement, protected or public. Write the two parts through the public methods instead:
+
+```dart
+setValue(newValue);              // clears both errors, then validates if the gate is open
+setError(MyError.rejected);      // pushes the error back on
+```
+
+Two differences to plan for. Each call notifies, so listeners see an intermediate state — bind widgets to `state.error` and they render blank for one frame in between. And `setValue` runs the validators when `autovalidate` is on, so a validator that disagrees overwrites the error you push next; `setError` aborts a running async check, so the order above is the one that holds.
+
+`onChange` and the `Change` class are gone as well — a `ChangeNotifier` reports that something changed, not what. Diff it yourself in a listener, as in [section 6](#6-form-listenables-instead-of-streams).
+
 ### Replacing cubit-stream patterns
 
 `FieldCubit` inherited `stream` from `Cubit`; notifiers have no stream.
@@ -289,7 +372,7 @@ Three caveats: every read of `stream` allocates a new `StreamController`, so sto
 
 ## 10. What didn't change
 
-Every validator and the `Validator` / `AsyncValidator` / `ErrorTranslator` typedefs, so custom validators compile as-is. Every field and form method not named in [section 2](#2-rename-reference) — including `setValue`, `validate`, `setAutovalidate`, `markReadOnly`, `setError`, `getValueSetter`, `registerFields`, `addSubform`, `resetAll`, `setValidationEnabled`, `validateWithAutovalidate`. The `pending` → `validating` → `valid`/`invalid` sequence, the debounce, and cancel-on-new-value. `wasModified` and `validating`, still computed with `DeepCollectionEquality` against the baseline values.
+Every validator and the `Validator` / `AsyncValidator` / `ErrorTranslator` typedefs, so custom validators compile as-is. Every field and form method name not listed in [section 2](#2-rename-reference) — `setValue`, `setAutovalidate`, `markReadOnly`, `setError`, `getValueSetter`, `registerFields`, `addSubform`, `resetAll`, `setValidationEnabled`, `validateWithAutovalidate` — though [section 3](#3-behavior-changes-that-are-not-renames) lists the ones whose behavior moved. The `pending` → `validating` → `valid`/`invalid` sequence, the debounce, and cancel-on-new-value. `wasModified`, still computed with `DeepCollectionEquality` against the baseline values.
 
 ---
 

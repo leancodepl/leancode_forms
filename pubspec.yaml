@@ -1,17 +1,18 @@
 name: leancode_forms
-description: A package for managing form state based on ValueNotifier and ChangeNotifier.
+description: A package for managing form state based on ChangeNotifier and ValueListenable.
 version: 0.2.0
 homepage: https://github.com/leancodepl/leancode_forms.git
 
 environment:
   sdk: ">=3.1.0 <4.0.0"
-  flutter: ">=3.10.0"
+  flutter: ">=3.13.0"
 
 dependencies:
   collection: ^1.17.1
   equatable: ^2.1.0
   flutter:
     sdk: flutter
+  meta: ^1.9.0
 
 dev_dependencies:
   flutter_test:
