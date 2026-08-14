@@ -280,7 +280,7 @@ enum FieldStatus {
 }
 
 /// The state of a [FieldCubit].
-class FieldState<T, E extends Object> with EquatableMixin {
+class FieldState<T, E extends Object> with Equatable {
   /// Creates a new [FieldState].
   const FieldState({
     required this.value,
