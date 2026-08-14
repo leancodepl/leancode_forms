@@ -4,8 +4,7 @@ import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 /// A specialization of [AdvancedFieldController] for a [String] value.
 ///
 /// Owns a [TextEditingController] kept in two-way sync with the field value.
-/// Widgets can bind directly to [textController] and to the
-/// [AdvancedFieldController.focusNode] every field has.
+/// Widgets bind to [textController] and to [AdvancedFieldController.focusNode].
 ///
 /// [textController] never holds a value of its own: after every write to the
 /// field, its text is put back in step with [fieldValue] in the same turn,

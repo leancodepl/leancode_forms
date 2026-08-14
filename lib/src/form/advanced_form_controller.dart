@@ -19,8 +19,7 @@ class AdvancedFormController
   /// Creates a new [AdvancedFormController].
   ///
   /// A [validationMode] given here is this form's own: a parent form's mode
-  /// does not replace it. Leave it out to follow the parent form, or to stay
-  /// [ValidationMode.disabled] when there is no parent.
+  /// does not replace it.
   AdvancedFormController({
     this.debugName = '',
     this.validateAll = false,
@@ -81,13 +80,11 @@ class AdvancedFormController
   /// disposing them when this form is disposed. Their current values become the
   /// [AdvancedFormState.wasModified] baseline.
   ///
-  /// The tree's validation mode reaches the new fields at once, so a section
-  /// registered late behaves exactly like one registered at build time.
+  /// The tree's mode reaches the new fields at once; a de-registered field goes
+  /// quiet unless it manages its own mode.
   ///
   /// Replaces any earlier registration: those fields stop validating and
-  /// notifying, but are still disposed with this form. A de-registered field is
-  /// left as quiet as one that was never registered, unless it manages its own
-  /// mode.
+  /// notifying, but are still disposed with this form.
   ///
   /// Throws a [StateError] if this form or any of the [fields] has already been
   /// disposed — disposed controllers cannot be reused.
@@ -106,6 +103,8 @@ class AdvancedFormController
     _runChildCleanups();
     for (final field in value.fields) {
       if (!fields.contains(field)) {
+        // `enabled: true` so a field with a mode of its own keeps it; the rest
+        // fall to `disabled`, as quiet as a field that was never registered.
         field.applyValidationMode(ValidationMode.disabled, enabled: true);
       }
     }
@@ -167,15 +166,13 @@ class AdvancedFormController
   /// what is already known. Fields and subforms run concurrently and none is
   /// short-circuited.
   ///
-  /// [AdvancedFormState.validationMode] is neither consulted nor changed:
-  /// submitting always runs everything, and the mode a form was given is the
-  /// mode it keeps. Fields the user never touched are checked too, which is how
-  /// a bad prefilled value is caught.
+  /// [AdvancedFormState.validationMode] is neither consulted nor changed; every
+  /// field runs, including ones the user never touched. Returns `true` for a
+  /// subtree with [AdvancedFormState.validationEnabled] false, `false` once
+  /// disposed.
   ///
   /// Calling this again before the first call finishes gives you the same
-  /// result; it does not start a second pass. Returns `true` when
-  /// [AdvancedFormState.validationEnabled] is false, and `false` on a disposed
-  /// form.
+  /// result; it does not start a second pass.
   Future<bool> validate() {
     // Checked before the disposal guard: a form disposed mid-pass still owes
     // that pass's answer to whoever asks for it.
@@ -210,23 +207,14 @@ class AdvancedFormController
         (subform) => subform.unmarkReadOnly(),
       );
 
-  /// Sets when the fields of this tree validate themselves, and offers the same
-  /// mode to every subform.
-  ///
-  /// From here on this form manages its own mode: a later change of a parent
-  /// form's mode leaves it alone. A child field or subform that manages its own
-  /// mode keeps that one; every other child follows this.
-  ///
-  /// Changing the mode validates nothing by itself. [validate] neither consults
-  /// nor changes it.
+  /// Sets when this tree's fields validate, and offers the same mode to every
+  /// subform. A child with a mode of its own keeps it. Validates nothing.
   void setValidationMode(ValidationMode mode) {
     _ownMode = mode;
     _publishValidationMode(mode);
   }
 
-  /// Applies the mode the parent form offers, and whether that form validates
-  /// at all. A form with a mode of its own — from [setValidationMode] or the
-  /// constructor — keeps it; [enabled] outranks both and travels on down.
+  /// Takes the mode and switch the parent offers; this form's own mode wins.
   @internal
   void applyValidationMode(ValidationMode mode, {required bool enabled}) {
     _parentEnabled = enabled;
@@ -299,13 +287,8 @@ class AdvancedFormController
     _recomputeWasModified();
   }
 
-  /// Turns validation of this whole subtree on or off. It is not a mode but a
-  /// switch above every mode: while it is off nothing validates, errors are
-  /// cleared, and [validate] reports the subtree as passing.
-  ///
-  /// A parent form's switch outranks it: this subtree stays off while an
-  /// ancestor is off, whatever it was set to here. Turning it back on restores
-  /// the mode each field and subform was running under.
+  /// Turns validation of this whole subtree on or off — a switch above every
+  /// mode. See [AdvancedFormState.validationEnabled].
   ///
   /// Throws a [StateError] if this form has already been disposed — disposed
   /// controllers cannot be reused.
@@ -357,10 +340,7 @@ class AdvancedFormController
     return results.every((result) => result);
   }
 
-  // The one place this tree's validation mode reaches its children. Called from
-  // every path that can change it or the set of children: [registerFields],
-  // [addSubform], [setValidationMode], [applyValidationMode] and
-  // [setValidationEnabled].
+  // The one place this tree's mode and switch reach its children.
   void _publishValidationMode(ValidationMode mode) {
     final enabled = _ownEnabled && _parentEnabled;
     final enabledChanged = enabled != value.validationEnabled;
@@ -373,9 +353,8 @@ class AdvancedFormController
       );
     }
 
-    // Unconditional, because the set of children may have changed while the
-    // mode did not. A child that resolves to the mode it already has ignores
-    // this, so a re-broadcast costs nothing and aborts no round.
+    // Unconditional: the set of children may have changed while the mode did
+    // not. A child already in this mode ignores it, so a re-broadcast is free.
     for (final field in value.fields) {
       field.applyValidationMode(mode, enabled: enabled);
     }
@@ -506,28 +485,22 @@ class AdvancedFormState with Equatable {
   /// Set of registered subforms. Reference equality is assumed.
   final Set<AdvancedFormController> subforms;
 
-  /// Whether this subtree counts at all. While it is false nothing in the
-  /// subtree validates, [AdvancedFormController.validate] returns true for it,
-  /// and none of its fields count toward [canSubmit] or [validationErrors].
-  ///
-  /// This is the **effective** switch: it is false while a parent form's is,
-  /// whatever [AdvancedFormController.setValidationEnabled] was given here.
+  /// Whether this subtree counts at all. While false nothing in it validates,
+  /// [AdvancedFormController.validate] returns true for it, and its fields
+  /// count toward neither [canSubmit] nor [validationErrors]. Effective: false
+  /// while any ancestor's is.
   final bool validationEnabled;
 
-  /// When the fields of this tree validate themselves. Set it with
-  /// [AdvancedFormController.setValidationMode] or the constructor.
-  ///
-  /// This is the **configured** mode, not reduced by [validationEnabled]: a
-  /// form under a switched-off ancestor still reports the mode it resumes in.
-  /// A field's own [AdvancedFieldState.mode] is the reduced one.
+  /// When this tree's fields validate themselves. The **configured** mode, not
+  /// reduced by [validationEnabled] — [AdvancedFieldState.mode] is the reduced
+  /// one.
   final ValidationMode validationMode;
 
   /// This form's fields including every subform's fields.
   Iterable<AdvancedFieldController<dynamic, dynamic>> get allFields =>
       fields.followedBy(subforms.expand((e) => e.value.allFields));
 
-  // The fields the aggregates below are derived from: every field in the tree,
-  // minus the subtrees that have validation switched off. Those are the ones
+  // Every field in the tree minus the switched-off subtrees — exactly the ones
   // [AdvancedFormController.validate] skips, so the two agree by construction.
   Iterable<AdvancedFieldController<dynamic, dynamic>> get _countedFields sync* {
     if (!validationEnabled) {

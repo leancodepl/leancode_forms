@@ -53,12 +53,8 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
   /// The error the async round recorded. Only the async pipeline writes it.
   final E? asyncError;
 
-  /// When this field validates itself. Set it on the form, which broadcasts it
-  /// to every field and subform, or on the field with
-  /// [AdvancedFieldController.setValidationMode] to opt one field out.
-  ///
-  /// This is the **effective** mode: a field whose form has validation switched
-  /// off reports [ValidationMode.disabled], because that is what it behaves as.
+  /// When this field validates itself. The **effective** mode: a field whose
+  /// form has validation switched off reports [ValidationMode.disabled].
   final ValidationMode mode;
 
   /// Whether the value is frozen against [AdvancedFieldController.setValue].

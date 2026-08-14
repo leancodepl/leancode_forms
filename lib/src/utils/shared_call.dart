@@ -46,8 +46,7 @@ class SharedCall<T> {
     return future;
   }
 
-  /// Drops the run in flight, so the next [run] starts a fresh one instead of
-  /// joining an answer that was reached under conditions that no longer hold.
-  /// Whoever already awaited the dropped run still gets its result.
+  /// Drops the run in flight, so the next [run] starts a fresh one. Whoever
+  /// already awaited the dropped run still gets its result.
   void invalidate() => _inFlight = null;
 }
