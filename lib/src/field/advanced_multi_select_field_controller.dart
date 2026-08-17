@@ -4,9 +4,6 @@ import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 class AdvancedMultiSelectFieldController<V, E extends Object>
     extends AdvancedFieldController<Set<V>, E> {
   /// Creates a new [AdvancedMultiSelectFieldController].
-  ///
-  /// Both [initialValue] and [options] are copied, so mutating the collections
-  /// you pass in never reaches this field.
   AdvancedMultiSelectFieldController({
     required Set<V> initialValue,
     super.validator,
