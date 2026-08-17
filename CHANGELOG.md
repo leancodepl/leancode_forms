@@ -4,6 +4,7 @@
 
 ### Breaking changes
 
+* The package is renamed from `leancode_forms` to `advanced_forms`. Update the dependency name and change every `package:leancode_forms/...` import to `package:advanced_forms/...`.
 * Minimum Flutter is now 3.19.0 (was 3.10.0), i.e. Dart 3.3.
 * Rebuilt on `ChangeNotifier` / `ValueListenable`, so `flutter_bloc` and `rxdart` are no longer dependencies.
 * Renamed the core classes:
