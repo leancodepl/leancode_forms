@@ -64,7 +64,7 @@ void main() {
           validated.add(value);
           return value == null ? _Error.valueRequired : null;
         },
-      )..setAutovalidate(true);
+      )..setValidationMode(ValidationMode.onUserInteraction);
       addTearDown(validatingField.dispose);
 
       validatingField.select('a');

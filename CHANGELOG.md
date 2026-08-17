@@ -4,7 +4,7 @@
 
 ### Breaking changes
 
-* Minimum Flutter is now 3.13.0 (was 3.10.0).
+* Minimum Flutter is now 3.19.0 (was 3.10.0), i.e. Dart 3.3.
 * Rebuilt on `ChangeNotifier` / `ValueListenable`, so `flutter_bloc` and `rxdart` are no longer dependencies.
 * Renamed the core classes:
   * `FieldCubit` → `AdvancedFieldController`
@@ -20,8 +20,12 @@
 * `AdvancedFieldBuilder` wraps `ValueListenableBuilder` instead of `BlocBuilder`, so `builder` is a `ValueWidgetBuilder` and takes a third `child` parameter. `ValueListenableBuilder` works directly too.
 * Replaced `asyncValidator` and `asyncValidationDebounce` with `asyncValidation: AsyncValidation(validator:, debounce:, timeout:, onFailure:, failureToError:)`.
 * `validate()` returns `Future<bool>` on both controllers and now runs the async validators. **Await it.**
-* `form.validate()` on a form with `validationEnabled: false` returns `true` without validating and leaves the autovalidate gates as it found them.
-* `reset()` keeps `autovalidate` and `readOnly`.
+* `autovalidate` is replaced by a named validation mode. `ValidationMode` has three members — `manual` (the default), `onUserInteraction` (what `autovalidate: true` did) and the new `onUnfocus`. Set it on `AdvancedFormController` through the constructor or `setValidationMode`, and it reaches every field and subform in the tree, including ones registered or attached later. `AdvancedFieldState.autovalidate` becomes `AdvancedFieldState.validationMode`, and `setAutovalidate(bool)` becomes `setValidationMode(ValidationMode)` on both controllers.
+* `validate()` no longer turns validation on and lost its `enableAutovalidate` parameter on both controllers. The mode you set is the mode the form keeps for its whole life, which is what makes a subform attached after the first submit behave exactly like one attached at build time.
+* In every mode, a field the user has never edited validates nothing on its own — not on its own change, not when a field it depends on changes, and not on losing focus. `await form.validate()` still checks those, so a bad prefilled value cannot get through. Use the new `field.prefill(value)` for a value the user did not type: it stores the value and clears the errors without making the field count as edited.
+* `form.validateWithAutovalidate()` is renamed to `form.revalidateSync()`, matching the field method it broadcasts.
+* `setValidationEnabled(false)` now reaches subforms, and a switched-off subtree stops counting entirely: its fields validate nothing, and they are excluded from `canSubmit`, `validating`, `hasFailedValidation` and `validationErrors` as well as from `validate()`. It composes with a parent's switch by AND, so a section that opted out stays out.
+* `reset()` keeps the validation mode and `readOnly`, and makes the field count as untouched again. Previously `form.resetAll()` unlocked fields your code had locked, and undid the autovalidate that `form.validate()` turned on.
 * `setError(null)` clears `validationError` and the status follows, instead of leaving the field `invalid` with nothing to show. It leaves `asyncError` alone — use `clearErrors()` for both.
 * An error never outlives the value it described: changing the value clears both errors, and so does starting a check.
 * `removeSubform` returns `void` — drop the `await`.
@@ -38,9 +42,12 @@
 * `AdvancedFieldController.lastFailure` carries the exception, its stack trace, and whether the check timed out.
 * `AdvancedFormState.canSubmit` and `AdvancedFormState.hasFailedValidation` report submit readiness and failed checks across the whole form.
 * The single-select and multi-select controllers accept `asyncValidation`, which they could not before.
-* `AdvancedTextFieldController` owns a `TextEditingController` (`field.textController`) kept in two-way sync with the value, and a `FocusNode` (`field.focusNode`) with a `focus()` shortcut.
+* `AdvancedTextFieldController` owns a `TextEditingController` (`field.textController`) kept in two-way sync with the value. Every `AdvancedFieldController` has a `FocusNode` (`field.focusNode`) with a `focus()` shortcut, so a dropdown or a date picker gets one too — not just text fields. Pass `focusNode:` to the constructor to bind a node you already own; the field then never disposes it.
 * `AdvancedFieldController` gained an optional `String? name` for debugging, logging, and serialization.
-* `AdvancedFieldController.revalidateSync()` re-runs the sync validator when the field's gate is open, for custom cross-field wiring.
+* `AdvancedFieldController.revalidateSync()` re-runs the sync validator when the field validates itself, for custom cross-field wiring.
+* `ValidationMode.onUnfocus` validates a field when focus moves away from it. Leaving flushes a debounce in any mode; a value unchanged since its last check reuses that answer, so repeated focus cycles cost no requests, and a check that failed is retried. Bind the field's `focusNode` for it to fire, or call `field.handleUnfocus()` from a widget that manages focus itself, such as a picker.
+* `field.handleUnfocus()` returns `Future<void>`, so a caller that wants to can await the validation it starts. Nothing has to: it reports its own failures.
+* A field may opt out of its form's mode with `field.setValidationMode(...)`, and a subform with its own mode — from its constructor or its setter — keeps it. A later change of the parent's mode reaches every other child. `validationEnabled` still outranks every mode.
 
 ### Changed
 

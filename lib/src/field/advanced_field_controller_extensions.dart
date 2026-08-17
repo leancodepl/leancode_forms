@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:leancode_forms/src/field/advanced_field_controller.dart';
+import 'package:leancode_forms/src/field/advanced_field_state.dart';
 
 /// Deprecated migration helper for [AdvancedFieldController].
 ///

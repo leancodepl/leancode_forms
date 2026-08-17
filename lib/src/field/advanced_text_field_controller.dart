@@ -3,9 +3,8 @@ import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 
 /// A specialization of [AdvancedFieldController] for a [String] value.
 ///
-/// Owns a [TextEditingController] kept in two-way sync with the field value,
-/// and a [FocusNode] for focus-management flows. Widgets can bind directly to
-/// [textController] and [focusNode].
+/// Owns a [TextEditingController] kept in two-way sync with the field value.
+/// Widgets bind to [textController] and to [AdvancedFieldController.focusNode].
 ///
 /// [textController] never holds a value of its own: after every write to the
 /// field, its text is put back in step with [fieldValue] in the same turn,
@@ -18,6 +17,7 @@ class AdvancedTextFieldController<E extends Object>
     super.initialValue = '',
     super.validator,
     super.asyncValidation,
+    super.focusNode,
     super.name,
   }) : textController = TextEditingController(text: initialValue) {
     textController.addListener(_onTextControllerChanged);
@@ -27,24 +27,6 @@ class AdvancedTextFieldController<E extends Object>
   /// The [TextEditingController] bound to this field. Lifecycle owned by this
   /// controller — do not dispose externally.
   final TextEditingController textController;
-
-  FocusNode? _focusNode;
-
-  /// The [FocusNode] bound to this field, created on first use.
-  ///
-  /// Throws a [StateError] if controller is disposed.
-  FocusNode get focusNode {
-    if (isDisposed) {
-      throw StateError(
-        'Cannot use the focusNode of a disposed AdvancedTextFieldController.',
-      );
-    }
-
-    return _focusNode ??= FocusNode(
-      debugLabel:
-          'AdvancedTextFieldController${name?.isNotEmpty ?? false ? '($name)' : ''}',
-    );
-  }
 
   // Writing to `textController` notifies this method again, in the same turn.
   // That re-entry stops here rather than looping, because [_reconcile] only ever
@@ -133,23 +115,12 @@ class AdvancedTextFieldController<E extends Object>
       (text.codeUnitAt(offset - 1) & 0xFC00) == 0xD800 &&
       (text.codeUnitAt(offset) & 0xFC00) == 0xDC00;
 
-  /// Requests focus for the field via [focusNode]. A no-op once the controller
-  /// has been disposed, so `focus()` after a teardown is safe.
-  void focus() {
-    if (isDisposed) {
-      return;
-    }
-
-    focusNode.requestFocus();
-  }
-
   @override
   void dispose() {
     removeListener(_reconcile);
     textController
       ..removeListener(_onTextControllerChanged)
       ..dispose();
-    _focusNode?.dispose();
     super.dispose();
   }
 }

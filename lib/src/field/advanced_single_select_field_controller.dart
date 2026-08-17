@@ -9,6 +9,7 @@ class AdvancedSingleSelectFieldController<V, E extends Object>
     required super.initialValue,
     super.validator,
     super.asyncValidation,
+    super.focusNode,
     required this.options,
     super.name,
   });

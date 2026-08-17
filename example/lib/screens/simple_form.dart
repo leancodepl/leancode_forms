@@ -153,7 +153,7 @@ class SimpleFormController extends AdvancedFormController {
 
   Future<void> submit() async {
     // `await` is what makes this a guarantee: it runs the async validators too.
-    if (await validate(enableAutovalidate: false)) {
+    if (await validate()) {
       debugPrint('First name: ${firstName.value.value}');
       debugPrint('Last name: ${lastName.value.value}');
       debugPrint('Email: ${email.value.value}');

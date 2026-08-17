@@ -133,7 +133,7 @@ void _report(String? field, String action, Object error, StackTrace stack) =>
       FlutterErrorDetails(
         exception: error,
         stack: stack,
-        library: 'advanced_forms',
+        library: 'leancode_forms',
         context: ErrorDescription('$action of field ${field ?? '<unnamed>'}'),
       ),
     );

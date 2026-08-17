@@ -29,7 +29,7 @@ const _longDebounce = Duration(seconds: 10);
       },
       debounce: debounce,
     ),
-  )..setAutovalidate(true);
+  )..setValidationMode(ValidationMode.onUserInteraction);
 
   return (field: field, validated: validated);
 }

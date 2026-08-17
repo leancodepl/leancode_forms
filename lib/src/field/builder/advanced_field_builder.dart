@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:leancode_forms/src/field/advanced_field_controller.dart';
+import 'package:leancode_forms/src/field/advanced_field_state.dart';
 
 /// Rebuilds whenever [field] notifies. Thin wrapper around
 /// [ValueListenableBuilder] that hides the `<AdvancedFieldState<T, E>>` type argument.
