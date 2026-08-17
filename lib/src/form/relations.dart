@@ -2,7 +2,7 @@ part of 'advanced_form_controller.dart';
 
 // Listeners on fields this form does not own — for external callbacks only.
 // Does not update the form's own state.
-mixin _Relations {
+mixin _Relations on ChangeNotifier {
   /// Whether this controller has been disposed. Once true it stays true.
   bool get isDisposed;
 
@@ -13,7 +13,7 @@ mixin _Relations {
   /// on [source] never fires.
   ///
   /// The relation lives as long as this form: the listener is removed on
-  /// `dispose`, so no manual cleanup is needed.
+  /// [dispose], so no manual cleanup is needed.
   ///
   /// Throws a [StateError] if this form or [source] has already been
   /// disposed — disposed controllers cannot be reused.
