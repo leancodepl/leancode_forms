@@ -5,11 +5,11 @@ import 'package:advanced_forms/src/utils/shared_call.dart';
 import 'package:advanced_forms/src/validation_mode.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:meta/meta.dart';
 
 part 'async_validation.dart';
 part 'focus_handling.dart';
 part 'validation_round.dart';
-
 
 /// A validate function receiving the current value and returning an error code.
 /// If null is returned, the value is considered valid.
@@ -29,7 +29,7 @@ FieldStatus _statusFromErrors(Object? validationError, Object? asyncError) =>
 /// validates nothing on its own. [validate] ignores the mode.
 // Behaviour is split across the part files:
 // - focus in the _FocusHandling mixin,
-// - async rounds in the _Rounds extension type over this class. 
+// - async rounds in the _Rounds extension type over this class.
 // Round state stays on the class — an extension type holds none.
 class AdvancedFieldController<T, E extends Object>
     with ChangeNotifier, _FocusHandling
