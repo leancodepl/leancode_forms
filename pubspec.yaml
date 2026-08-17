@@ -1,7 +1,13 @@
-name: leancode_forms
+name: advanced_forms
 description: A package for managing form state based on ChangeNotifier and ValueListenable.
 version: 0.2.0
-homepage: https://github.com/leancodepl/leancode_forms.git
+homepage: https://github.com/leancodepl/advanced_forms
+repository: https://github.com/leancodepl/advanced_forms
+issue_tracker: https://github.com/leancodepl/advanced_forms/issues
+topics:
+  - forms
+  - validation
+  - state-management
 
 environment:
   sdk: ">=3.3.0 <4.0.0"

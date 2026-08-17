@@ -1,15 +1,19 @@
-# leancode_forms
+<div align="center">
 
-[![pub package](https://img.shields.io/pub/v/leancode_forms.svg)](https://pub.dev/packages/leancode_forms)
-[![test](https://github.com/leancodepl/leancode_forms/actions/workflows/test.yml/badge.svg)](https://github.com/leancodepl/leancode_forms/actions/workflows/test.yml)
+[![Banner][banner-img]][leancode-landing]
 
-Forms in Flutter without a framework on top. `leancode_forms` gives you typed field controllers, composable validation, and form-level state tracking.
+</div>
+
+[![pub package](https://img.shields.io/pub/v/advanced_forms.svg)](https://pub.dev/packages/advanced_forms)
+[![test](https://github.com/leancodepl/advanced_forms/actions/workflows/test.yml/badge.svg)](https://github.com/leancodepl/advanced_forms/actions/workflows/test.yml)
+
+Forms in Flutter without a framework on top. `advanced_forms` gives you typed field controllers, composable validation, and form-level state tracking.
 
 
 ## Installation
 
 ```sh
-flutter pub add leancode_forms
+flutter pub add advanced_forms
 ```
 
 Migrating from 0.1.x, the bloc-based version? See [MIGRATION.md](./MIGRATION.md).
@@ -102,7 +106,7 @@ Own the controller wherever you like — it's a `ChangeNotifier`, so any DI pack
 
 - [MIGRATION.md](./MIGRATION.md) — coming from 0.1.x.
 - `example/` — a runnable app where every pattern in these docs has a working screen. See [example/README.md](./example/README.md) for the screen guide.
-- [API reference](https://pub.dev/documentation/leancode_forms/latest/) — the generated dartdoc, for every member and its edge cases.
+- [API reference](https://pub.dev/documentation/advanced_forms/latest/) — the generated dartdoc, for every member and its edge cases.
 
 ## Rendering fields
 
@@ -246,7 +250,7 @@ The pass is debounced, and `await validate()` runs a waiting check at once rathe
 
 A validator that throws, or a pass that times out, is a *failure* — a technical fault, not a verdict on the value. The field lands on `FieldStatus.failedValidation` (`state.isFailedValidation`) instead of hanging on `validating`, it does not count as valid, and `form.value.hasFailedValidation` drives one banner for the whole form. Failure is not sticky, so the next `await validate()` retries it.
 
-Every parameter is documented in the dartdoc on [`AsyncValidation`](https://pub.dev/documentation/leancode_forms/latest/leancode_forms/AsyncValidation-class.html). Working example: `SimpleFormScreen` in the example app.
+Every parameter is documented in the dartdoc on [`AsyncValidation`](https://pub.dev/documentation/advanced_forms/latest/advanced_forms/AsyncValidation-class.html). Working example: `SimpleFormScreen` in the example app.
 
 ### Validation that depends on another field
 
@@ -359,4 +363,40 @@ The package deliberately ships no styled widgets — it gives you what a widget 
 
 ---
 
-Maintained by [LeanCode](https://leancode.co). Licensed under the [Apache License 2.0](./LICENSE).
+## 🛠️ Maintained by LeanCode
+
+<div align="center">
+
+  [<img src="https://leancodepublic.blob.core.windows.net/public/wide.png" alt="LeanCode Logo" width="300" />][leancode-landing]
+
+</div>
+
+This package is built with 💙 by **[LeanCode][leancode-landing]**.
+We are **top-tier experts** focused on Flutter Enterprise solutions.
+
+### Why LeanCode?
+
+- **Creators of [Patrol][patrol-landing]** – the next-gen testing framework for Flutter.
+
+- **Production-Ready** – We use this package in apps with millions of users.
+
+- **Full-Cycle Product Development** – We take your product from scratch to long-term maintenance.
+
+<div align="center">
+  <br />
+
+  **Need help with your Flutter project?**
+
+  [**👉 Hire our team**][leancode-estimate]
+  &nbsp;&nbsp;•&nbsp;&nbsp;
+  [Check our other packages][leancode-packages]
+
+</div>
+
+Licensed under the [Apache License 2.0](./LICENSE).
+
+[banner-img]: https://raw.githubusercontent.com/leancodepl/advanced_forms/refs/heads/main/doc/banner.png
+[leancode-landing]: https://leancode.co/?utm_source=github.com&utm_medium=referral&utm_campaign=advanced-forms
+[leancode-estimate]: https://leancode.co/get-estimate?utm_source=github.com&utm_medium=referral&utm_campaign=advanced-forms
+[leancode-packages]: https://pub.dev/packages?q=publisher%3Aleancode.co&sort=downloads
+[patrol-landing]: https://patrol.leancode.co/?utm_source=github.com&utm_medium=referral&utm_campaign=advanced-forms
