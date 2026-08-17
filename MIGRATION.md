@@ -9,7 +9,7 @@
 
 ## 1. Migration checklist
 
-1. Update `pubspec.yaml`: confirm the app is on Flutter 3.13 or newer, remove `flutter_bloc` and `rxdart`, plus `bloc_test`, `bloc_presentation`, and `flutter_hooks` if forms were the only reason for them. Add `provider` if you used `BlocProvider` ([section 8](#8-dropping-flutter_bloc-and-friends)).
+1. Update `pubspec.yaml`: confirm the app is on Flutter 3.19 or newer, remove `flutter_bloc` and `rxdart`, plus `bloc_test`, `bloc_presentation`, and `flutter_hooks` if forms were the only reason for them. Add `provider` if you used `BlocProvider` ([section 8](#8-dropping-flutter_bloc-and-friends)).
 2. Rename the classes ([section 2](#2-rename-reference)).
 3. Replace `.state` reads with `.value` / `fieldValue` ([section 4](#4-form-classes-and-state-reads)).
 4. Move `asyncValidator:` and `asyncValidationDebounce:` into `asyncValidation:` ([section 4](#4-form-classes-and-state-reads)).

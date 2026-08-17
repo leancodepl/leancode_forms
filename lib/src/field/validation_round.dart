@@ -6,19 +6,21 @@ typedef _Result<E extends Object> = ({
 });
 
 // Runs async validation: starts a pass, waits for the result, and writes it
-// only if still current. Round tracking lives on the controller (`_currentRound`,
-// `_hasVerdict`, `_lastFailure`).
-extension _ValidationRounds<T, E extends Object>
-    on AdvancedFieldController<T, E> {
-  Future<bool> _runValidate() async {
+// only if still current.
+extension type _Rounds<T, E extends Object>(
+        AdvancedFieldController<T, E> _field)
+    implements AdvancedFieldController<T, E> {
+  /// Runs the sync validator, then the async one when it is owed, and reports
+  /// whether the field ended up valid. Backs [AdvancedFieldController.validate].
+  Future<bool> runValidate() async {
     final validationError = _validator(_value.value);
 
     if (validationError != null) {
       // Sync error already failed — skip async. Keep any existing async verdict
       // since the value did not change.
-      _abortRound();
+      abort();
       _setState(
-        _value._copyWithNullable(
+        _value.copyWithNullable(
           validationError: validationError,
           status: FieldStatus.invalid,
         ),
@@ -37,21 +39,20 @@ extension _ValidationRounds<T, E extends Object>
       if (live.isDebouncing) {
         unawaited(_run(live));
       }
-      return _roundResult(await live.done);
+      return _result(await live.done);
     }
 
     if (_hasVerdict) {
       return _value.isValid;
     }
 
-    return _roundResult(await _beginRound(_value.value, debounced: false).done);
+    return _result(await begin(_value.value, debounced: false).done);
   }
 
-  // Maps this pass's result to what validate() returns.
-  bool _roundResult(bool notSuperseded) =>
-      !_isDisposed && notSuperseded && _value.isValid;
-
-  _ValidationRound<T, E> _beginRound(T value, {required bool debounced}) {
+  /// Starts a round for [value]. With [debounced] the field goes to
+  /// [FieldStatus.pending] and the validator waits out
+  /// [AsyncValidation.debounce]; without it the validator runs at once.
+  _ValidationRound<T, E> begin(T value, {required bool debounced}) {
     final round = _ValidationRound<T, E>(value: value);
     _currentRound = round;
 
@@ -69,6 +70,35 @@ extension _ValidationRounds<T, E extends Object>
     return round;
   }
 
+  /// Runs a round still waiting out its debounce right now, if there is one.
+  /// This is what a focus loss does to a half-typed value.
+  void flushDebounce() {
+    if (_currentRound case final round? when round.isDebouncing) {
+      unawaited(_run(round));
+    }
+  }
+
+  /// Drops the live round, so it can no longer write state, notify, or report.
+  /// Cancelling also unblocks callers waiting on `validate()`. The settled
+  /// verdict survives — the value it describes did not change.
+  void abort() {
+    _lastFailure = null;
+    _currentRound?.cancel();
+    _currentRound = null;
+  }
+
+  /// [abort], and drop the settled verdict with it. This is what a write to the
+  /// value means: the last answer no longer describes what the field holds, so
+  /// the next `validate()` runs the validator again rather than reusing it.
+  void invalidate() {
+    abort();
+    _hasVerdict = false;
+  }
+
+  // Maps this pass's result to what validate() returns.
+  bool _result(bool notSuperseded) =>
+      !isDisposed && notSuperseded && _value.isValid;
+
   Future<void> _run(_ValidationRound<T, E> round) async {
     final asyncValidation = _asyncValidation;
     // Rounds only start when an async validator exists — null here is unreachable.
@@ -79,7 +109,7 @@ extension _ValidationRounds<T, E extends Object>
 
     _lastFailure = null;
     _setState(
-      _value._copyWithNullable(
+      _value.copyWithNullable(
         asyncError: null,
         status: FieldStatus.validating,
       ),
@@ -102,7 +132,7 @@ extension _ValidationRounds<T, E extends Object>
     if (failure == null) {
       _hasVerdict = true;
       _setState(
-        _value._copyWithNullable(
+        _value.copyWithNullable(
           asyncError: result.verdict,
           status: _statusFromErrors(_value.validationError, result.verdict),
         ),
@@ -114,21 +144,13 @@ extension _ValidationRounds<T, E extends Object>
     // Validation failed — don't cache a verdict, so the next validate() retries.
     _lastFailure = failure;
     _setState(
-      _value._copyWithNullable(
+      _value.copyWithNullable(
         asyncError: asyncValidation._mapFailure(failure, name),
         status: FieldStatus.failedValidation,
       ),
     );
     round.finish();
     unawaited(asyncValidation._reportFailure(failure, name));
-  }
-
-  // Only the current round may update state. Cancelling also unblocks callers
-  // waiting on validate().
-  void _abortRound() {
-    _lastFailure = null;
-    _currentRound?.cancel();
-    _currentRound = null;
   }
 }
 

@@ -4,7 +4,7 @@
 
 ### Breaking changes
 
-* Minimum Flutter is now 3.13.0 (was 3.10.0).
+* Minimum Flutter is now 3.19.0 (was 3.10.0), i.e. Dart 3.3.
 * Rebuilt on `ChangeNotifier` / `ValueListenable`, so `flutter_bloc` and `rxdart` are no longer dependencies.
 * Renamed the core classes:
   * `FieldCubit` → `AdvancedFieldController`
