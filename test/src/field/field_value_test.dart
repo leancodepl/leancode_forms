@@ -75,6 +75,23 @@ void main() {
       field.setValue(10, force: true);
       expect(emissions, const [TestState(value: 10, readOnly: true)]);
     });
+
+    test('throws once the field is disposed', () {
+      final disposed = AdvancedFieldController<int, TestError>(
+        initialValue: initialValue,
+      )..dispose();
+
+      expect(() => disposed.setValue(10), throwsStateError);
+    });
+
+    test('starts no async validation once the field is disposed', () async {
+      final (field: asyncField, :validated) = makeAsyncField();
+      asyncField.dispose();
+
+      expect(() => asyncField.setValue(10), throwsStateError);
+      await pumpEventQueue();
+      expect(validated, isEmpty);
+    });
   });
 
   group('prefill', () {

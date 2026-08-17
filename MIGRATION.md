@@ -152,16 +152,18 @@ It raises a `StateError` if either the parent or the subform has already been di
 
 All three raise a `StateError` instead of touching a disposed controller. `registerFields` and `subscribeToFields` also throw when handed a *disposed field*, where 0.1.x accepted it and failed later inside the form's own wiring. Code that tore a form down and then called one of them was already broken; it now says so at the call site.
 
-### `removeSubform` returns `void`
+### `removeSubform` only detaches, and returns `void`
 
-*The compiler catches this — `await` on a `void` expression is an error.*
+*The compiler catches both — `await` on a `void` expression is an error, and so is the `close` argument.*
 
-Disposal is synchronous now, so there is nothing left to await. Drop the `await`, and the `async` it forced on the enclosing method:
+`removeSubform` no longer disposes the subform, and the `close` flag is gone. A detached subform is still owned by the parent and is disposed with it, exactly like a field dropped from a later `registerFields(...)` call. So there is nothing left to await, and nothing to opt out of:
 
 ```dart
-await removeSubform(subform);   // 0.1.x
-removeSubform(subform);         // 0.2.0
+await removeSubform(subform);            // 0.1.x
+removeSubform(subform);                  // 0.2.0
 ```
+
+Detach a subform to take it out of `validate()`, `canSubmit` and the parent's state; re-attach it later with `addSubform`. To take a subtree out of validation while keeping it visible, prefer `setValidationEnabled(false)`.
 
 ### `validate()` on a form with `validationEnabled: false` leaves the gates alone
 
@@ -315,7 +317,7 @@ The `Disposable` mixin is gone with it, so `addDisposable(subscription.cancel)` 
 `dispose()` is not idempotent: a second call throws in debug mode (`'A AdvancedBooleanFieldController<…> was used after being disposed.'`). On `AdvancedTextFieldController` the message names its `TextEditingController` instead, because the field disposes it first. `Cubit.close()` tolerated it, so 0.1.x code that disposed a field by hand *and* let `FormGroupCubit.close()` dispose it again worked by accident. Give every field and subform a single owner, and let the form be it:
 
 - Fields registered with `registerFields(...)` are disposed by `AdvancedFormController`. Ownership is tracked in a `Set`, so registering the same field twice is safe.
-- Subforms attached with `addSubform(...)` are disposed by the parent too. Do not also dispose them in your own `dispose()` override, and note that `removeSubform(...)` disposes by default — pass `close: false` to keep the subform alive.
+- Subforms attached with `addSubform(...)` are disposed by the parent too, and stay owned by it after `removeSubform(...)`. Do not also dispose them in your own `dispose()` override. If you do dispose one yourself, the parent skips it rather than disposing it twice.
 
 ---
 

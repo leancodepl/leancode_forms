@@ -198,5 +198,39 @@ void main() {
       expect(await asyncField.validate(), false);
       expect(asyncField.error, _Error.taken);
     });
+
+    test("mutating the caller's set does not reach the field", () {
+      final callersValue = {'a'};
+      final field = AdvancedMultiSelectFieldController<String, _Error>(
+        initialValue: callersValue,
+        options: _options,
+      );
+      addTearDown(field.dispose);
+      final calls = _countCalls(field);
+
+      callersValue.add('b');
+
+      expect(field.fieldValue, {'a'});
+      expect(calls(), 0);
+
+      field
+        ..addValue('c')
+        ..reset();
+
+      expect(field.fieldValue, {'a'});
+    });
+
+    test("mutating the caller's options does not reach the field", () {
+      final callersOptions = ['a'];
+      final field = AdvancedMultiSelectFieldController<String, _Error>(
+        initialValue: const <String>{},
+        options: callersOptions,
+      );
+      addTearDown(field.dispose);
+
+      callersOptions.add('b');
+
+      expect(field.options, ['a']);
+    });
   });
 }

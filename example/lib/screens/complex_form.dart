@@ -180,13 +180,13 @@ class ComplexFormController extends AdvancedFormController {
       addSubform(humanSubform);
     } else {
       humanSubform.resetAll();
-      removeSubform(humanSubform, close: false);
+      removeSubform(humanSubform);
     }
     if (type == SubformType.dog) {
       addSubform(dogSubform);
     } else {
       dogSubform.resetAll();
-      removeSubform(dogSubform, close: false);
+      removeSubform(dogSubform);
     }
   }
 
@@ -202,8 +202,7 @@ class ComplexFormController extends AdvancedFormController {
   void dispose() {
     _typeDebounce?.cancel();
     type.removeListener(_onTypeChanged);
-    humanSubform.dispose();
-    dogSubform.dispose();
+    // Both subforms are owned by this form, so super.dispose() disposes them.
     super.dispose();
   }
 }

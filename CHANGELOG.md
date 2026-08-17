@@ -29,7 +29,9 @@
 * `setError(null)` clears `validationError` and the status follows, instead of leaving the field `invalid` with nothing to show. It leaves `asyncError` alone — use `clearErrors()` for both.
 * An error never outlives the value it described: changing the value clears both errors, and so does starting a check.
 * `removeSubform` returns `void` — drop the `await`.
-* A disposed controller throws a `StateError` from `registerFields`, `setValidationEnabled`, `addSubform`, `removeSubform` and `subscribeToFields`.
+* `removeSubform` only detaches: it no longer disposes the subform, and the `close` flag is gone. The parent owns every subform it was given and disposes them all in `dispose()`, skipping any the caller disposed itself.
+* A disposed controller throws a `StateError` from `registerFields`, `setValidationEnabled`, `addSubform`, `removeSubform`, `subscribeToFields` and `setValue`.
+* `AdvancedMultiSelectFieldController` copies the `initialValue` set and the `options` list, so mutating what you passed in never reaches the field.
 * `FieldStatus` has a new `failedValidation` value, for a check that could not run. Exhaustive `switch`es need an arm for it.
 * `AdvancedFormState.validationErrors` reports each field's `error` (sync **or** async) instead of `validationError`.
 * `select` and `addValue` assert that the value is one of `options`, and so does `toggleElement` when it adds.
