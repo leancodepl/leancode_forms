@@ -1,13 +1,12 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:leancode_forms/src/field/advanced_field_controller.dart';
+import 'package:leancode_forms/src/form/advanced_form_state.dart';
 import 'package:leancode_forms/src/utils/shared_call.dart';
 import 'package:leancode_forms/src/validation_mode.dart';
 
-part 'advanced_form_state.dart';
 part 'child_wiring.dart';
 part 'relations.dart';
 
@@ -30,7 +29,7 @@ class AdvancedFormController
     ValidationMode? validationMode,
   })  : _ownMode = validationMode,
         _value = AdvancedFormState(
-          validationMode: validationMode ?? ValidationMode.disabled,
+          validationMode: validationMode ?? ValidationMode.manual,
         );
 
   /// A label you can log to tell nested subforms apart. The package never reads
@@ -96,12 +95,12 @@ class AdvancedFormController
       if (!fields.contains(field)) {
         // enabled: true keeps a field's own mode; others get disabled, same as
         // if they were never registered.
-        field.applyValidationMode(ValidationMode.disabled, enabled: true);
+        field.applyValidationMode(ValidationMode.manual, enabled: true);
       }
     }
     // value.fields is replaced but _ownedFields keeps growing on purpose —
     // deregistered fields stop participating but are still disposed with the form.
-    _setState(value._copyWith(fields: fields));
+    _setState(value.copyWith(fields: fields));
 
     _ownedFields.addAll(fields);
     _initialFieldsState = getFieldValues();
@@ -212,7 +211,7 @@ class AdvancedFormController
     }
 
     _runChildCleanups();
-    _setState(value._copyWith(subforms: {...value.subforms, form}));
+    _setState(value.copyWith(subforms: {...value.subforms, form}));
     _wireChildren();
     _publishValidationMode(value.validationMode);
     _recomputeWasModified();
@@ -237,7 +236,7 @@ class AdvancedFormController
     }
 
     _runChildCleanups();
-    _setState(value._copyWith(subforms: {...value.subforms}..remove(form)));
+    _setState(value.copyWith(subforms: {...value.subforms}..remove(form)));
     if (close) {
       form.dispose();
     }
@@ -304,7 +303,7 @@ class AdvancedFormController
       // Settings changed — drop any validate() still running under the old ones.
       _validateCall.invalidate();
       _setState(
-        value._copyWith(validationMode: mode, validationEnabled: enabled),
+        value.copyWith(validationMode: mode, validationEnabled: enabled),
       );
     }
 

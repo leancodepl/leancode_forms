@@ -1,4 +1,7 @@
-part of 'advanced_field_controller.dart';
+import 'package:equatable/equatable.dart';
+import 'package:leancode_forms/src/field/advanced_field_controller.dart';
+import 'package:leancode_forms/src/validation_mode.dart';
+import 'package:meta/meta.dart';
 
 /// Translates an error to a string.
 typedef ErrorTranslator<E extends Object> = String Function(E);
@@ -15,7 +18,7 @@ enum FieldStatus {
   invalid,
 
   /// The value changed and the async validator is about to run, once the
-  /// [AsyncValidation.debounce] wait is over.
+  /// `AsyncValidation.debounce` wait is over.
   pending,
 
   /// The async validator is running.
@@ -24,7 +27,7 @@ enum FieldStatus {
   /// The async validator threw, or its round timed out, so validation could not
   /// complete — a technical fault, not a verdict about the value.
   ///
-  /// Carries no error code unless [AsyncValidation.failureToError] supplied
+  /// Carries no error code unless `AsyncValidation.failureToError` supplied
   /// one, but the field does not count as valid. Not sticky: the next
   /// `validate()` re-runs the round, so submit is the retry.
   failedValidation,
@@ -38,7 +41,7 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
     required this.value,
     this.validationError,
     this.asyncError,
-    this.mode = ValidationMode.disabled,
+    this.validationMode = ValidationMode.manual,
     this.readOnly = false,
     this.status = FieldStatus.valid,
   });
@@ -54,8 +57,8 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
   final E? asyncError;
 
   /// When this field validates itself. The **effective** mode: a field whose
-  /// form has validation switched off reports [ValidationMode.disabled].
-  final ValidationMode mode;
+  /// form has validation switched off reports [ValidationMode.manual].
+  final ValidationMode validationMode;
 
   /// Whether the value is frozen against [AdvancedFieldController.setValue].
   final bool readOnly;
@@ -88,11 +91,14 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
   /// Whether the async validator failed, so validation never completed.
   bool get isFailedValidation => status == FieldStatus.failedValidation;
 
-  AdvancedFieldState<T, E> _copyWithNullable({
+  /// Returns a copy of this state, where passing null to a nullable field
+  /// clears it rather than keeping the current value.
+  @internal
+  AdvancedFieldState<T, E> copyWithNullable({
     Object? value = _unset,
     Object? validationError = _unset,
     Object? asyncError = _unset,
-    ValidationMode? mode,
+    ValidationMode? validationMode,
     bool? readOnly,
     FieldStatus? status,
   }) =>
@@ -103,7 +109,7 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
             : validationError as E?,
         asyncError:
             identical(asyncError, _unset) ? this.asyncError : asyncError as E?,
-        mode: mode ?? this.mode,
+        validationMode: validationMode ?? this.validationMode,
         readOnly: readOnly ?? this.readOnly,
         status: status ?? this.status,
       );
@@ -113,7 +119,7 @@ class AdvancedFieldState<T, E extends Object> with Equatable {
         value,
         validationError,
         asyncError,
-        mode,
+        validationMode,
         readOnly,
         status,
       ];

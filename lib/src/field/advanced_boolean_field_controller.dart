@@ -8,6 +8,7 @@ class AdvancedBooleanFieldController<E extends Object>
     super.initialValue = false,
     super.validator,
     super.asyncValidation,
+    super.focusNode,
     super.name,
   });
 }

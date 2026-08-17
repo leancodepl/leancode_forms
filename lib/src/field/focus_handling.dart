@@ -10,16 +10,21 @@ mixin _FocusHandling on ChangeNotifier {
   /// Not used for identity — fields are identified by reference.
   String? get name;
 
-  /// Tells the field the user has left it.
-  void handleUnfocus();
+  /// The node the caller passed to the constructor, or null when this field
+  /// makes its own.
+  FocusNode? get _suppliedFocusNode;
+
+  /// Tells the field that focus moved away from it.
+  Future<void> handleUnfocus();
 
   FocusNode? _focusNode;
 
   // A FocusNode notifies for more than focus, so a blur would otherwise repeat.
   bool _hadFocus = false;
 
-  /// The [FocusNode] bound to this field, created on first use. See
-  /// [ValidationMode.onUnfocus]. Throws a [StateError] once disposed.
+  /// The [FocusNode] bound to this field: the one given to the constructor, or
+  /// one created on first use. See [ValidationMode.onUnfocus]. Throws a
+  /// [StateError] once disposed.
   FocusNode get focusNode {
     if (isDisposed) {
       throw StateError(
@@ -27,10 +32,7 @@ mixin _FocusHandling on ChangeNotifier {
       );
     }
 
-    return _focusNode ??= FocusNode(
-      debugLabel:
-          'AdvancedFieldController${name?.isNotEmpty ?? false ? '($name)' : ''}',
-    )..addListener(_handleFocusChange);
+    return _focusNode ??= _attachFocusNode();
   }
 
   /// Requests focus via [focusNode]. A no-op once disposed.
@@ -42,6 +44,24 @@ mixin _FocusHandling on ChangeNotifier {
     focusNode.requestFocus();
   }
 
+  FocusNode _attachFocusNode() {
+    final node = _suppliedFocusNode ??
+        FocusNode(
+          debugLabel:
+              'AdvancedFieldController${name?.isNotEmpty ?? false ? '($name)' : ''}',
+        );
+    return node..addListener(_handleFocusChange);
+  }
+
+  // Run from the constructor: a node the caller owns can be bound to a widget
+  // directly, so its blurs must reach this field without anyone reading
+  // [focusNode] first.
+  void _bindSuppliedFocusNode() {
+    if (_suppliedFocusNode != null) {
+      _focusNode = _attachFocusNode();
+    }
+  }
+
   void _handleFocusChange() {
     final hasFocus = _focusNode?.hasFocus ?? false;
     if (hasFocus == _hadFocus) {
@@ -49,12 +69,18 @@ mixin _FocusHandling on ChangeNotifier {
     }
     _hadFocus = hasFocus;
     if (!hasFocus) {
-      handleUnfocus();
+      // handleUnfocus reports its own failures, so nothing escapes into the zone.
+      unawaited(handleUnfocus());
     }
   }
 
+  // Only a node this field created is this field's to dispose.
   void _disposeFocusNode() {
-    _focusNode?.dispose();
+    if (_suppliedFocusNode == null) {
+      _focusNode?.dispose();
+    } else {
+      _focusNode?.removeListener(_handleFocusChange);
+    }
     _focusNode = null;
   }
 }

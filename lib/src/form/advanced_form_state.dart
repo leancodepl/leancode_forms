@@ -1,4 +1,9 @@
-part of 'advanced_form_controller.dart';
+import 'package:equatable/equatable.dart';
+import 'package:leancode_forms/src/field/advanced_field_controller.dart';
+import 'package:leancode_forms/src/field/advanced_field_state.dart';
+import 'package:leancode_forms/src/form/advanced_form_controller.dart';
+import 'package:leancode_forms/src/validation_mode.dart';
+import 'package:meta/meta.dart';
 
 /// The state of an [AdvancedFormController] — which fields and subforms it
 /// owns, whether the user has changed anything, and whether validation applies.
@@ -13,7 +18,7 @@ class AdvancedFormState with Equatable {
     this.fields = const [],
     this.subforms = const {},
     this.validationEnabled = true,
-    this.validationMode = ValidationMode.disabled,
+    this.validationMode = ValidationMode.manual,
   });
 
   /// Whether any field value differs from the last `registerFields`, or any
@@ -33,7 +38,7 @@ class AdvancedFormState with Equatable {
   final bool validationEnabled;
 
   /// When fields in this tree validate themselves. Ignores [validationEnabled] —
-  /// see [AdvancedFieldState.mode] for the effective mode.
+  /// see [AdvancedFieldState.validationMode] for the effective mode.
   final ValidationMode validationMode;
 
   /// This form's fields including every subform's fields.
@@ -75,7 +80,9 @@ class AdvancedFormState with Equatable {
               if (field.value.error case final error?) field: error,
           };
 
-  AdvancedFormState _copyWith({
+  /// Returns a copy of this state with the given fields replaced.
+  @internal
+  AdvancedFormState copyWith({
     bool? wasModified,
     List<AdvancedFieldController<dynamic, dynamic>>? fields,
     Set<AdvancedFormController>? subforms,

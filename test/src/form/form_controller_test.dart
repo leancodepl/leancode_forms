@@ -191,13 +191,13 @@ void main() {
         await form.validate();
 
         expect(form.value.validationMode, ValidationMode.onUnfocus);
-        expect(field1.value.mode, ValidationMode.onUnfocus);
-        expect(field2.value.mode, ValidationMode.onUnfocus);
-        expect(subformField.value.mode, ValidationMode.onUnfocus);
+        expect(field1.value.validationMode, ValidationMode.onUnfocus);
+        expect(field2.value.validationMode, ValidationMode.onUnfocus);
+        expect(subformField.value.validationMode, ValidationMode.onUnfocus);
         form.dispose();
       });
 
-      test('runs everything in disabled mode, including untouched fields',
+      test('runs everything in manual mode, including untouched fields',
           () async {
         validator1.validationResult = _Error1.valueRequired;
         subform.registerFields([subformField]);
@@ -207,7 +207,7 @@ void main() {
 
         expect(await form.validate(), isFalse);
         expect(field1.value.error, _Error1.valueRequired);
-        expect(form.value.validationMode, ValidationMode.disabled);
+        expect(form.value.validationMode, ValidationMode.manual);
         form.dispose();
       });
 
@@ -286,7 +286,7 @@ void main() {
 
         // Waking them would make the next keystroke run the async validators
         // the caller just switched off.
-        expect(field1.value.mode, ValidationMode.disabled);
+        expect(field1.value.validationMode, ValidationMode.manual);
         form.dispose();
         field2.dispose();
         subform.dispose();
@@ -605,9 +605,12 @@ void main() {
           ..setValidationMode(ValidationMode.onUserInteraction);
 
         expect(form.value.validationMode, ValidationMode.onUserInteraction);
-        expect(field1.value.mode, ValidationMode.onUserInteraction);
-        expect(field2.value.mode, ValidationMode.onUserInteraction);
-        expect(subformField.value.mode, ValidationMode.onUserInteraction);
+        expect(field1.value.validationMode, ValidationMode.onUserInteraction);
+        expect(field2.value.validationMode, ValidationMode.onUserInteraction);
+        expect(
+          subformField.value.validationMode,
+          ValidationMode.onUserInteraction,
+        );
         form.dispose();
       });
 
@@ -619,9 +622,9 @@ void main() {
           ..setValidationMode(ValidationMode.onUserInteraction)
           ..setValidationMode(ValidationMode.onUnfocus);
 
-        expect(field1.value.mode, ValidationMode.onUnfocus);
-        expect(field2.value.mode, ValidationMode.onUnfocus);
-        expect(subformField.value.mode, ValidationMode.onUnfocus);
+        expect(field1.value.validationMode, ValidationMode.onUnfocus);
+        expect(field2.value.validationMode, ValidationMode.onUnfocus);
+        expect(subformField.value.validationMode, ValidationMode.onUnfocus);
         form.dispose();
       });
 
@@ -630,8 +633,8 @@ void main() {
           ..setValidationMode(ValidationMode.onUserInteraction)
           ..registerFields([field1, field2]);
 
-        expect(field1.value.mode, ValidationMode.onUserInteraction);
-        expect(field2.value.mode, ValidationMode.onUserInteraction);
+        expect(field1.value.validationMode, ValidationMode.onUserInteraction);
+        expect(field2.value.validationMode, ValidationMode.onUserInteraction);
         form.dispose();
         subform.dispose();
         subformField.dispose();
@@ -645,7 +648,7 @@ void main() {
         subform.registerFields([subformField]);
 
         expect(subform.value.validationMode, ValidationMode.onUnfocus);
-        expect(subformField.value.mode, ValidationMode.onUnfocus);
+        expect(subformField.value.validationMode, ValidationMode.onUnfocus);
         form.dispose();
       });
 
@@ -667,8 +670,14 @@ void main() {
         subform.registerFields([subformField]);
         form.addSubform(subform);
 
-        expect(subformField.value.mode, earlyField.value.mode);
-        expect(subformField.value.mode, ValidationMode.onUserInteraction);
+        expect(
+          subformField.value.validationMode,
+          earlyField.value.validationMode,
+        );
+        expect(
+          subformField.value.validationMode,
+          ValidationMode.onUserInteraction,
+        );
         form.dispose();
         field2.dispose();
       });
@@ -679,8 +688,8 @@ void main() {
           ..setValidationMode(ValidationMode.onUserInteraction)
           ..registerFields([field2]);
 
-        expect(field1.value.mode, ValidationMode.disabled);
-        expect(field2.value.mode, ValidationMode.onUserInteraction);
+        expect(field1.value.validationMode, ValidationMode.manual);
+        expect(field2.value.validationMode, ValidationMode.onUserInteraction);
         form.dispose();
         subform.dispose();
         subformField.dispose();
@@ -948,7 +957,7 @@ void main() {
           ..setValidationMode(ValidationMode.onUserInteraction)
           ..setValue('edited');
         field2
-          ..setValidationMode(ValidationMode.disabled)
+          ..setValidationMode(ValidationMode.manual)
           ..setValue(1);
         subformField
           ..setValidationMode(ValidationMode.onUserInteraction)
@@ -1357,8 +1366,8 @@ void main() {
           ..setValidationMode(ValidationMode.onUserInteraction);
 
         expect(own.value.validationMode, ValidationMode.onUnfocus);
-        expect(subformField.value.mode, ValidationMode.onUnfocus);
-        expect(field1.value.mode, ValidationMode.onUserInteraction);
+        expect(subformField.value.validationMode, ValidationMode.onUnfocus);
+        expect(field1.value.validationMode, ValidationMode.onUserInteraction);
         form.dispose();
       });
 
@@ -1370,10 +1379,10 @@ void main() {
           ..setValidationMode(ValidationMode.onUserInteraction);
 
         subform.setValidationMode(ValidationMode.onUnfocus);
-        form.setValidationMode(ValidationMode.disabled);
+        form.setValidationMode(ValidationMode.manual);
 
-        expect(subformField.value.mode, ValidationMode.onUnfocus);
-        expect(field1.value.mode, ValidationMode.disabled);
+        expect(subformField.value.validationMode, ValidationMode.onUnfocus);
+        expect(field1.value.validationMode, ValidationMode.manual);
         form.dispose();
         field2.dispose();
       });
@@ -1386,11 +1395,14 @@ void main() {
         subform.setValidationMode(ValidationMode.onUserInteraction);
 
         form.setValidationEnabled(false);
-        expect(subformField.value.mode, ValidationMode.disabled);
+        expect(subformField.value.validationMode, ValidationMode.manual);
         expect(subform.value.validationEnabled, isFalse);
 
         form.setValidationEnabled(true);
-        expect(subformField.value.mode, ValidationMode.onUserInteraction);
+        expect(
+          subformField.value.validationMode,
+          ValidationMode.onUserInteraction,
+        );
         form.dispose();
         field2.dispose();
       });

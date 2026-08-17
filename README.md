@@ -177,7 +177,7 @@ Three rules cover every case:
 
 | `ValidationMode` | What the user sees |
 | --- | --- |
-| `disabled` (default) | Nothing validates until submit. Editing a field still clears the error that described its old value |
+| `manual` (default) | Nothing validates until submit. Editing a field still clears the error that described its old value |
 | `onUserInteraction` | Every keystroke validates the field being edited; the async check waits out its debounce |
 | `onUnfocus` | Leaving a field the user edited validates it. Tabbing through it, or leaving it unchanged, costs nothing |
 
@@ -191,6 +191,8 @@ form.email.setValidationMode(ValidationMode.onUserInteraction);
 ```
 
 `onUnfocus` needs the widget to bind the field's `focusNode`, or to call `field.handleUnfocus()` itself — which is what a picker or a dropdown does.
+
+The field makes and owns that `focusNode`. Pass `focusNode:` to the constructor to bind one you already own instead — the field listens to it but never disposes it.
 
 `await form.validate()` walks every field and subform, runs their async validators too, and returns `false` if anything is invalid. It neither consults the mode nor changes it: the mode you set is the mode the form keeps for its whole life.
 
@@ -248,7 +250,7 @@ Every parameter is documented in the dartdoc on [`AsyncValidation`](https://pub.
 
 ### Validation that depends on another field
 
-`subscribeToFields` re-runs this field's **sync** validator whenever the fields it depends on change value — that one thing, and nothing at all while this field is in `ValidationMode.disabled`, or on a field the user has never edited:
+`subscribeToFields` re-runs this field's **sync** validator whenever the fields it depends on change value — that one thing, and nothing at all while this field is in `ValidationMode.manual`, or on a field the user has never edited:
 
 ```dart
 final password = AdvancedTextFieldController(

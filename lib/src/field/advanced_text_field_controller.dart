@@ -17,6 +17,7 @@ class AdvancedTextFieldController<E extends Object>
     super.initialValue = '',
     super.validator,
     super.asyncValidation,
+    super.focusNode,
     super.name,
   }) : textController = TextEditingController(text: initialValue) {
     textController.addListener(_onTextControllerChanged);

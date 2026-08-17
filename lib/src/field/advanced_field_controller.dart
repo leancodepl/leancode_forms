@@ -1,12 +1,11 @@
 import 'dart:async';
 
-import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:leancode_forms/src/field/advanced_field_state.dart';
 import 'package:leancode_forms/src/utils/shared_call.dart';
 import 'package:leancode_forms/src/validation_mode.dart';
 
-part 'advanced_field_state.dart';
 part 'async_validation.dart';
 part 'focus_handling.dart';
 part 'validation_round.dart';
@@ -23,30 +22,42 @@ FieldStatus _statusFromErrors(Object? validationError, Object? asyncError) =>
 /// A single form field which can be validated. [T] is the held value, [E] the
 /// error code; [E] cannot be nullable, so lack of an error is unambiguous.
 ///
-/// Validation follows three rules. [AdvancedFieldState.mode] decides which
+/// Validation follows three rules. [AdvancedFieldState.validationMode] decides which
 /// events make the field validate itself; a round runs the sync validator
 /// first, the async one only if sync passed. A field the user has never edited
 /// validates nothing on its own. [validate] ignores the mode.
 class AdvancedFieldController<T, E extends Object>
-    with ChangeNotifier, _FocusHandling
+    with ChangeNotifier, _FocusHandling, _ValidationRounds<T, E>
     implements ValueListenable<AdvancedFieldState<T, E>> {
   /// Creates a new [AdvancedFieldController] with an initial value and a
   /// validator. Pass [asyncValidation] to also validate asynchronously.
+  ///
+  /// Pass [focusNode] to bind a node you own; its lifecycle stays yours, so
+  /// this field never disposes it. Without one the field makes and owns its
+  /// own — see [AdvancedFieldController.focusNode].
   AdvancedFieldController({
     required T initialValue,
     Validator<T, E>? validator,
     AsyncValidation<T, E>? asyncValidation,
+    FocusNode? focusNode,
     this.name,
   })  : _value = AdvancedFieldState<T, E>(value: initialValue),
         _initialValue = initialValue,
         _validator = validator ?? ((_) => null),
-        _asyncValidation = asyncValidation;
+        _asyncValidation = asyncValidation,
+        _suppliedFocusNode = focusNode {
+    _bindSuppliedFocusNode();
+  }
 
   /// Optional label used in reported errors and as the `FocusNode` debug label.
   /// Not used for identity — fields are identified by reference.
   @override
   final String? name;
 
+  @override
+  final FocusNode? _suppliedFocusNode;
+
+  @override
   AdvancedFieldState<T, E> _value;
 
   @override
@@ -64,8 +75,6 @@ class AdvancedFieldController<T, E extends Object>
   @override
   bool get isDisposed => _isDisposed;
 
-  AsyncValidationFailure? _lastFailure;
-
   /// Details behind [FieldStatus.failedValidation], or null when the field is
   /// not in that state. Diagnostic only.
   AsyncValidationFailure? get lastFailure =>
@@ -73,14 +82,12 @@ class AdvancedFieldController<T, E extends Object>
 
   // Internals with no public surface.
   final T _initialValue;
+  @override
   final Validator<T, E> _validator;
+  @override
   final AsyncValidation<T, E>? _asyncValidation;
   final _validateCall = SharedCall<bool>();
-  _ValidationRound<T, E>? _currentRound;
   VoidCallback? _fieldsSubscriptionCleanup;
-
-  // Whether a settled verdict still describes the value the field holds.
-  bool _hasVerdict = false;
 
   // Set when the user first edits the field. Only reset() clears it.
   // While false, the field skips validation triggered by its mode.
@@ -108,14 +115,14 @@ class AdvancedFieldController<T, E extends Object>
     _hasVerdict = false;
 
     if (!_shouldValidateOn(ValidationEvent.valueChanged)) {
-      _clearTo(newValue);
+      _clearTo(newValue, status: FieldStatus.valid);
       return;
     }
 
     final validationError = _validator(newValue);
     if (validationError != null || _asyncValidation == null) {
       _setState(
-        _value._copyWithNullable(
+        _value.copyWithNullable(
           value: newValue,
           validationError: validationError,
           asyncError: null,
@@ -144,7 +151,7 @@ class AdvancedFieldController<T, E extends Object>
 
     _abortRound();
     _hasVerdict = false;
-    _clearTo(newValue);
+    _clearTo(newValue, status: FieldStatus.valid);
   }
 
   /// Called when the user leaves the field. This is what [ValidationMode.onUnfocus]
@@ -152,7 +159,7 @@ class AdvancedFieldController<T, E extends Object>
   /// dropdowns must call it themselves. Runs pending debounce immediately and
   /// validates read-only fields, same as [validate].
   @override
-  void handleUnfocus() {
+  Future<void> handleUnfocus() async {
     // User left the field — finish any debounced validation now.
     // Only onUserInteraction mode debounces validation.
     if (_currentRound case final round? when round.isDebouncing) {
@@ -163,13 +170,13 @@ class AdvancedFieldController<T, E extends Object>
       return;
     }
 
-    // Unawaited, so a throwing validator would escape into the zone.
-    unawaited(
-      validate().catchError((Object error, StackTrace stackTrace) {
-        _report(name, 'validating after focus loss', error, stackTrace);
-        return false;
-      }),
-    );
+    // Caught here, so a throwing validator cannot escape into the zone of
+    // whoever moved the focus.
+    try {
+      await validate();
+    } catch (error, stackTrace) {
+      _report(name, 'validating after focus loss', error, stackTrace);
+    }
   }
 
   /// Sets a new [error] on [AdvancedFieldState.validationError]. Passing null
@@ -181,7 +188,7 @@ class AdvancedFieldController<T, E extends Object>
   void setError(E? error) {
     _abortRound();
     _setState(
-      _value._copyWithNullable(
+      _value.copyWithNullable(
         validationError: error,
         status: _statusFromErrors(error, _value.asyncError),
       ),
@@ -213,7 +220,7 @@ class AdvancedFieldController<T, E extends Object>
   /// Does not trigger validation by itself.
   void setValidationMode(ValidationMode mode) {
     _ownMode = mode;
-    _publishValidationMode(_parentEnabled ? mode : ValidationMode.disabled);
+    _publishValidationMode(_parentEnabled ? mode : ValidationMode.manual);
   }
 
   /// Applies the form's mode and enabled flag; this field's own mode wins if set.
@@ -221,19 +228,24 @@ class AdvancedFieldController<T, E extends Object>
   void applyValidationMode(ValidationMode mode, {required bool enabled}) {
     _parentEnabled = enabled;
     _publishValidationMode(
-      enabled ? (_ownMode ?? mode) : ValidationMode.disabled,
+      enabled ? (_ownMode ?? mode) : ValidationMode.manual,
     );
   }
 
   // No-op when mode is unchanged — forms send it again on every registration.
   // When it changes, cancel any validation still running under the old mode.
   void _publishValidationMode(ValidationMode mode) {
-    if (mode == _value.mode) {
+    if (mode == _value.validationMode) {
       return;
     }
 
     _abortRound();
-    _setState(_value._copyWithNullable(mode: mode, status: _statusAfterAbort));
+    _setState(
+      _value.copyWithNullable(
+        validationMode: mode,
+        status: _statusAfterAbort,
+      ),
+    );
   }
 
   /// Prevents further changes of value [T]. [validate] still validates a
@@ -247,13 +259,13 @@ class AdvancedFieldController<T, E extends Object>
   void markReadOnly() {
     _abortRound();
     _setState(
-      _value._copyWithNullable(readOnly: true, status: _statusAfterAbort),
+      _value.copyWithNullable(readOnly: true, status: _statusAfterAbort),
     );
   }
 
   /// Allows further changes of value [T].
   void unmarkReadOnly() => _setState(
-        _value._copyWithNullable(
+        _value.copyWithNullable(
           readOnly: false,
           status: _statusAfter(_value.validationError),
         ),
@@ -265,11 +277,11 @@ class AdvancedFieldController<T, E extends Object>
   void clearErrors() {
     _abortRound();
     _hasVerdict = false;
-    _clearTo(_value.value);
+    _clearTo(_value.value, status: FieldStatus.valid);
   }
 
   /// Resets the field to its initial value, clearing both errors, the status,
-  /// the verdict and [lastFailure]. Keeps [AdvancedFieldState.mode] and
+  /// the verdict and [lastFailure]. Keeps [AdvancedFieldState.validationMode] and
   /// [AdvancedFieldState.readOnly].
   ///
   /// The field counts as untouched again.
@@ -277,7 +289,7 @@ class AdvancedFieldController<T, E extends Object>
     _abortRound();
     _hasVerdict = false;
     _hasInteracted = false;
-    _clearTo(_initialValue);
+    _clearTo(_initialValue, status: FieldStatus.valid);
   }
 
   /// Subscribes to the [fields] and re-runs this field's **sync** validator
@@ -359,12 +371,16 @@ class AdvancedFieldController<T, E extends Object>
     super.dispose();
   }
 
-  bool _shouldValidateOn(ValidationEvent event) =>
-      validatesOn(event, mode: _value.mode, hasInteracted: _hasInteracted);
+  bool _shouldValidateOn(ValidationEvent event) => validatesOn(
+        event,
+        mode: _value.validationMode,
+        hasInteracted: _hasInteracted,
+      );
 
   // Publishes [value] with both errors cleared and the given status.
-  void _clearTo(T value, {FieldStatus status = FieldStatus.valid}) => _setState(
-        _value._copyWithNullable(
+  @override
+  void _clearTo(T value, {required FieldStatus status}) => _setState(
+        _value.copyWithNullable(
           value: value,
           validationError: null,
           asyncError: null,
@@ -373,8 +389,9 @@ class AdvancedFieldController<T, E extends Object>
       );
 
   // Writes `validationError`, leaving the status to [_statusAfter].
+  @override
   void _setSyncError(E? syncError) => _setState(
-        _value._copyWithNullable(
+        _value.copyWithNullable(
           validationError: syncError,
           status: _statusAfter(syncError),
         ),
@@ -391,6 +408,7 @@ class AdvancedFieldController<T, E extends Object>
           ? _value.status
           : _statusFromErrors(syncError, _value.asyncError);
 
+  @override
   void _setState(AdvancedFieldState<T, E> newValue) {
     if (_isDisposed || newValue == _value) {
       return;

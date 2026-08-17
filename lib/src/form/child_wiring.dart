@@ -93,7 +93,7 @@ mixin _ChildWiring on ChangeNotifier {
         .equals(_initialFieldsState, getFieldValues());
 
     _setState(
-      value._copyWith(wasModified: subformsWereModified || fieldsWereModified),
+      value.copyWith(wasModified: subformsWereModified || fieldsWereModified),
     );
   }
 }

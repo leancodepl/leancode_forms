@@ -7,7 +7,7 @@ import 'package:meta/meta.dart';
 /// field the user has never edited validates nothing on its own.
 enum ValidationMode {
   /// Nothing validates until `validate()` is called. The default.
-  disabled,
+  manual,
 
   /// Every edit validates the field, the async check after its debounce.
   onUserInteraction,
@@ -31,7 +31,7 @@ enum ValidationEvent {
 ///
 /// | mode | valueChanged | unfocus | dependencyChanged |
 /// |---|---|---|---|
-/// | `disabled` | — | — | — |
+/// | `manual` | — | — | — |
 /// | `onUserInteraction` | validate | — | sync only |
 /// | `onUnfocus` | — | validate | sync only |
 ///
@@ -47,7 +47,7 @@ bool validatesOn(
     // Checked before the mode, so an untouched field stays quiet in all three.
     hasInteracted &&
     switch (mode) {
-      ValidationMode.disabled => false,
+      ValidationMode.manual => false,
       // The edit already validated, so unfocus has nothing left to run.
       ValidationMode.onUserInteraction => event != ValidationEvent.unfocus,
       // The value is still being typed, so an edit waits for the unfocus.

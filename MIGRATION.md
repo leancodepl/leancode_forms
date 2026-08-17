@@ -41,7 +41,7 @@
 | `asyncValidator:`, `asyncValidationDebounce:` | `asyncValidation: AsyncValidation(validator:, debounce:, timeout:, onFailure:, failureToError:)` — `timeout`, `onFailure` and `failureToError` are new, not renames ([details](#a-throwing-async-validator-no-longer-hangs-the-field)) |
 | `bool field.validate()`, `bool form.validate()` | `Future<bool> validate()` — **await it** ([details](#validate-is-asynchronous)) |
 | `field.setAutovalidate(bool)`, `form.setAutovalidate(bool)` | `setValidationMode(ValidationMode)` ([details](#autovalidate-is-replaced-by-validationmode)) |
-| `AdvancedFieldState.autovalidate` (`bool`) | `AdvancedFieldState.mode` (`ValidationMode`) ([details](#autovalidate-is-replaced-by-validationmode)) |
+| `AdvancedFieldState.autovalidate` (`bool`) | `AdvancedFieldState.validationMode` (`ValidationMode`) ([details](#autovalidate-is-replaced-by-validationmode)) |
 | `form.validateWithAutovalidate()` | `form.revalidateSync()` |
 | `form.onValuesChangedStream` (`Stream<void>`) | `form.onValuesChanged` (`Listenable`) |
 | `form.onStatusChangedStream` (`Stream<FieldStatus>`) | `form.onStatusChanged` (`Listenable`, no payload) |
@@ -76,7 +76,7 @@ Calling it again before the first call finishes gives you the same result, so a 
 
 ### `autovalidate` is replaced by `ValidationMode`
 
-In 0.1.x `setValue` ran the async validator whether or not autovalidate was on, so a form nobody had submitted still ran async validators, and `validate()` never reached an async validator. Now one named mode on the form covers both: `ValidationMode.onUserInteraction` reproduces `autovalidate: true`, `ValidationMode.disabled` — the default — reproduces `autovalidate: false`, and `ValidationMode.onUnfocus` is new. Within a mode the sync validator runs first, with the async one only if sync passed.
+In 0.1.x `setValue` ran the async validator whether or not autovalidate was on, so a form nobody had submitted still ran async validators, and `validate()` never reached an async validator. Now one named mode on the form covers both: `ValidationMode.onUserInteraction` reproduces `autovalidate: true`, `ValidationMode.manual` — the default — reproduces `autovalidate: false`, and `ValidationMode.onUnfocus` is new. Within a mode the sync validator runs first, with the async one only if sync passed.
 
 ### `validate()` no longer turns validation on
 
@@ -130,7 +130,7 @@ field.reset();               // 0.2.0: value and errors only; flags survive
 
 ### `subscribeToFields` re-runs the sync validator only
 
-The dependent field's own value did not change, so its last async answer still stands and no async check is owed. It does nothing while that field is in `ValidationMode.disabled`, and nothing on a field the user has never edited. Otherwise `validationError` is rewritten, so a code you pushed there with `setError` gives way to whatever the validator now returns — as in 0.1.x. The same goes for `revalidateSync()` (renamed from `validateWithAutovalidate()`) and `validateAll: true`, which reach every field in the tree rather than the dependencies you named.
+The dependent field's own value did not change, so its last async answer still stands and no async check is owed. It does nothing while that field is in `ValidationMode.manual`, and nothing on a field the user has never edited. Otherwise `validationError` is rewritten, so a code you pushed there with `setError` gives way to whatever the validator now returns — as in 0.1.x. The same goes for `revalidateSync()` (renamed from `validateWithAutovalidate()`) and `validateAll: true`, which reach every field in the tree rather than the dependencies you named.
 
 ### `subscribeToFields` fires more eagerly
 
@@ -181,7 +181,7 @@ await form.validate();          // 0.2.0: true, gates untouched
 
 0.1.x `close()` cancelled only the field subscription, so a timer could fire after close.
 
-### `setValue` clears both errors in `ValidationMode.disabled`
+### `setValue` clears both errors in `ValidationMode.manual`
 
 0.1.x carried the stored error over, so an error outlived the value that produced it and suppressed the async validator for every later edit. If you push a server error onto such a field and expect it to survive typing, re-push it after the change.
 
