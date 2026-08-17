@@ -91,9 +91,7 @@ class AdvancedFieldController<T, E extends Object>
   // Whether a settled verdict still describes the value the field holds.
   bool _hasVerdict = false;
 
-  // The async side of this field. An extension type erases to its
-  // representation, so this getter compiles to `this` and every `_rounds.x()`
-  // to a static call — the namespace costs nothing at runtime.
+  // Entry point for async validation on this field.
   _Rounds<T, E> get _rounds => _Rounds(this);
 
   // Set when the user first edits the field. Only reset() clears it.
