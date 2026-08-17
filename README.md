@@ -9,6 +9,11 @@
 
 Forms in Flutter without a framework on top. `advanced_forms` gives you typed field controllers, composable validation, and form-level state tracking.
 
+## General overview
+
+<img width="2228" height="1099" alt="Untitled-2026-08-17-2217-4" src="https://github.com/user-attachments/assets/aaf59cac-cd1f-4bd3-b5b8-082936aac48a" />
+
+
 
 ## Installation
 
