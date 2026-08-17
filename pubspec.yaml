@@ -1,22 +1,26 @@
-name: leancode_forms
-description: A package for managing form state based on BLoC.
-version: 0.1.2
-homepage: https://github.com/leancodepl/leancode_forms.git
+name: advanced_forms
+description: A package for managing form state based on ChangeNotifier and ValueListenable.
+version: 0.2.0
+homepage: https://github.com/leancodepl/advanced_forms
+repository: https://github.com/leancodepl/advanced_forms
+issue_tracker: https://github.com/leancodepl/advanced_forms/issues
+topics:
+  - forms
+  - validation
+  - state-management
 
 environment:
-  sdk: ">=3.1.0 <4.0.0"
-  flutter: ">=3.10.0"
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
 
 dependencies:
   collection: ^1.17.1
   equatable: ^2.1.0
   flutter:
     sdk: flutter
-  flutter_bloc: ^9.0.0
-  rxdart: ^0.28.0
+  meta: ^1.9.0
 
 dev_dependencies:
-  bloc_test: ^10.0.0
   flutter_test:
     sdk: flutter
   leancode_lint: ^15.0.0

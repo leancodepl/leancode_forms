@@ -1,12 +1,13 @@
+import 'package:advanced_forms/advanced_forms.dart';
+import 'package:advanced_forms_example/controllers/password_field_controller.dart';
+import 'package:advanced_forms_example/main.dart';
+import 'package:advanced_forms_example/screens/form_page.dart';
+import 'package:advanced_forms_example/widgets/form_password_field.dart';
+import 'package:advanced_forms_example/widgets/form_switch_field.dart';
+import 'package:advanced_forms_example/widgets/form_text_field.dart';
+import 'package:advanced_forms_example/widgets/screen_description.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:leancode_forms/leancode_forms.dart';
-import 'package:leancode_forms_example/cubits/password_field_cubit.dart';
-import 'package:leancode_forms_example/main.dart';
-import 'package:leancode_forms_example/screens/form_page.dart';
-import 'package:leancode_forms_example/widgets/form_password_field.dart';
-import 'package:leancode_forms_example/widgets/form_switch_field.dart';
-import 'package:leancode_forms_example/widgets/form_text_field.dart';
+import 'package:provider/provider.dart';
 
 /// This is an example of a form with a password/repeat password fields.
 /// In this form repeatPassword field is validated according to value in the password field.
@@ -15,8 +16,8 @@ class PasswordFormScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<PasswordFormCubit>(
-      create: (context) => PasswordFormCubit(),
+    return ChangeNotifierProvider<PasswordFormController>(
+      create: (context) => PasswordFormController(),
       child: const PasswordForm(),
     );
   }
@@ -27,42 +28,52 @@ class PasswordForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = context.watch<PasswordFormController>();
     return FormPage(
       title: 'Password Form',
-      child: Column(
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
-          //This field starts to be validated as soon as it loses focus for the first time
+          ScreenDescription([
+            bold('Cross-field validation. '),
+            plain('The "Repeat Password" field listens to the password '
+                'field via '),
+            code('subscribeToFields'),
+            plain(' and re-validates whenever the password changes. The '
+                'username field demonstrates '),
+            code('ValidationMode.onUnfocus'),
+            plain(': it only shows errors once you have edited it and '
+                'moved on.'),
+          ]),
           FormTextField(
-            field: context.read<PasswordFormCubit>().username,
-            onUnfocus: () => context.read<PasswordFormCubit>().username
-              ..setAutovalidate(true)
-              ..validate(),
+            field: controller.username,
+            onUnfocus: controller.username.handleUnfocus,
             translateError: validatorTranslator,
             labelText: 'Username',
             hintText: 'Enter your username',
           ),
           const SizedBox(height: 16),
           FormSwitchField(
-            field: context.read<PasswordFormCubit>().switchField,
+            field: controller.switchField,
             labelText: 'Repeat password should be 10 characters long',
           ),
           const SizedBox(height: 16),
           FormPasswordField(
-            field: context.read<PasswordFormCubit>().password,
+            field: controller.password,
             translateError: (error) => validatorTranslator(error.first),
             labelText: 'Password',
             hintText: 'Enter your password',
           ),
           const SizedBox(height: 16),
           FormTextField(
-            field: context.read<PasswordFormCubit>().repeatPassword,
+            field: controller.repeatPassword,
             translateError: validatorTranslator,
             labelText: 'Repeat Password',
             hintText: 'Repeat your password',
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: context.read<PasswordFormCubit>().submit,
+            onPressed: controller.submit,
             child: const Text('Submit'),
           ),
         ],
@@ -71,19 +82,20 @@ class PasswordForm extends StatelessWidget {
   }
 }
 
-Validator<String?, E> passwordMatch<E extends Object>(
-  PasswordFieldCubit passwordCubit,
+Validator<String, E> passwordMatch<E extends Object>(
+  PasswordFieldController passwordController,
   E message,
 ) =>
     (value) {
-      if (value != passwordCubit.state.value) {
+      if (value != passwordController.value.value) {
         return message;
       }
       return null;
     };
 
-class PasswordFormCubit extends FormGroupCubit {
-  PasswordFormCubit() {
+class PasswordFormController extends AdvancedFormController {
+  PasswordFormController()
+      : super(validationMode: ValidationMode.onUserInteraction) {
     registerFields([
       username,
       switchField,
@@ -92,36 +104,41 @@ class PasswordFormCubit extends FormGroupCubit {
     ]);
   }
 
-  final username = TextFieldCubit(
+  // One field opting out of the form's mode: the username is checked when the
+  // user leaves it, not on every keystroke.
+  final username = AdvancedTextFieldController(
     validator: filled(ValidationError.empty) &
         atLeastLength(5, ValidationError.toShort),
-  );
+  )..setValidationMode(ValidationMode.onUnfocus);
 
-  final switchField = BooleanFieldCubit();
+  final switchField = AdvancedBooleanFieldController();
 
-  final password = PasswordFieldCubit(
+  final password = PasswordFieldController(
     numberRequired: true,
     specialCharRequired: true,
     upperCaseRequired: true,
     lowerCaseRequired: true,
   );
 
-  late final repeatPassword = TextFieldCubit<ValidationError>(
+  // `subscribeToFields` under the form's `onUserInteraction` mode:
+  // no validation fires until one of the subscribed fields' value actually
+  // changes, and never before the user has edited this field.
+  late final repeatPassword = AdvancedTextFieldController<ValidationError>(
     validator: passwordMatch(password, ValidationError.doesNotMatch),
   )..subscribeToFields([switchField, password]);
 
-  void submit() {
-    if (validate()) {
-      debugPrint('Username: ${username.state.value}');
-      debugPrint('Switch field: ${switchField.state.value}');
-      debugPrint('Password: ${password.state.value}');
-      debugPrint('Repeated password: ${repeatPassword.state.value}');
+  Future<void> submit() async {
+    if (await validate()) {
+      debugPrint('Username: ${username.value.value}');
+      debugPrint('Switch field: ${switchField.value.value}');
+      debugPrint('Password: ${password.value.value}');
+      debugPrint('Repeated password: ${repeatPassword.value.value}');
     } else {
       debugPrint('Form is invalid');
-      debugPrint('Username: ${username.state.value}');
-      debugPrint('Switch field: ${switchField.state.value}');
-      debugPrint('Password: ${password.state.value}');
-      debugPrint('Repeated password: ${repeatPassword.state.value}');
+      debugPrint('Username: ${username.value.value}');
+      debugPrint('Switch field: ${switchField.value.value}');
+      debugPrint('Password: ${password.value.value}');
+      debugPrint('Repeated password: ${repeatPassword.value.value}');
     }
   }
 }

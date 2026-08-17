@@ -1,21 +1,17 @@
-import 'package:bloc_test/bloc_test.dart';
+import 'package:advanced_forms_example/main.dart';
+import 'package:advanced_forms_example/screens/password_form.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:leancode_forms/leancode_forms.dart';
-import 'package:leancode_forms_example/main.dart';
-import 'package:leancode_forms_example/screens/password_form.dart';
 
 void main() {
-  blocTest<PasswordFormCubit, FormGroupState>(
-    'sets error in repeatPassword field when passwords do not match',
-    build: PasswordFormCubit.new,
-    act: (cubit) {
-      cubit.password.setValue('Password!1');
-      cubit.repeatPassword.setValue('1234567');
-      cubit.validate();
-    },
-    verify: (cubit) {
-      expect(cubit.password.state.error, null);
-      expect(cubit.repeatPassword.state.error, ValidationError.doesNotMatch);
-    },
-  );
+  test('sets error in repeatPassword when passwords do not match', () {
+    final controller = PasswordFormController();
+    addTearDown(controller.dispose);
+
+    controller.password.setValue('Password!1');
+    controller.repeatPassword.setValue('1234567');
+    controller.validate();
+
+    expect(controller.password.value.error, null);
+    expect(controller.repeatPassword.value.error, ValidationError.doesNotMatch);
+  });
 }
