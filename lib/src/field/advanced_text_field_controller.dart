@@ -1,5 +1,5 @@
+import 'package:advanced_forms/src/field/advanced_field_controller.dart';
 import 'package:flutter/widgets.dart';
-import 'package:leancode_forms/src/field/advanced_field_controller.dart';
 
 /// A specialization of [AdvancedFieldController] for a [String] value.
 ///

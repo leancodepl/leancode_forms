@@ -1,4 +1,4 @@
-name: leancode_forms_example
+name: advanced_forms_example
 description: A new Flutter project.
 publish_to: "none"
 version: 0.2.0
@@ -7,10 +7,10 @@ environment:
   sdk: ">=3.1.0 <4.0.0"
 
 dependencies:
+  advanced_forms:
+    path: ..
   flutter:
     sdk: flutter
-  leancode_forms:
-    path: ..
   provider: ^6.1.2
 
 dev_dependencies:

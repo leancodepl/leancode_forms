@@ -1,4 +1,4 @@
-import 'package:leancode_forms/src/field/advanced_field_controller.dart';
+import 'package:advanced_forms/src/field/advanced_field_controller.dart';
 
 /// A specialization of [AdvancedFieldController] for a multiple choice of [V] values.
 class AdvancedMultiSelectFieldController<V, E extends Object>

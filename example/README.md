@@ -1,6 +1,6 @@
-# leancode_forms example app
+# advanced_forms example app
 
-A gallery app for [`leancode_forms`](../README.md): one screen per documented pattern, reachable from the home page. Nearly every pattern named in [README.md](../README.md) and [MIGRATION.md](../MIGRATION.md) has a working screen here — multi-select fields and read-only fields are the exceptions, documented in [README — Field controllers](../README.md#field-controllers) and [README — Read-only fields and server-side errors](../README.md#read-only-fields-and-server-side-errors) only.
+A gallery app for [`advanced_forms`](../README.md): one screen per documented pattern, reachable from the home page. Nearly every pattern named in [README.md](../README.md) and [MIGRATION.md](../MIGRATION.md) has a working screen here — multi-select fields and read-only fields are the exceptions, documented in [README — Field controllers](../README.md#field-controllers) and [README — Read-only fields and server-side errors](../README.md#read-only-fields-and-server-side-errors) only.
 
 ## How to run
 

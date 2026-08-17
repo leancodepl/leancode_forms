@@ -1,5 +1,5 @@
+import 'package:advanced_forms/advanced_forms.dart';
 import 'package:flutter/material.dart';
-import 'package:leancode_forms/leancode_forms.dart';
 
 /// A profile-card form field: a static [CircleAvatar] with a caption sits
 /// on the left, the text field sits on the right. The whole left-hand
