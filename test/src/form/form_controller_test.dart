@@ -868,35 +868,31 @@ void main() {
     });
 
     group('removeSubform', () {
-      test('removes a previously added subform and disposes it', () async {
+      test('detaches a previously added subform without disposing it',
+          () async {
         form.addSubform(subform);
         final emissions = _record<AdvancedFormState>(form);
 
         form.removeSubform(subform);
 
         expect(emissions, [const AdvancedFormState()]);
-        // Subform is disposed — touching its onValuesChanged would throw, so
-        // we don't probe it further. Form does not dispose it twice on close.
+        expect(subform.isDisposed, isFalse);
+
         form.dispose();
         field1.dispose();
         field2.dispose();
         subformField.dispose();
       });
 
-      test(
-          'removes a previously added subform but does not dispose it when close is false',
-          () async {
-        form.addSubform(subform);
-        final emissions = _record<AdvancedFormState>(form);
+      test('a detached subform is re-attachable', () async {
+        form
+          ..addSubform(subform)
+          ..removeSubform(subform)
+          ..addSubform(subform);
 
-        form.removeSubform(subform, close: false);
-
-        expect(emissions, [const AdvancedFormState()]);
-        // Subform should still be alive — confirm by reading its state.
-        expect(subform.value, const AdvancedFormState());
+        expect(form.value.subforms, {subform});
 
         form.dispose();
-        subform.dispose();
         field1.dispose();
         field2.dispose();
         subformField.dispose();
@@ -920,10 +916,36 @@ void main() {
         ..registerFields([field1, field2])
         ..addSubform(subform)
         ..dispose();
-      // Re-disposing throws in debug — instead verify children are unusable
-      // by checking they don't react to setValue (their listeners are gone).
-      // Direct disposed-check on ValueNotifier isn't exposed publicly, so we
-      // rely on the absence of crashes during form.dispose().
+
+      expect(field1.isDisposed, isTrue);
+      expect(field2.isDisposed, isTrue);
+      expect(subform.isDisposed, isTrue);
+      expect(subformField.isDisposed, isTrue);
+    });
+
+    test('disposes a subform it no longer holds', () {
+      form
+        ..addSubform(subform)
+        ..removeSubform(subform)
+        ..dispose();
+
+      expect(subform.isDisposed, isTrue);
+      field1.dispose();
+      field2.dispose();
+      subformField.dispose();
+    });
+
+    test('skips a subform the caller disposed itself', () {
+      form
+        ..addSubform(subform)
+        ..removeSubform(subform);
+      subform.dispose();
+
+      expect(form.dispose, returnsNormally);
+
+      field1.dispose();
+      field2.dispose();
+      subformField.dispose();
     });
 
     group('resetAll', () {

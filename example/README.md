@@ -17,7 +17,7 @@ Any Flutter target works — the app uses no platform plugins.
 | Screen (`lib/screens/`) | Demonstrates | Explained in |
 | --- | --- | --- |
 | [`simple_form.dart`](lib/screens/simple_form.dart) | Submit-time validation, async email check, `timeout` / `failureToError`, the `hasFailedValidation` banner, `canSubmit` on the button | [README — Async validation](../README.md#async-validation) |
-| [`password_form.dart`](lib/screens/password_form.dart) | Cross-field validation via `subscribeToFields`, per-field autovalidate, a custom error type holding several rule violations | [README — Validation that depends on another field](../README.md#validation-that-depends-on-another-field) |
+| [`password_form.dart`](lib/screens/password_form.dart) | Cross-field validation via `subscribeToFields`, a per-field validation mode via `setValidationMode`, a custom error type holding several rule violations | [README — Validation that depends on another field](../README.md#validation-that-depends-on-another-field) |
 | [`optimized_rendering_form.dart`](lib/screens/optimized_rendering_form.dart) | Granular rebuilds and the `child:` optimization across three layouts | [README — Rendering fields](../README.md#rendering-fields) |
 | [`quiz_form.dart`](lib/screens/quiz_form.dart) | Applying a server response with `setError` / `setError(null)` | [README — Read-only fields and server-side errors](../README.md#read-only-fields-and-server-side-errors) |
 | [`complex_form.dart`](lib/screens/complex_form.dart) | Single-select dropdowns and swapping the active subform with `addSubform` / `removeSubform` | [README — Field controllers](../README.md#field-controllers), [README — Subforms](../README.md#subforms) |

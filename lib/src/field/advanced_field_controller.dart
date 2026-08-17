@@ -10,6 +10,7 @@ part 'async_validation.dart';
 part 'focus_handling.dart';
 part 'validation_round.dart';
 
+
 /// A validate function receiving the current value and returning an error code.
 /// If null is returned, the value is considered valid.
 typedef Validator<T, E extends Object> = E? Function(T);
@@ -26,6 +27,10 @@ FieldStatus _statusFromErrors(Object? validationError, Object? asyncError) =>
 /// which events make the field validate itself; a round runs the sync validator
 /// first, the async one only if sync passed. A field the user has never edited
 /// validates nothing on its own. [validate] ignores the mode.
+// Behaviour is split across the part files:
+// - focus in the _FocusHandling mixin,
+// - async rounds in the _Rounds extension type over this class. 
+// Round state stays on the class — an extension type holds none.
 class AdvancedFieldController<T, E extends Object>
     with ChangeNotifier, _FocusHandling
     implements ValueListenable<AdvancedFieldState<T, E>> {
@@ -110,7 +115,14 @@ class AdvancedFieldController<T, E extends Object>
   /// Both errors are cleared, because they described the old value. This is
   /// what counts as the user editing the field — see [prefill] for a write the
   /// user did not make.
+  ///
+  /// Throws a [StateError] if this field has already been disposed.
   void setValue(T newValue, {bool force = false}) {
+    if (isDisposed) {
+      throw StateError(
+        'Cannot set a value on a disposed AdvancedFieldController.',
+      );
+    }
     if (_value.readOnly && !force) {
       return;
     }

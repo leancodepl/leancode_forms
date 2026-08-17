@@ -56,6 +56,7 @@ class AdvancedFormController
   // Internals with no public surface.
   // Explicit type — inference would widen the error type from dynamic to Object.
   final Set<AdvancedFieldController<dynamic, dynamic>> _ownedFields = {};
+  final Set<AdvancedFormController> _ownedSubforms = {};
   final _validateCall = SharedCall<bool>();
 
   // null: follow the parent form's mode. Non-null: this form manages its own.
@@ -190,8 +191,12 @@ class AdvancedFormController
         (subform) => subform.clearErrors(),
       );
 
-  /// Adds an owned subform to the current form. A noop if [form] is already a
+  /// Adds an owned subform to the current form and takes ownership of it,
+  /// disposing it when this form is disposed. A noop if [form] is already a
   /// subform.
+  ///
+  /// Ownership outlives [removeSubform]: a detached subform is still disposed
+  /// with this form, the same way a deregistered field is.
   ///
   /// Throws a [StateError] if either controller has already been disposed —
   /// disposed controllers cannot be reused.
@@ -211,21 +216,23 @@ class AdvancedFormController
     }
 
     _runChildCleanups();
+    // value.subforms is what participates; _ownedSubforms is what gets disposed.
     _setState(value.copyWith(subforms: {...value.subforms, form}));
+    _ownedSubforms.add(form);
     _wireChildren();
     _publishValidationMode(value.validationMode);
     _recomputeWasModified();
   }
 
-  /// Removes an owned subform, disposing it unless [close] is false. A noop if
-  /// [form] was not a subform.
+  /// Detaches an owned subform: it stops validating, notifying and counting
+  /// towards this form's state. A noop if [form] was not a subform.
+  ///
+  /// Does not dispose [form] — this form still owns it and disposes it in
+  /// [dispose], so a detached subform can be re-attached with [addSubform].
   ///
   /// Throws a [StateError] if this form has already been disposed — disposed
   /// controllers cannot be reused.
-  void removeSubform(
-    AdvancedFormController form, {
-    bool close = true,
-  }) {
+  void removeSubform(AdvancedFormController form) {
     if (isDisposed) {
       throw StateError(
         'Cannot remove a subform from a disposed AdvancedFormController.',
@@ -237,9 +244,6 @@ class AdvancedFormController
 
     _runChildCleanups();
     _setState(value.copyWith(subforms: {...value.subforms}..remove(form)));
-    if (close) {
-      form.dispose();
-    }
     _wireChildren();
     _recomputeWasModified();
   }
@@ -271,9 +275,14 @@ class AdvancedFormController
       field.dispose();
     }
     _ownedFields.clear();
-    for (final subform in value.subforms) {
-      subform.dispose();
+    // Detached subforms are disposed too, and one a caller disposed itself is
+    // skipped rather than disposed twice.
+    for (final subform in _ownedSubforms) {
+      if (!subform.isDisposed) {
+        subform.dispose();
+      }
     }
+    _ownedSubforms.clear();
     _onValuesChanged.dispose();
     _onStatusChanged.dispose();
     super.dispose();

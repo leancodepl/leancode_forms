@@ -5,13 +5,14 @@ class AdvancedMultiSelectFieldController<V, E extends Object>
     extends AdvancedFieldController<Set<V>, E> {
   /// Creates a new [AdvancedMultiSelectFieldController].
   AdvancedMultiSelectFieldController({
-    required super.initialValue,
+    required Set<V> initialValue,
     super.validator,
     super.asyncValidation,
     super.focusNode,
-    required this.options,
+    required List<V> options,
     super.name,
-  });
+  })  : options = List.of(options),
+        super(initialValue: Set.of(initialValue));
 
   /// List of options to select from.
   final List<V> options;
