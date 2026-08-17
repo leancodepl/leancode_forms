@@ -1,5 +1,5 @@
-import 'package:leancode_forms/leancode_forms.dart';
-import 'package:leancode_forms_example/main.dart';
+import 'package:advanced_forms/advanced_forms.dart';
+import 'package:advanced_forms_example/main.dart';
 
 /// A specialization of [AdvancedTextFieldController] for a password field. Errors are
 /// reported as a list of rule violations.

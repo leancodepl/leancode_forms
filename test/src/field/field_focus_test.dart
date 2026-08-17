@@ -1,6 +1,6 @@
+import 'package:advanced_forms/advanced_forms.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:leancode_forms/leancode_forms.dart';
 
 import 'field_test_helpers.dart';
 
@@ -105,7 +105,7 @@ void main() {
       await pumpEventQueue();
 
       expect(reported.single.exception, isStateError);
-      expect(reported.single.library, 'leancode_forms');
+      expect(reported.single.library, 'advanced_forms');
     });
 
     testWidgets('losing focus on the bound node validates the field',

@@ -1,6 +1,6 @@
+import 'package:advanced_forms_example/main.dart';
+import 'package:advanced_forms_example/screens/form_page.dart';
 import 'package:flutter/material.dart';
-import 'package:leancode_forms_example/main.dart';
-import 'package:leancode_forms_example/screens/form_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});

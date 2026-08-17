@@ -1,8 +1,8 @@
 // The stream bridge is deprecated, but stays under test until it is removed.
 // ignore_for_file: deprecated_member_use_from_same_package
 
+import 'package:advanced_forms/advanced_forms.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:leancode_forms/leancode_forms.dart';
 
 enum _Error { malformed }
 

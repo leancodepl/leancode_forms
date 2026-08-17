@@ -1,6 +1,6 @@
+import 'package:advanced_forms_example/main.dart';
+import 'package:advanced_forms_example/screens/simple_form.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:leancode_forms_example/main.dart';
-import 'package:leancode_forms_example/screens/simple_form.dart';
 
 void main() {
   test('sets email when setValue is called', () {
