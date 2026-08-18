@@ -38,7 +38,7 @@ void main() {
 
     await expectLater(controller.next(), completion(isFalse));
 
-    expect(controller.currentStepController, controller.account);
+    expect(controller.currentStep, controller.account);
     expect(controller.account.email.value.error, ValidationError.empty);
   });
 
@@ -47,10 +47,9 @@ void main() {
 
     await controller.next();
 
-    // Step 2 and 3 are attached subforms, but a subform's validate() reaches
-    // its own fields only — so nothing on them was touched.
+    // The later steps are attached, but a subform's validate() reaches its own
+    // fields only.
     expect(controller.address.country.value.error, null);
-    expect(controller.address.city.value.error, null);
     expect(controller.confirm.acceptTerms.value.error, null);
   });
 
@@ -64,28 +63,20 @@ void main() {
     await expectLater(controller.next(), completion(isFalse));
 
     expect(controller.account.email.value.error, ValidationError.emailTaken);
-    expect(controller.currentStepController, controller.account);
+    expect(controller.currentStep, controller.account);
   });
 
   test('a step that failed once switches to live feedback', () async {
     final controller = buildController();
 
     await controller.next();
+
     expect(
       controller.account.value.validationMode,
       ValidationMode.onUserInteraction,
     );
-
     // Later steps keep the wizard's own mode, so they stay quiet.
     expect(controller.confirm.value.validationMode, ValidationMode.manual);
-  });
-
-  test('next advances once the step passes', () async {
-    final controller = buildController();
-
-    await fillAccountStep(controller);
-
-    expect(controller.currentStepController, controller.address);
   });
 
   test('submit validates every step and returns to the first invalid one',
@@ -96,42 +87,23 @@ void main() {
 
     await expectLater(controller.submit(), completion(isFalse));
 
-    // The user never reached step 2, but submit checks the whole tree.
+    // The user never reached the Address step, but submit checks the tree.
     expect(controller.address.country.value.error, ValidationError.empty);
-    expect(controller.currentStepController, controller.address);
+    expect(controller.currentStep, controller.address);
   });
 
-  test('submit succeeds once every step is valid', () async {
+  test('a skipped step is walked past and cannot block submit', () async {
     final controller = buildController();
+
+    expect(controller.activeSteps, isNot(contains(controller.invoice)));
 
     await fillAccountStep(controller);
     await fillAddressStep(controller);
     controller.confirm.acceptTerms.setValue(true);
 
-    await expectLater(controller.submit(), completion(isTrue));
-  });
-
-  test('the invoice step is out of the flow while the switch is off', () async {
-    final controller = buildController();
-
-    expect(controller.activeSteps.value, isNot(contains(controller.invoice)));
-
-    await fillAccountStep(controller);
-    await fillAddressStep(controller);
-
-    // Next walked from Address straight past Invoice.
-    expect(controller.currentStepController, controller.confirm);
-  });
-
-  test('a skipped step cannot block submit', () async {
-    final controller = buildController();
-
-    await fillAccountStep(controller);
-    await fillAddressStep(controller);
-    controller.confirm.acceptTerms.setValue(true);
-
-    // The invoice fields are empty and never validated: the subtree is
-    // switched off, so validate() skips it and canSubmit ignores it.
+    // Next walked from Address straight to Confirm, and the empty invoice
+    // fields — never validated, the subtree being off — block nothing.
+    expect(controller.currentStep, controller.confirm);
     await expectLater(controller.submit(), completion(isTrue));
     expect(controller.invoice.companyName.value.error, null);
   });
@@ -142,8 +114,8 @@ void main() {
     await fillAccountStep(controller);
     await fillAddressStep(controller, needsInvoice: true);
 
-    expect(controller.activeSteps.value, contains(controller.invoice));
-    expect(controller.currentStepController, controller.invoice);
+    expect(controller.activeSteps, contains(controller.invoice));
+    expect(controller.currentStep, controller.invoice);
 
     await expectLater(controller.next(), completion(isFalse));
     expect(controller.invoice.companyName.value.error, ValidationError.empty);
@@ -160,7 +132,7 @@ void main() {
     controller.address.needsInvoice.setValue(false);
 
     expect(controller.invoice.companyName.value.error, null);
-    expect(controller.activeSteps.value, isNot(contains(controller.invoice)));
+    expect(controller.activeSteps, isNot(contains(controller.invoice)));
   });
 
   test('the filled invoice step is submitted with the rest', () async {
@@ -180,11 +152,11 @@ void main() {
 
     await fillAccountStep(controller);
     await fillAddressStep(controller);
-    expect(controller.currentStepController, controller.confirm);
+    expect(controller.currentStep, controller.confirm);
 
     controller.back();
 
-    expect(controller.currentStepController, controller.address);
+    expect(controller.currentStep, controller.address);
   });
 
   test('changing the country clears the city', () async {

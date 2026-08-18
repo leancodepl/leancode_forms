@@ -385,7 +385,7 @@ One subform per step is what makes per-step validation one line — `await step.
 
 ```dart
 Future<bool> next() async {
-  final step = steps[currentStep.value];
+  final step = currentStep;
   if (!await step.validate()) {
     // The step has shown its errors once — let it correct itself as the user
     // types. A subform's own mode wins over the parent's, so the steps ahead
@@ -393,12 +393,12 @@ Future<bool> next() async {
     step.setValidationMode(ValidationMode.onUserInteraction);
     return false;
   }
-  currentStep.value++;
+  _goTo(currentIndex + 1);
   return true;
 }
 ```
 
-Which step is on screen is navigation, not form state: keep it in your own `ValueNotifier`. Working example: `StepFormScreen` (`example/lib/screens/step_form.dart`).
+Which step is on screen is navigation, not form state: keep it on your own controller, and create that controller above the pages — a wizard controller built inside a step page dies with it, taking that step's values and errors along. Working example: `StepFormScreen` (`example/lib/screens/step_form.dart`).
 
 ## Reusable field widgets
 
