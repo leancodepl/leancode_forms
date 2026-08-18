@@ -37,7 +37,7 @@ Flutter form validation and state management without a framework on top. `advanc
 flutter pub add advanced_forms
 ```
 
-Migrating from 0.1.x, the bloc-based version? See [MIGRATION.md](./MIGRATION.md).
+Migrating from 0.1.x, the bloc-based version? See [MIGRATION.md](https://github.com/leancodepl/advanced_forms/blob/main/MIGRATION.md).
 
 ## Your first form
 

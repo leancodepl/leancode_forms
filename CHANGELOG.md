@@ -1,3 +1,7 @@
+## 0.2.0+1
+
+* Updated example.md
+
 ## 0.2.0
 
 > Upgrading from 0.1.x? See [MIGRATION.md](./MIGRATION.md) for a step-by-step guide.
