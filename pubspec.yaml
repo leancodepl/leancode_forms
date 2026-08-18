@@ -1,5 +1,5 @@
 name: advanced_forms
-description: A package for managing form state based on ChangeNotifier and ValueListenable.
+description: Flutter form validation and state management — typed controllers for text, checkbox, dropdown and multi-select fields, async and cross-field validators, and subforms.
 version: 0.2.0
 homepage: https://github.com/leancodepl/advanced_forms
 repository: https://github.com/leancodepl/advanced_forms
@@ -8,6 +8,8 @@ topics:
   - forms
   - validation
   - state-management
+  - ui
+  - widgets
 
 environment:
   sdk: ">=3.3.0 <4.0.0"

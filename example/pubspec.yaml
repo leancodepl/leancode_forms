@@ -1,10 +1,11 @@
 name: advanced_forms_example
-description: A new Flutter project.
+description: Gallery app for advanced_forms — one screen per documented form pattern.
 publish_to: "none"
 version: 0.2.0
 
 environment:
-  sdk: ">=3.1.0 <4.0.0"
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
 
 dependencies:
   advanced_forms:
