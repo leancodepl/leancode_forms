@@ -1,7 +1,7 @@
 name: advanced_forms_example
 description: Gallery app for advanced_forms — one screen per documented form pattern.
 publish_to: "none"
-version: 0.2.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
