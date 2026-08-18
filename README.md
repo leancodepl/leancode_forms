@@ -367,7 +367,28 @@ class BaseFormController extends AdvancedFormController {
 
 `void removeSubform(form)` detaches a subform: it stops validating, notifying and counting towards the parent's state, and can be re-attached later with `addSubform`. It does not dispose it — the parent owns every subform it was ever given and disposes them all in its own `dispose()`, the same way it owns registered fields. So don't dispose subforms yourself; if you do, the parent skips them rather than disposing them twice. Calling `addSubform` with — or on — a disposed controller throws a descriptive `StateError` rather than crashing later, and so do `registerFields`, `setValidationEnabled` and `removeSubform` on one.
 
-Working examples: `DeliveryListFormScreen` (a dynamic list) and `ComplexFormScreen` (swapping one subform for another).
+Working examples: `DeliveryListFormScreen` (a dynamic list), `ComplexFormScreen` (swapping one subform for another) and `StepFormScreen` (a wizard: one subform per step).
+
+### A wizard, validated step by step
+
+One subform per step is what makes per-step validation one line — `await step.validate()` reaches that step's fields and nothing else, so a field on a later step is never flagged before the user gets there. The final submit calls the parent's `validate()`, which walks every attached subform, so a step the user walked back over is checked again:
+
+```dart
+Future<bool> next() async {
+  final step = steps[currentStep.value];
+  if (!await step.validate()) {
+    // The step has shown its errors once — let it correct itself as the user
+    // types. A subform's own mode wins over the parent's, so the steps ahead
+    // stay quiet.
+    step.setValidationMode(ValidationMode.onUserInteraction);
+    return false;
+  }
+  currentStep.value++;
+  return true;
+}
+```
+
+Which step is on screen is navigation, not form state: keep it in your own `ValueNotifier`. Working example: `StepFormScreen` (`example/lib/screens/step_form.dart`).
 
 ## Reusable field widgets
 

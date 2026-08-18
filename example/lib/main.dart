@@ -6,6 +6,7 @@ import 'package:advanced_forms_example/screens/password_form.dart';
 import 'package:advanced_forms_example/screens/quiz_form.dart';
 import 'package:advanced_forms_example/screens/scroll_form.dart';
 import 'package:advanced_forms_example/screens/simple_form.dart';
+import 'package:advanced_forms_example/screens/step_form.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -21,6 +22,7 @@ class Routes {
   static const complex = '/complex';
   static const scroll = '/scroll';
   static const optimized = '/optimized';
+  static const step = '/step';
 }
 
 enum ValidationError {
@@ -43,6 +45,9 @@ enum ValidationError {
 
   //quiz related
   invalidAnswer,
+
+  //step form related
+  mustAccept,
 }
 
 /// Would be replaced by mapping an error to a string in a translation file
@@ -63,6 +68,7 @@ String validatorTranslator(ValidationError error) {
     ValidationError.emailCheckUnavailable =>
       'We could not check this email right now',
     ValidationError.invalidAnswer => 'Invalid answer',
+    ValidationError.mustAccept => 'You have to accept the terms',
   };
 }
 
@@ -81,6 +87,7 @@ class MainApp extends StatelessWidget {
         Routes.complex: (context) => const ComplexFormScreen(),
         Routes.scroll: (context) => const ScrollFormScreen(),
         Routes.optimized: (context) => const OptimizedRenderingFormScreen(),
+        Routes.step: (context) => const StepFormScreen(),
       },
     );
   }
