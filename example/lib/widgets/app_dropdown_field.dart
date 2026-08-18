@@ -29,19 +29,31 @@ class AppDropdownField<T> extends StatelessWidget {
     return Row(
       children: [
         Flexible(
-          child: DropdownButtonFormField<T>(
-            onChanged: onChanged,
-            items: [
-              for (final option in options)
-                DropdownMenuItem(
-                  value: option,
-                  child: Text(labelBuilder(option)),
-                ),
-            ],
+          // `DropdownButton` in an `InputDecorator`, not
+          // `DropdownButtonFormField`: the selected value is rendered from
+          // [value], so the field controller stays the single source of truth
+          // and a rebuild cannot lose the selection. (It also compiles on every
+          // Flutter version — the form-field variant renamed `value:` to
+          // `initialValue:` in 3.35.)
+          child: InputDecorator(
             decoration: InputDecoration(
               labelText: label,
-              hintText: hint,
               errorText: errorText,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<T>(
+                value: value,
+                isExpanded: true,
+                hint: hint == null ? null : Text(hint!),
+                onChanged: onChanged,
+                items: [
+                  for (final option in options)
+                    DropdownMenuItem(
+                      value: option,
+                      child: Text(labelBuilder(option)),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
