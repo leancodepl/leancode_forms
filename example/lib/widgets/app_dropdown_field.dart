@@ -29,19 +29,28 @@ class AppDropdownField<T> extends StatelessWidget {
     return Row(
       children: [
         Flexible(
-          child: DropdownButtonFormField<T>(
-            onChanged: onChanged,
-            items: [
-              for (final option in options)
-                DropdownMenuItem(
-                  value: option,
-                  child: Text(labelBuilder(option)),
-                ),
-            ],
+          child: InputDecorator(
             decoration: InputDecoration(
               labelText: label,
-              hintText: hint,
               errorText: errorText,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<T>(
+                value: value,
+                isExpanded: true,
+                hint: switch (hint) {
+                  final hint? => Text(hint),
+                  null => null,
+                },
+                onChanged: onChanged,
+                items: [
+                  for (final option in options)
+                    DropdownMenuItem(
+                      value: option,
+                      child: Text(labelBuilder(option)),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
