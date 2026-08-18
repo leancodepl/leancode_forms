@@ -9,6 +9,9 @@
 
 Forms in Flutter without a framework on top. `advanced_forms` gives you typed field controllers, composable validation, and form-level state tracking.
 
+> [!TIP]
+> **Using an AI coding agent?** This package ships an [Agent Skill](./.claude/skills/advanced_forms/SKILL.md) that teaches your agent the full API, so it generates fields, validation, cross-field logic, and subforms idiomatically. Agents that support Agent Skills pick it up automatically when you build forms with this package.
+
 ## General overview
 
 <img width="2206" height="1065" alt="Untitled-2026-08-17-2217-5" src="https://github.com/user-attachments/assets/72f7812d-2420-489d-aec1-c28c8ae373b5" />
@@ -110,6 +113,7 @@ Own the controller wherever you like — it's a `ChangeNotifier`, so any DI pack
 - [MIGRATION.md](./MIGRATION.md) — coming from 0.1.x.
 - `example/` — a runnable app where every pattern in these docs has a working screen. See [example/README.md](./example/README.md) for the screen guide.
 - [API reference](https://pub.dev/documentation/advanced_forms/latest/) — the generated dartdoc, for every member and its edge cases.
+- [`.claude/skills/advanced_forms/`](./.claude/skills/advanced_forms/SKILL.md) — an Agent Skill that teaches your agent the full API, so it generates fields, validation, cross-field logic, and subforms idiomatically. Agents that support Agent Skills pick it up automatically when you build forms with this package.
 
 ## Rendering fields
 
