@@ -6,6 +6,7 @@
 
 [![pub package](https://img.shields.io/pub/v/advanced_forms.svg)](https://pub.dev/packages/advanced_forms)
 [![test](https://github.com/leancodepl/advanced_forms/actions/workflows/test.yml/badge.svg)](https://github.com/leancodepl/advanced_forms/actions/workflows/test.yml)
+[![License: Apache 2.0][license-badge]][license-badge-link]
 
 Forms in Flutter without a framework on top. `advanced_forms` gives you typed field controllers, composable validation, and form-level state tracking.
 
@@ -399,6 +400,8 @@ We are **top-tier experts** focused on Flutter Enterprise solutions.
 Licensed under the [Apache License 2.0](./LICENSE).
 
 [banner-img]: https://raw.githubusercontent.com/leancodepl/advanced_forms/refs/heads/main/doc/banner.png
+[license-badge]: https://img.shields.io/github/license/leancodepl/advanced_forms
+[license-badge-link]: https://github.com/leancodepl/advanced_forms/blob/main/LICENSE
 [leancode-landing]: https://leancode.co/?utm_source=github.com&utm_medium=referral&utm_campaign=advanced-forms
 [leancode-estimate]: https://leancode.co/get-estimate?utm_source=github.com&utm_medium=referral&utm_campaign=advanced-forms
 [leancode-packages]: https://pub.dev/packages?q=publisher%3Aleancode.co&sort=downloads
