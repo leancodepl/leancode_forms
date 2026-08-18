@@ -1,11 +1,11 @@
 ---
-name: leancode-forms
-description: Build Flutter forms with the leancode_forms package (AdvancedFormController, AdvancedTextFieldController, AdvancedFieldBuilder). Use whenever the user creates a form, adds or edits form fields, wires validation (sync, async, or cross-field), builds dropdowns/checkboxes/multi-selects/sliders bound to field controllers, handles submit buttons or server-side errors, or works with subforms in a project that depends on leancode_forms — even if they never say the word "form".
+name: advanced_forms
+description: Build Flutter forms with the advanced_forms package (AdvancedFormController, AdvancedTextFieldController, AdvancedFieldBuilder). Use whenever the user creates a form, adds or edits form fields, wires validation (sync, async, or cross-field), builds dropdowns/checkboxes/multi-selects/sliders bound to field controllers, handles submit buttons or server-side errors, or works with subforms in a project that depends on advanced_forms — even if they never say the word "form".
 ---
 
-# leancode_forms
+# advanced_forms
 
-Typed form controllers for Flutter, no framework on top. Everything is `ChangeNotifier` + `ValueListenable` from the SDK. One import: `package:leancode_forms/leancode_forms.dart`.
+Typed form controllers for Flutter, no framework on top. Everything is `ChangeNotifier` + `ValueListenable` from the SDK. One import: `package:advanced_forms/advanced_forms.dart`.
 
 The model in one paragraph: a **form controller** (`AdvancedFormController`) owns **field controllers** (`AdvancedFieldController<T, E>`). `T` is the value type, `E` is *your* error type (`E extends Object`, never nullable — `null` means "no error"). Plain `String` errors are fine; an enum or sealed class scales better. Widgets subscribe to one field each via `AdvancedFieldBuilder`; the form aggregates tree-wide state (modified, validating, errors).
 
@@ -14,7 +14,7 @@ Snippets below assume in scope: `MyError`, your error enum; `form`, a form contr
 ## Quick start — a complete form
 
 ```dart
-import 'package:leancode_forms/leancode_forms.dart';
+import 'package:advanced_forms/advanced_forms.dart';
 
 enum SignupError { required, tooShort }
 

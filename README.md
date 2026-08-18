@@ -10,7 +10,7 @@
 Forms in Flutter without a framework on top. `advanced_forms` gives you typed field controllers, composable validation, and form-level state tracking.
 
 > [!TIP]
-> **Using an AI coding agent?** This package ships an [Agent Skill](./.claude/skills/advanced_forms/SKILL.md) that teaches your agent the full API, so it generates fields, validation, cross-field logic, and subforms idiomatically. Agents that support Agent Skills pick it up automatically when you build forms with this package.
+> **Using Claude Code (or another agent that supports Agent Skills)?** This repo ships an [Agent Skill](./skills/advanced_forms/SKILL.md) that teaches your agent the full API, so it generates fields, validation, cross-field logic, and subforms idiomatically. To enable it, copy `skills/advanced_forms/` into a `.claude/skills/` directory — either this project's or your global `~/.claude/skills/`.
 
 ## General overview
 
@@ -113,7 +113,7 @@ Own the controller wherever you like — it's a `ChangeNotifier`, so any DI pack
 - [MIGRATION.md](./MIGRATION.md) — coming from 0.1.x.
 - `example/` — a runnable app where every pattern in these docs has a working screen. See [example/README.md](./example/README.md) for the screen guide.
 - [API reference](https://pub.dev/documentation/advanced_forms/latest/) — the generated dartdoc, for every member and its edge cases.
-- [`.claude/skills/advanced_forms/`](./.claude/skills/advanced_forms/SKILL.md) — an Agent Skill that teaches your agent the full API, so it generates fields, validation, cross-field logic, and subforms idiomatically. Agents that support Agent Skills pick it up automatically when you build forms with this package.
+- [`skills/advanced_forms/`](./skills/advanced_forms/SKILL.md) — an Agent Skill that teaches your agent the full API, so it generates fields, validation, cross-field logic, and subforms idiomatically. To enable it, copy the folder into a `.claude/skills/` directory (this project's or your global `~/.claude/skills/`).
 
 ## Rendering fields
 
