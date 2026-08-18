@@ -11,9 +11,7 @@ Forms in Flutter without a framework on top. `advanced_forms` gives you typed fi
 
 ## General overview
 
-<img width="2228" height="1099" alt="Untitled-2026-08-17-2217-4" src="https://github.com/user-attachments/assets/aaf59cac-cd1f-4bd3-b5b8-082936aac48a" />
-
-
+<img width="2206" height="1065" alt="Untitled-2026-08-17-2217-5" src="https://github.com/user-attachments/assets/72f7812d-2420-489d-aec1-c28c8ae373b5" />
 
 ## Installation
 
