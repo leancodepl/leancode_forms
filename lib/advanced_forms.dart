@@ -1,3 +1,9 @@
+/// Flutter form validation and state management, built on `ChangeNotifier` and
+/// `ValueListenable`.
+///
+/// See the [README](https://pub.dev/packages/advanced_forms).
+library;
+
 export 'src/field/advanced_boolean_field_controller.dart';
 export 'src/field/advanced_field_controller.dart';
 export 'src/field/advanced_field_controller_extensions.dart';

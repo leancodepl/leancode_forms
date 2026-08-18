@@ -8,7 +8,17 @@
 [![test](https://github.com/leancodepl/advanced_forms/actions/workflows/test.yml/badge.svg)](https://github.com/leancodepl/advanced_forms/actions/workflows/test.yml)
 [![License: Apache 2.0][license-badge]][license-badge-link]
 
-Forms in Flutter without a framework on top. `advanced_forms` gives you typed field controllers, composable validation, and form-level state tracking.
+Flutter form validation and state management without a framework on top. `advanced_forms` gives you typed field controllers, composable sync and async validation, and form-level state tracking, built on `ChangeNotifier` and `ValueListenable`.
+
+- **Typed field controllers** — text fields, checkboxes and switches, dropdowns and radio groups, and multi-select fields, each with its own value type *and* its own error type.
+- **Validators that compose** — `filled`, `notEmpty`, `notNull`, `atLeastLength`, `notLongerThan`, `exactly` and numeric checks, combined with `&` and `|`, or any `E? Function(T)` you write yourself.
+- **Async validation** — debounced server-side checks ("is this email taken?") with a timeout, failure handling and cached answers.
+- **Cross-field validation** — re-run a validator when the fields it depends on change, or derive one field's value from another.
+- **Validation modes** — validate on submit, on every keystroke, or on unfocus. Set once, applied to the whole form.
+- **Subforms** — attach and detach nested form controllers; their fields join the parent's validate, reset, read-only and error handling.
+- **Form-level state** — `canSubmit`, `wasModified`, `validating` and `validationErrors`, ready to bind to a submit button.
+- **Read-only fields and server-side errors** — freeze a value, or push an error in from an API response.
+- **Granular rebuilds** — one builder per field, so a keystroke rebuilds one subtree and nothing else.
 
 > [!TIP]
 > **Using Claude Code (or another agent that supports Agent Skills)?** This repo ships an [Agent Skill](./skills/advanced_forms/SKILL.md) that teaches your agent the full API, so it generates fields, validation, cross-field logic, and subforms idiomatically. To enable it, copy `skills/advanced_forms/` into your app's `.claude/skills/`, or into your global `~/.claude/skills/`.
