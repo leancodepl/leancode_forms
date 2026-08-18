@@ -147,16 +147,18 @@ class _StepPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final body = switch (step) {
+      final AccountStepController step => _AccountStep(step),
+      final AddressStepController step => _AddressStep(step),
+      final InvoiceStepController step => _InvoiceStep(step),
+      final ConfirmStepController step => _ConfirmStep(step),
+      _ => null,
+    };
+
     return SingleChildScrollView(
       child: Column(
         children: [
-          switch (step) {
-            final AccountStepController step => _AccountStep(step),
-            final AddressStepController step => _AddressStep(step),
-            final InvoiceStepController step => _InvoiceStep(step),
-            final ConfirmStepController step => _ConfirmStep(step),
-            _ => const SizedBox.shrink(),
-          },
+          if (body != null) body,
           const _StepControls(),
         ],
       ),
@@ -482,12 +484,8 @@ class AccountStepController extends WizardStepController {
   String get title => 'Account';
 
   final email = AdvancedTextFieldController(
-    // Both sides of `&` must take the same type, so the closure is written
-    // over `String?` like the built-in string validators.
     validator: filled(ValidationError.empty) &
-        ((String? value) => (value?.contains('@') ?? false)
-            ? null
-            : ValidationError.invalidEmail),
+        isEmail(ValidationError.invalidEmail),
     asyncValidation: const AsyncValidation(validator: _checkEmailTaken),
   );
 
@@ -496,6 +494,12 @@ class AccountStepController extends WizardStepController {
         atLeastLength(8, ValidationError.toShort),
   );
 }
+
+/// A validator of your own is just a function of the value. Write it over
+/// `String?`, like the built-in string validators, so it combines with them
+/// through `&` and `|` — both sides have to take the same type.
+Validator<String?, E> isEmail<E extends Object>(E message) =>
+    (value) => value != null && value.contains('@') ? null : message;
 
 Future<ValidationError?> _checkEmailTaken(String value) async {
   const taken = ['john@email.com', 'jack@email.com'];
