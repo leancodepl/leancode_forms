@@ -1,0 +1,39 @@
+---
+title: Form-level state
+description: AdvancedFormController is a ValueListenable of AdvancedFormState — bind canSubmit, wasModified, and validation to the UI.
+---
+
+{/*
+AI-Provenance:
+  model: Cursor Grok 4.6
+  harness: Cursor
+  skills:
+    - mark-ai-provenance
+*/}
+
+`AdvancedFormController` is itself a `ValueListenable<AdvancedFormState>`, so form-wide state renders the same way a field does:
+
+```dart
+ValueListenableBuilder<AdvancedFormState>(
+  valueListenable: form,
+  builder: (context, state, _) => ElevatedButton(
+    onPressed: state.wasModified ? form.submit : null,
+    child: const Text('Submit'),
+  ),
+);
+```
+
+`AdvancedFormState` carries `wasModified` (any field changed since `registerFields`), `fields` / `subforms`, `validationEnabled`, and `validationMode` — the configured mode, not reduced by `validationEnabled`. Four members are derived from the fields on every read, so they never report a field or subform that has since been removed:
+
+| Member | Meaning |
+| --- | --- |
+| `validating` | An async check is in flight somewhere in the tree |
+| `canSubmit` | Every field is `valid` **right now** — a snapshot of *known* errors, so it is true on a quiet form nobody has checked yet, and false while any check is pending or in flight. `await form.validate()` is the guarantee |
+| `hasFailedValidation` | Some field's async check could not run — it threw or timed out. Drives one form-level banner |
+| `validationErrors` | Every error in the form tree, sync or async, keyed by field, for an error summary |
+
+With `provider`, `context.select<SignupFormController, bool>((c) => c.value.validating)` subscribes to one slice.
+
+To react outside a builder, `form.onValuesChanged` and `form.onStatusChanged` are `Listenable`s covering the whole tree, subforms included. Pass a named callback so you can `removeListener` it later.
+
+`AdvancedFormController` takes two optional constructor arguments: `debugName`, a label for logging across nested subforms, and `validateAll` — when true, a change to any field re-runs the **sync** validator on every *other* autovalidating field, which is what you want when fields validate against each other. No async check is restarted: a field whose own value did not change keeps its last answer, so typing starts no async checks. It is the blunt version of `subscribeToFields`, reaching the whole tree instead of the dependencies you name.

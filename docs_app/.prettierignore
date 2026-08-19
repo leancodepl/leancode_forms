@@ -1,0 +1,7 @@
+node_modules
+.next
+out
+build
+.source
+package-lock.json
+next-env.d.ts

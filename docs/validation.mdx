@@ -1,0 +1,124 @@
+---
+title: Validation
+description: Modes, ready-made validators, async checks, and validation that depends on another field.
+---
+
+{/*
+AI-Provenance:
+  model: Cursor Grok 4.6
+  harness: Cursor
+  skills:
+    - mark-ai-provenance
+*/}
+
+A validator is a function — the `Validator<T, E extends Object>` typedef, `E? Function(T)`: value in, error out, `null` means valid. `E` is whatever type you choose, so plain `String`s are fine to start and a form can switch to an enum or sealed class later, independently of every other form:
+
+```dart
+final firstName = AdvancedTextFieldController(
+  validator: (value) => value.isEmpty ? 'First name cannot be empty' : null,
+);
+```
+
+Three rules cover every case:
+
+1. **The validation mode decides which events make a field validate itself.** Set it once on the form; it reaches every field and subform.
+2. **A field the user has never edited validates nothing on its own**, in every mode. `validate()` is what checks those, so a prefilled form does not greet the user with errors.
+3. **A round runs the sync validator first, and the async validator only if sync passed.**
+
+| `ValidationMode` | What the user sees |
+| --- | --- |
+| `manual` (default) | Nothing validates until submit. Editing a field still clears the error that described its old value |
+| `onUserInteraction` | Every keystroke validates the field being edited; the async check waits out its debounce |
+| `onUnfocus` | Leaving a field the user edited validates it. Tabbing through it, or leaving it unchanged, costs nothing |
+
+```dart
+final form = AdvancedFormController(
+  validationMode: ValidationMode.onUnfocus,
+);
+
+// One field can opt out and manage its own mode from then on.
+form.email.setValidationMode(ValidationMode.onUserInteraction);
+```
+
+`onUnfocus` needs the widget to bind the field's `focusNode`, or to call `field.handleUnfocus()` itself — which is what a picker or a dropdown does.
+
+The field makes and owns that `focusNode`. Pass `focusNode:` to the constructor to bind one you already own instead — the field listens to it but never disposes it.
+
+`await form.validate()` walks every field and subform, runs their async validators too, and returns `false` if anything is invalid. It neither consults the mode nor changes it: the mode you set is the mode the form keeps for its whole life.
+
+To write a value the user did not type — prefilling from a profile fetch, for instance — use `field.prefill(value)`. It stores the value and clears the errors without making the field count as edited.
+
+`validate()` is asynchronous because it may have to wait on the server. **Await it** — the result is the only thing that says the values were actually checked. Calling it again before the first call finishes gives you the same result, so a double-tapped submit button runs one pass.
+
+```dart
+Future<void> submit() async {
+  if (await form.validate()) {
+    await api.signUp(...);
+  }
+}
+```
+
+The form-level result is just a `bool` — "may this submit proceed?". The errors themselves stay on the fields, where the widgets displaying them are already subscribed.
+
+Note that `valid` means *no error recorded*, not *checked and passed*: a field nobody has validated yet is `valid`, which is why `canSubmit` is fine for enabling a button but not for deciding a submit.
+
+## Ready-to-use validators
+
+- `filled`, `notEmpty`, `notNull` — reject empty strings (whitespace-only included), empty lists, and nulls,
+- `notLongerThan`, `atLeastLength`, `exactly`, `nothing` — string length bounds, an exact match, and "must be empty",
+- `positiveInteger`, `nonNegativeInteger`, `boundedNonNegativeInteger`, `positiveDecimal`, `nonNegativeDecimal` — numeric strings,
+- `and` / `or` (also `&` and `|`), `conditionalValidator`, `dynamicValidator` — combine two validators, run one only while a condition holds, or rebuild one on each run for parameters that change at runtime.
+
+```dart
+final email = AdvancedTextFieldController(
+  validator: filled(MyError.required) & atLeastLength(5, MyError.tooShort),
+);
+```
+
+## Async validation
+
+Some checks live on the server — "is this username taken?". Pass an `asyncValidation`, which all four field controllers accept:
+
+```dart
+final email = AdvancedTextFieldController(
+  validator: filled(MyError.required),
+  asyncValidation: AsyncValidation(
+    validator: _checkEmailTaken,                   // Future<MyError?> Function(String)
+    debounce: const Duration(milliseconds: 500),   // default 300ms
+    timeout: const Duration(seconds: 5),           // optional, default: no bound
+    onFailure: _reportCheckFailure,                // optional
+    failureToError: (e, s) => MyError.checkFailed, // optional
+  ),
+);
+```
+
+The pass is debounced, and `await validate()` runs a waiting check at once rather than reporting the field bad for being busy. Changing the value — or `setError`, `clearErrors`, `reset`, `markReadOnly`, `dispose` — kills a live pass, and its later result is dropped. A settled answer is reused while it still describes the value, so a second submit press on an unchanged form makes no calls; a check that depends on state *outside* the value must be invalidated with `clearErrors()`. The status walks `pending` → `validating` → `valid`/`invalid`, so a spinner is one `state.isInProgress` check.
+
+A validator that throws, or a pass that times out, is a *failure* — a technical fault, not a verdict on the value. The field lands on `FieldStatus.failedValidation` (`state.isFailedValidation`) instead of hanging on `validating`, it does not count as valid, and `form.value.hasFailedValidation` drives one banner for the whole form. Failure is not sticky, so the next `await validate()` retries it.
+
+Every parameter is documented in the dartdoc on [`AsyncValidation`](https://pub.dev/documentation/advanced_forms/latest/advanced_forms/AsyncValidation-class.html). Working example: `SimpleFormScreen` in the example app.
+
+## Validation that depends on another field
+
+`subscribeToFields` re-runs this field's **sync** validator whenever the fields it depends on change value — that one thing, and nothing at all while this field is in `ValidationMode.manual`, or on a field the user has never edited:
+
+```dart
+final password = AdvancedTextFieldController(
+  validator: atLeastLength(8, 'Password is too short'),
+);
+
+late final repeatPassword = AdvancedTextFieldController(
+  validator: (value) =>
+      value == password.fieldValue ? null : 'Passwords do not match',
+)..subscribeToFields([password]);
+```
+
+It does exactly one thing: **re-run this field's sync validator.** It does not copy or derive values. For "when B changes, set A" — recompute a total, mirror one field into another, clear a dependent selection — use the form's `addRelation`:
+
+```dart
+addRelation(quantity, (value) => value, (qty) => total.setValue(qty * unitPrice));
+```
+
+`addRelation(source, select, onChange)` calls `onChange` whenever the part of `source`'s value picked by `select` changes (compared with `==`; status-only changes never fire). The form removes the listener in its own `dispose()`, so there is nothing to clean up.
+
+Working example: `PasswordFormScreen` in the example app.

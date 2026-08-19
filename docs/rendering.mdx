@@ -1,0 +1,36 @@
+---
+title: Rendering fields
+description: AdvancedFieldBuilder rebuilds a subtree whenever its field notifies.
+---
+
+{/*
+AI-Provenance:
+  model: Cursor Grok 4.6
+  harness: Cursor
+  skills:
+    - mark-ai-provenance
+*/}
+
+`AdvancedFieldBuilder` rebuilds a subtree whenever its field notifies:
+
+```dart
+AdvancedFieldBuilder<String, MyError>(
+  field: firstName,
+  builder: (context, state, _) => TextFormField(
+    controller: firstName.textController,
+    decoration: InputDecoration(
+      errorText: state.error != null ? translate(state.error!) : null,
+    ),
+  ),
+);
+```
+
+It wraps `ValueListenableBuilder`, so the SDK widget works too if you'd rather spell out `ValueListenableBuilder<AdvancedFieldState<String, MyError>>` — the wrapper exists to hide that type argument.
+
+Note what's *not* in the snippet: no `TextEditingController` allocation, no `onChanged`, no `initialValue` seeding. `AdvancedTextFieldController` owns its `TextEditingController` (`field.textController`) and keeps it in two-way sync — user input flows into the field state, and programmatic changes (`setValue`, `reset`) flow back into the visible text. It also owns a `FocusNode` (`field.focusNode`), so "jump to the first invalid field" is `field.focus()`. Working example: the "Scroll Form" screen in the example app (`example/lib/screens/scroll_form.dart`).
+
+Rebuilds are granular by construction: each builder subscribes to one field, so a keystroke rebuilds that field's subtree and nothing else. `AdvancedFieldState` is value-equal, so setting a field to the value it already holds notifies nobody.
+
+`builder`'s third parameter is a `child:` you can pass for a subtree that doesn't depend on field state — built once and reused on every rebuild. See `example/lib/widgets/form_text_field_with_icon.dart` and the "Optimized Rendering" screen in the example app.
+
+For parent widgets, grab the controller with `context.read<SignupFormController>()` — no subscription, no parent rebuilds — and let each field widget subscribe to its own field.

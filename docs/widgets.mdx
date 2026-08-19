@@ -1,0 +1,22 @@
+---
+title: Reusable field widgets
+description: The package ships no styled widgets — copy the extract-once pattern from the example app.
+---
+
+{/*
+AI-Provenance:
+  model: Cursor Grok 4.6
+  harness: Cursor
+  skills:
+    - mark-ai-provenance
+*/}
+
+The package deliberately ships no styled widgets — it gives you what a widget needs to bind to: the text controller, the focus node, the typed state, the error. For the extract-once pattern see the full set in [`example/lib/widgets/`](https://github.com/leancodepl/advanced_forms/tree/main/example/lib/widgets), ready to copy and restyle.
+
+The [example app](https://github.com/leancodepl/advanced_forms/blob/main/example/example.md) is a gallery: one screen per documented pattern, reachable from the home page. Run it with:
+
+```sh
+cd example
+flutter pub get
+flutter run
+```
