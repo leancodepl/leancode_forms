@@ -5,6 +5,8 @@ import 'package:advanced_forms/src/utils/shared_call.dart';
 import 'package:advanced_forms/src/validation_mode.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+// Older Flutter versions need this import
+// ignore: unnecessary_import
 import 'package:meta/meta.dart';
 
 part 'async_validation.dart';

@@ -1,3 +1,7 @@
+## 0.2.0+3
+
+* Fix static analysis for latest Flutter versions
+
 ## 0.2.0+2
 
 * Updated docs

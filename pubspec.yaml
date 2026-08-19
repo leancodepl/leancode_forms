@@ -1,6 +1,6 @@
 name: advanced_forms
 description: Flutter form validation and state management — typed controllers for text, checkbox, dropdown and multi-select fields, async and cross-field validators, and subforms.
-version: 0.2.0+2
+version: 0.2.0+3
 homepage: https://github.com/leancodepl/advanced_forms
 repository: https://github.com/leancodepl/advanced_forms
 issue_tracker: https://github.com/leancodepl/advanced_forms/issues
