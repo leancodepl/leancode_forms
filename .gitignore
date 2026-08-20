@@ -46,3 +46,5 @@ docs_app/*.tsbuildinfo
 
 # Built by `npm run examples:build` from the Dart snippets in docs/.
 docs_app/public/flutter-examples/
+.vercel
+.env*
