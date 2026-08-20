@@ -240,7 +240,8 @@ Note that `valid` means *no error recorded*, not *checked and passed*: a field n
 
 ### Ready-to-use validators
 
-- `filled`, `notEmpty`, `notNull`, `mustBeTrue` — reject empty strings (whitespace-only included), empty lists, nulls, and `false`,
+- `filled`, `notEmpty`, `notNull` — reject empty strings (whitespace-only included), empty lists, and nulls,
+- `mustBeTrue` — reject `false` and null,
 - `notLongerThan`, `atLeastLength`, `exactly`, `nothing` — string length bounds, an exact match, and "must be empty",
 - `positiveInteger`, `nonNegativeInteger`, `boundedNonNegativeInteger`, `positiveDecimal`, `nonNegativeDecimal` — numeric strings,
 - `and` / `or` (also `&` and `|`), `conditionalValidator`, `dynamicValidator` — combine two validators, run one only while a condition holds, or rebuild one on each run for parameters that change at runtime.
