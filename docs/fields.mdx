@@ -1,0 +1,69 @@
+---
+title: Field controllers
+description: Text, boolean, single-select and multi-select controllers, plus read-only fields, server errors, and custom controllers.
+---
+
+{/*
+AI-Provenance:
+  model: Cursor Grok 4.6
+  harness: Cursor
+  skills:
+    - mark-ai-provenance
+*/}
+
+- `AdvancedTextFieldController` — `String` value; owns a `TextEditingController` and a `FocusNode`,
+- `AdvancedBooleanFieldController` — `bool` value, for checkboxes and switches,
+- `AdvancedSingleSelectFieldController` — one choice from `options` (dropdowns, radio groups),
+- `AdvancedMultiSelectFieldController` — a set of choices, with `toggleElement` / `addValue` / `removeValue`.
+
+All support `reset()`, `markReadOnly()` / `unmarkReadOnly()`, and both sync and async validation. The text and boolean controllers default their `initialValue`; the two select controllers require both `initialValue` and `options`. All accept an optional `name`, which labels the field in diagnostics and gives logging or serialization a stable handle. Working example: `ComplexFormScreen` in the example app.
+
+## Reading the current state
+
+The full state is `field.value`, an `AdvancedFieldState<T, E>`. Two shortcuts cover most reads:
+
+```dart
+field.fieldValue;   // the current value — short for field.value.value
+field.error;        // the current error, or null — short for field.value.error
+```
+
+## Read-only fields and server-side errors
+
+```dart
+field.markReadOnly();                  // setValue becomes a no-op unless force: true
+field.setError(MyError.emailTaken);    // push an error in from outside, e.g. a server response
+field.clearErrors();                   // clear everything, including the last async answer
+```
+
+`markReadOnly()` freezes the value; how the widget *looks* is yours to decide. Widgets with a nullable callback — `Switch`, `Checkbox`, `DropdownButton` — grey out on their own once `getValueSetter()` returns `null`. A text field does not: `TextField.readOnly` blocks typing but keeps the enabled styling, so pass `enabled: !state.readOnly` too when a frozen field should also look frozen.
+
+`setError(null)` is what makes the "apply the server's response to every field" pattern work: fields the server accepted end up `valid` with nothing to show, rather than `invalid` with nothing to show.
+
+`setError` writes `validationError` only. A code an async check recorded survives it, and the field stays `invalid` showing that code — use `clearErrors()` when you mean "forget everything, including the async answer". A pushed error is also not protected from the validators: once the field validates itself, anything that re-runs its sync validator — an edit, `subscribeToFields`, `validateAll` — overwrites `validationError` with whatever the validator returns.
+
+`reset()` restores the initial value, clears both errors, and makes the field count as untouched again. It **keeps** its validation mode and `readOnly` — those are configuration, and configuration changes only through its own API.
+
+`AdvancedFormController` has `markReadOnly()`, `clearErrors()`, and `setValidationEnabled(bool)` for the whole tree.
+
+Working example: `QuizFormScreen` in the example app applies a server response with `setError`.
+
+## Writing your own
+
+Extend `AdvancedFieldController` — your value type, your error type, your domain methods, with validation and lifecycle contributed by the base class:
+
+```dart
+class IntegerFieldController<E extends Object> extends AdvancedFieldController<int, E> {
+  IntegerFieldController({
+    super.initialValue = 0,
+    super.validator,
+    super.asyncValidation,
+    super.name,
+  });
+
+  bool get isNegative => fieldValue.isNegative;
+
+  void negate() => setValue(-fieldValue);
+}
+```
+
+This is the intended way to use the library. `example/lib/controllers/password_field_controller.dart` is a text field whose error type is `List<ValidationError>`, so one field reports several rule violations at once.

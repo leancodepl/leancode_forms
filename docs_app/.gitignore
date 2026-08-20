@@ -1,0 +1,30 @@
+# deps
+node_modules/
+
+# generated content
+.source/
+# Written by `next dev` (agentRules). Regenerated on every run.
+AGENTS.md
+CLAUDE.md
+
+# test & build
+coverage/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# misc
+.DS_Store
+*.pem
+.pnp
+.pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env & deploy
+.env
+.env*.local
+.vercel
+next-env.d.ts

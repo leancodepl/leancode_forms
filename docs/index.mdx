@@ -1,0 +1,69 @@
+---
+title: Overview
+description: Typed field controllers, composable validation, and form-level state for Flutter — without a framework on top.
+---
+
+{/*
+AI-Provenance:
+  model: Cursor Grok 4.6
+  harness: Cursor
+  skills:
+    - mark-ai-provenance
+*/}
+
+<a
+  href="https://leancode.co/?utm_source=github.com&utm_medium=referral&utm_campaign=advanced-forms"
+  aria-label="Visit LeanCode"
+>
+  <img
+    src="https://raw.githubusercontent.com/leancodepl/advanced_forms/refs/heads/main/doc/banner.png"
+    alt="advanced_forms by LeanCode"
+    width="1024"
+    height="310"
+    className="w-full"
+  />
+</a>
+
+Flutter form validation and state management without a framework on top. `advanced_forms` gives you typed field controllers, composable sync and async validation, and form-level state tracking, built on `ChangeNotifier` and `ValueListenable`.
+
+- **Typed field controllers** — text fields, checkboxes and switches, dropdowns and radio groups, and multi-select fields, each with its own value type *and* its own error type.
+- **Validators that compose** — `filled`, `notEmpty`, `notNull`, `atLeastLength`, `notLongerThan`, `exactly` and numeric checks, combined with `&` and `|`, or any `E? Function(T)` you write yourself.
+- **Async validation** — debounced server-side checks ("is this email taken?") with a timeout, failure handling and cached answers.
+- **Cross-field validation** — re-run a validator when the fields it depends on change, or derive one field's value from another.
+- **Validation modes** — validate on submit, on every keystroke, or on unfocus. Set once, applied to the whole form.
+- **Subforms** — attach and detach nested form controllers; their fields join the parent's validate, reset, read-only and error handling.
+- **Form-level state** — `canSubmit`, `wasModified`, `validating` and `validationErrors`, ready to bind to a submit button.
+- **Read-only fields and server-side errors** — freeze a value, or push an error in from an API response.
+- **Granular rebuilds** — one builder per field, so a keystroke rebuilds one subtree and nothing else.
+
+<Callout title="Using an agent that supports Agent Skills?">
+  This repo ships an [Agent Skill](./agent-skill.mdx) that teaches your agent the full API. Copy `skills/advanced_forms/` into your app's `.claude/skills/`, or into your global `~/.claude/skills/`.
+</Callout>
+
+## General overview
+
+<picture className="theme-diagram-light">
+  <img
+    alt="Relationships between advanced_forms controllers and field builders"
+    src="https://raw.githubusercontent.com/leancodepl/advanced_forms/refs/heads/main/doc/overview_light.svg"
+  />
+</picture>
+<picture className="theme-diagram-dark">
+  <img
+    alt="Relationships between advanced_forms controllers and field builders"
+    src="https://raw.githubusercontent.com/leancodepl/advanced_forms/refs/heads/main/doc/overview_dark.svg"
+  />
+</picture>
+
+## Where to next
+
+<Cards>
+  <Card title="Installation" href="./installation.mdx" description="Add the package, or migrate from 0.1.x." />
+  <Card title="Your first form" href="./first-form.mdx" description="Register fields, bind widgets, submit." />
+  <Card title="Validation" href="./validation.mdx" description="Modes, ready-made validators, async and cross-field checks." />
+  <Card title="API reference" href="https://pub.dev/documentation/advanced_forms/latest/" description="Generated dartdoc for every member." />
+</Cards>
+
+Also see the [example app](https://github.com/leancodepl/advanced_forms/blob/main/example/example.md) — a runnable gallery where every pattern in these docs has a working screen.
+
+Maintained by [LeanCode](https://leancode.co/?utm_source=github.com&utm_medium=referral&utm_campaign=advanced-forms).

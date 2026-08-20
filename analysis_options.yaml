@@ -1,1 +1,9 @@
 include: package:leancode_lint/analysis_options_package.yaml
+
+analyzer:
+  exclude:
+    # The docs site carries its own Flutter package (docs_app/flutter) with its
+    # own options; analyzing it from here would hold the docs snippets to the
+    # published-package rules and would fail on its generated sources.
+    - docs_app/**
+

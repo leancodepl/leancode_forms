@@ -1,0 +1,28 @@
+# AI-Provenance:
+#   model: Claude Opus 5
+#   harness: Cursor
+name: advanced_forms_docs_islands
+description: Multi-view Flutter web bundle that renders the live <AdvancedFormsExample> islands embedded in the advanced_forms docs.
+publish_to: "none"
+version: 0.0.1
+
+environment:
+  # Element embedding with `viewConstraints` and `ui_web.views.getInitialData`
+  # landed in Flutter 3.24 / Dart 3.5.
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  advanced_forms:
+    path: ../..
+  flutter:
+    sdk: flutter
+  web: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  leancode_lint: ^15.0.0
+
+flutter:
+  uses-material-design: true

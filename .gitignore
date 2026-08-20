@@ -34,3 +34,17 @@ build/
 
 # Scratch space for design notes — never part of the published package.
 .scratch/
+
+# Docs site (Next.js in docs_app/)
+docs_app/node_modules/
+docs_app/.next/
+docs_app/out/
+docs_app/.source/
+docs_app/.vercel/
+docs_app/next-env.d.ts
+docs_app/*.tsbuildinfo
+
+# Built by `npm run examples:build` from the Dart snippets in docs/.
+docs_app/public/flutter-examples/
+.vercel
+.env*

@@ -1,0 +1,100 @@
+---
+title: Your first form
+description: A controller holds the fields and registers them; a widget binds to each field.
+---
+
+{/*
+AI-Provenance:
+  model: Cursor Grok 4.6
+  harness: Cursor
+  skills:
+    - mark-ai-provenance
+*/}
+
+A controller holds the fields and registers them; a widget binds to each field.
+The form below is the code on this page, compiled and running — submit it empty
+to watch the errors appear:
+
+<AdvancedFormsExample preview="SignupForm">
+
+```dart
+class SignupFormController extends AdvancedFormController {
+  SignupFormController() {
+    registerFields([firstName, lastName]);
+  }
+
+  final firstName = AdvancedTextFieldController(
+    validator: filled('First name is required'),
+  );
+  final lastName = AdvancedTextFieldController(
+    validator: filled('Last name is required'),
+  );
+
+  Future<void> submit() async {
+    if (await validate()) {
+      // send it
+    }
+  }
+}
+```
+
+```dart
+class SignupForm extends StatefulWidget {
+  const SignupForm({super.key});
+
+  @override
+  State<SignupForm> createState() => _SignupFormState();
+}
+
+class _SignupFormState extends State<SignupForm> {
+  final _form = SignupFormController();
+
+  @override
+  void dispose() {
+    _form.dispose(); // disposes the registered fields too
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _SignupTextField(field: _form.firstName, label: 'First name'),
+        _SignupTextField(field: _form.lastName, label: 'Last name'),
+        ElevatedButton(onPressed: _form.submit, child: const Text('Submit')),
+      ],
+    );
+  }
+}
+```
+
+```dart
+class _SignupTextField extends StatelessWidget {
+  const _SignupTextField({required this.field, required this.label});
+
+  final AdvancedTextFieldController<String> field; // <String> is the error type
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdvancedFieldBuilder<String, String>(
+      field: field,
+      builder: (context, state, _) => TextFormField(
+        controller: field.textController,
+        decoration: InputDecoration(labelText: label, errorText: state.error),
+      ),
+    );
+  }
+}
+```
+
+</AdvancedFormsExample>
+
+Fields stay quiet until the first `validate()`, then give live feedback.
+
+Two rules to remember:
+
+- **Call `registerFields()` once, with every field.** The form then owns their lifecycle — it disposes them, tracks whether anything was modified, and includes them in `validate()`, `resetAll()`, and the other form-wide operations. Calling it a second time *replaces* the field list, so the earlier batch stops participating while still being disposed at teardown.
+- **Bind widgets to `field.textController`**, not to a controller of your own. See [Rendering fields](./rendering.mdx).
+
+Own the controller wherever you like — it's a `ChangeNotifier`, so any DI package works as well as the `StatefulWidget` above. `ChangeNotifierProvider` from `provider` is one widget, and it disposes the controller for you (`provider` is used in the snippets below; it is not a dependency of this package). Whoever owns the form controller disposes it, and that one call disposes the registered fields and the attached subforms.
