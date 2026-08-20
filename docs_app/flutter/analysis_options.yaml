@@ -1,0 +1,8 @@
+# AI-Provenance:
+#   model: Claude Opus 5
+#   harness: Cursor
+include: package:leancode_lint/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - build/**

@@ -100,18 +100,56 @@ Every parameter is documented in the dartdoc on [`AsyncValidation`](https://pub.
 
 ## Validation that depends on another field
 
-`subscribeToFields` re-runs this field's **sync** validator whenever the fields it depends on change value — that one thing, and nothing at all while this field is in `ValidationMode.manual`, or on a field the user has never edited:
+`subscribeToFields` re-runs this field's **sync** validator whenever the fields it depends on change value — that one thing, and nothing at all while this field is in `ValidationMode.manual`, or on a field the user has never edited. Mismatch the two fields below and then fix the first one: the second field's error clears itself, with nothing re-running it by hand.
 
-```dart
-final password = AdvancedTextFieldController(
-  validator: atLeastLength(8, 'Password is too short'),
-);
+<AdvancedFormsExample preview="PasswordForm">
+  ```dart
+  class PasswordFormController extends AdvancedFormController {
+    PasswordFormController()
+        : super(validationMode: ValidationMode.onUserInteraction) {
+      registerFields([password, repeatPassword]);
+    }
 
-late final repeatPassword = AdvancedTextFieldController(
-  validator: (value) =>
-      value == password.fieldValue ? null : 'Passwords do not match',
-)..subscribeToFields([password]);
-```
+    final password = AdvancedTextFieldController(
+      validator: atLeastLength(8, 'Password is too short'),
+    );
+
+    late final repeatPassword = AdvancedTextFieldController(
+      validator: (value) =>
+          value == password.fieldValue ? null : 'Passwords do not match',
+    )..subscribeToFields([password]);
+  }
+  ```
+
+  ```dart
+  class PasswordForm extends StatefulWidget {
+    const PasswordForm({super.key});
+
+    @override
+    State<PasswordForm> createState() => _PasswordFormState();
+  }
+
+  class _PasswordFormState extends State<PasswordForm> {
+    final _form = PasswordFormController();
+
+    @override
+    void dispose() {
+      _form.dispose();
+      super.dispose();
+    }
+
+    @override
+    Widget build(BuildContext context) {
+      return Column(
+        children: [
+          DocsTextField(field: _form.password, label: 'Password'),
+          DocsTextField(field: _form.repeatPassword, label: 'Repeat password'),
+        ],
+      );
+    }
+  }
+  ```
+</AdvancedFormsExample>
 
 It does exactly one thing: **re-run this field's sync validator.** It does not copy or derive values. For "when B changes, set A" — recompute a total, mirror one field into another, clear a dependent selection — use the form's `addRelation`:
 

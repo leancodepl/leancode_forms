@@ -1,0 +1,13 @@
+# AI-Provenance:
+#   model: Claude Opus 5
+#   harness: Cursor
+
+.dart_tool/
+build/
+
+# pubspec.lock is committed, like example/'s: this is an app, and the docs
+# bundle is validated against the versions in it.
+
+# Written by ../scripts/flutter-examples.mjs from the Dart fences in ../../docs.
+lib/generated/
+web/examples.json

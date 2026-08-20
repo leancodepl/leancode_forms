@@ -11,7 +11,11 @@ AI-Provenance:
     - mark-ai-provenance
 */}
 
-A controller holds the fields and registers them; a widget binds to each field:
+A controller holds the fields and registers them; a widget binds to each field.
+The form below is the code on this page, compiled and running — submit it empty
+to watch the errors appear:
+
+<AdvancedFormsExample preview="SignupForm">
 
 ```dart
 class SignupFormController extends AdvancedFormController {
@@ -47,7 +51,7 @@ class _SignupFormState extends State<SignupForm> {
 
   @override
   void dispose() {
-    _form.dispose();   // disposes the registered fields too
+    _form.dispose(); // disposes the registered fields too
     super.dispose();
   }
 
@@ -68,7 +72,7 @@ class _SignupFormState extends State<SignupForm> {
 class _SignupTextField extends StatelessWidget {
   const _SignupTextField({required this.field, required this.label});
 
-  final AdvancedTextFieldController<String> field;   // <String> is the error type
+  final AdvancedTextFieldController<String> field; // <String> is the error type
   final String label;
 
   @override
@@ -83,6 +87,8 @@ class _SignupTextField extends StatelessWidget {
   }
 }
 ```
+
+</AdvancedFormsExample>
 
 Fields stay quiet until the first `validate()`, then give live feedback.
 

@@ -1,0 +1,88 @@
+<!doctype html>
+<!--
+AI-Provenance:
+  model: Claude Opus 5
+  harness: Cursor
+-->
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>advanced_forms docs islands</title>
+    <style>
+      body {
+        margin: 0;
+        font: 14px/1.5 system-ui, sans-serif;
+      }
+      #host {
+        display: block;
+        width: 100%;
+      }
+      .bar {
+        padding: 8px 12px;
+        border-bottom: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Standalone host for one island, selected with `?example=<id>`. Used as the
+      authoring gallery (`flutter run -d chrome`) and as the iframe target for
+      examples marked `isolate`.
+    -->
+    <div class="bar">
+      <label>
+        example
+        <select id="picker"></select>
+      </label>
+    </div>
+    <div id="host"></div>
+
+    <script>
+      window.__advancedFormsIslandsConfig = { assetBase: "./" };
+    </script>
+    <!--
+      Deliberately not `async`: classic scripts run in order, which is what
+      guarantees the bootstrap has published `window.__advancedFormsIslands`
+      before the script below awaits it.
+    -->
+    <script src="flutter_bootstrap.js"></script>
+    <script>
+      (async () => {
+        const app = await window.__advancedFormsIslands;
+        const params = new URLSearchParams(location.search);
+        const examples = await fetch("./examples.json")
+          .then(r => r.json())
+          .catch(() => []);
+        const ids = examples.map(e => e.id);
+
+        const picker = document.getElementById("picker");
+        for (const { id, preview, docs } of examples) {
+          picker.append(
+            Object.assign(document.createElement("option"), {
+              value: id,
+              textContent: `${preview} — ${docs.join(", ")}`,
+            }),
+          );
+        }
+
+        let viewId = null;
+        const show = id => {
+          if (viewId !== null) app.removeView(viewId);
+          viewId = app.addView({
+            hostElement: document.getElementById("host"),
+            initialData: { exampleId: id },
+            viewConstraints: { minHeight: 0, maxHeight: Infinity },
+          });
+        };
+
+        const initial = params.get("example") || ids[0];
+        if (initial) {
+          picker.value = initial;
+          show(initial);
+        }
+        picker.addEventListener("change", () => show(picker.value));
+      })();
+    </script>
+  </body>
+</html>

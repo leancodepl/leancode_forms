@@ -5,3 +5,12 @@ build
 .source
 package-lock.json
 next-env.d.ts
+
+# Flutter package: prettier would reformat the `{{flutter_js}}` template
+# placeholders in web/flutter_bootstrap.js into something the Flutter tool no
+# longer substitutes.
+flutter/
+
+# Build output and codegen.
+public/flutter-examples/
+lib/flutter-examples/manifest.generated.ts

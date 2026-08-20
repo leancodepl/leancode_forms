@@ -1,0 +1,8 @@
+# AI-Provenance:
+#   model: Claude Opus 5
+#   harness: Cursor
+#
+# The docs site is not part of the published package. Without this the whole
+# Next.js app — and the Flutter bundle built into public/ — would ship inside
+# `dart pub publish`.
+*

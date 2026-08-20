@@ -1,0 +1,149 @@
+# AI-Provenance:
+#   model: Claude Opus 5
+#   harness: Cursor
+#
+# The docs contain live Flutter examples: every `<AdvancedFormsExample>` in
+# docs/*.mdx is compiled into a web bundle at build time. That makes this
+# workflow the thing that stops the documentation from drifting away from the
+# API — a snippet that no longer compiles fails the build.
+name: docs
+
+on:
+  push:
+    branches: [main]
+    tags-ignore: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  # The version the islands are validated against. Multi-view web embedding is
+  # young enough that the docs bundle pins its own version rather than following
+  # the range the package supports.
+  FLUTTER_VERSION: '3.41.4'
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs_app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs_app/package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install pub dependencies
+        run: flutter pub get
+        working-directory: docs_app/flutter
+
+      # Fails when the committed manifest no longer matches the MDX, which is
+      # what lets `next build` detect a stale bundle without the Flutter SDK.
+      - name: Check the example manifest
+        run: npm run examples:check
+
+      - name: Generate the example sources
+        run: npm run examples:generate
+
+      # Snippets are written inside MDX, where nothing formats them. This is
+      # what keeps the code the docs display canonically formatted.
+      - name: Check snippet formatting
+        run: dart format --output=none --set-exit-if-changed lib/generated
+        working-directory: docs_app/flutter
+
+      - name: Analyze the example bundle
+        run: flutter analyze
+        working-directory: docs_app/flutter
+
+      # Puts every example through the constraints a real island imposes.
+      - name: Test the examples
+        run: flutter test
+        working-directory: docs_app/flutter
+
+      - name: Check types
+        run: npm run types:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format
+
+      # `npm run build` is `examples:build && next build`: compile the snippets
+      # into public/flutter-examples, then the site around them.
+      - name: Build
+        run: npm run build
+
+  deploy:
+    name: Deploy to Vercel
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs_app
+
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Checkout
+        # Nothing to deploy to until the secrets exist; see docs_app/README.md.
+        if: env.VERCEL_TOKEN != ''
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        if: env.VERCEL_TOKEN != ''
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Setup Node
+        if: env.VERCEL_TOKEN != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs_app/package-lock.json
+
+      - name: Install npm dependencies
+        if: env.VERCEL_TOKEN != ''
+        run: npm ci
+
+      - name: Install pub dependencies
+        if: env.VERCEL_TOKEN != ''
+        run: flutter pub get
+        working-directory: docs_app/flutter
+
+      - name: Pull Vercel environment
+        if: env.VERCEL_TOKEN != ''
+        run: npx vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      # Runs the project's own build command, which needs the Flutter SDK — the
+      # reason the site is built here rather than in Vercel's build container.
+      - name: Build for Vercel
+        if: env.VERCEL_TOKEN != ''
+        run: npx vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy
+        if: env.VERCEL_TOKEN != ''
+        run: npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"

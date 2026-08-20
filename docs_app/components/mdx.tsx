@@ -8,6 +8,7 @@
 import defaultMdxComponents from "fumadocs-ui/mdx"
 import type { MDXComponents } from "mdx/types"
 import type { ImgHTMLAttributes } from "react"
+import { AdvancedFormsExample } from "./advanced-forms-example"
 import { cn } from "@/lib/cn"
 
 function toPixel(value: ImgHTMLAttributes<HTMLImageElement>["width"]): number | undefined {
@@ -25,6 +26,7 @@ export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
     img: DocsImage,
+    AdvancedFormsExample,
     ...components,
   } satisfies MDXComponents
 }

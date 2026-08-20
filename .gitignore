@@ -43,3 +43,6 @@ docs_app/.source/
 docs_app/.vercel/
 docs_app/next-env.d.ts
 docs_app/*.tsbuildinfo
+
+# Built by `npm run examples:build` from the Dart snippets in docs/.
+docs_app/public/flutter-examples/
