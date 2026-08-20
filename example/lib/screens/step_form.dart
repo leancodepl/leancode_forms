@@ -552,7 +552,7 @@ class InvoiceStepController extends WizardStepController {
   );
 }
 
-/// Step 4. Terms acceptance uses [isTrue] so the switch must be on to proceed.
+/// Step 4. Terms acceptance uses [mustBeTrue] so the switch must be on to proceed.
 class ConfirmStepController extends WizardStepController {
   ConfirmStepController() {
     registerFields([newsletter, acceptTerms]);
@@ -564,7 +564,7 @@ class ConfirmStepController extends WizardStepController {
   final newsletter = AdvancedBooleanFieldController<ValidationError>();
 
   final acceptTerms = AdvancedBooleanFieldController<ValidationError>(
-    validator: isTrue(ValidationError.mustAccept),
+    validator: mustBeTrue(ValidationError.mustAccept),
   );
 }
 

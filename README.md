@@ -11,7 +11,7 @@
 Flutter form validation and state management without a framework on top. `advanced_forms` gives you typed field controllers, composable sync and async validation, and form-level state tracking, built on `ChangeNotifier` and `ValueListenable`.
 
 - **Typed field controllers** — text fields, checkboxes and switches, dropdowns and radio groups, and multi-select fields, each with its own value type *and* its own error type.
-- **Validators that compose** — `filled`, `notEmpty`, `notNull`, `isTrue`, `atLeastLength`, `notLongerThan`, `exactly` and numeric checks, combined with `&` and `|`, or any `E? Function(T)` you write yourself.
+- **Validators that compose** — `filled`, `notEmpty`, `notNull`, `mustBeTrue`, `atLeastLength`, `notLongerThan`, `exactly` and numeric checks, combined with `&` and `|`, or any `E? Function(T)` you write yourself.
 - **Async validation** — debounced server-side checks ("is this email taken?") with a timeout, failure handling and cached answers.
 - **Cross-field validation** — re-run a validator when the fields it depends on change, or derive one field's value from another.
 - **Validation modes** — validate on submit, on every keystroke, or on unfocus. Set once, applied to the whole form.
@@ -240,7 +240,7 @@ Note that `valid` means *no error recorded*, not *checked and passed*: a field n
 
 ### Ready-to-use validators
 
-- `filled`, `notEmpty`, `notNull`, `isTrue` — reject empty strings (whitespace-only included), empty lists, nulls, and `false`,
+- `filled`, `notEmpty`, `notNull`, `mustBeTrue` — reject empty strings (whitespace-only included), empty lists, nulls, and `false`,
 - `notLongerThan`, `atLeastLength`, `exactly`, `nothing` — string length bounds, an exact match, and "must be empty",
 - `positiveInteger`, `nonNegativeInteger`, `boundedNonNegativeInteger`, `positiveDecimal`, `nonNegativeDecimal` — numeric strings,
 - `and` / `or` (also `&` and `|`), `conditionalValidator`, `dynamicValidator` — combine two validators, run one only while a condition holds, or rebuild one on each run for parameters that change at runtime.

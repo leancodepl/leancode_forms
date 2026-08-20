@@ -203,7 +203,7 @@ Validator<T?, E> notNull<T, E extends Object>(E message) => (value) {
     };
 
 /// Rejects null and false.
-Validator<bool?, E> isTrue<E extends Object>(E message) => (value) {
+Validator<bool?, E> mustBeTrue<E extends Object>(E message) => (value) {
       if (value != true) {
         return message;
       }
