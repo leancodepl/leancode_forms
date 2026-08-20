@@ -9,7 +9,6 @@
     "validation",
     "fields",
     "subforms",
-    "widgets",
-    "agent-skill"
+    "widgets"
   ]
 }
