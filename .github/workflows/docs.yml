@@ -8,12 +8,32 @@
 # API — a snippet that no longer compiles fails the build.
 name: docs
 
+# Building the docs compiles a Flutter web bundle, which is far too slow to run
+# on every change to the package. The two events filter differently on purpose:
+#
+# - A pull request only builds when the docs themselves change, so work on the
+#   library is never held up by them.
+# - A push to main also builds when `lib/` changes, because the bundle contains
+#   the package's own compiled source. Once per merge is cheap, and it is what
+#   catches a snippet the API has outgrown — and what keeps the live examples on
+#   the site running the current library rather than the one from the last docs
+#   change.
 on:
   push:
     branches: [main]
     tags-ignore: ['v*']
+    paths:
+      - 'docs/**'
+      - 'docs_app/**'
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/docs.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'docs/**'
+      - 'docs_app/**'
+      - '.github/workflows/docs.yml'
 
 env:
   # The version the islands are validated against. Multi-view web embedding is
