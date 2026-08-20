@@ -552,8 +552,7 @@ class InvoiceStepController extends WizardStepController {
   );
 }
 
-/// Step 4. A boolean field has no built-in validator, so the rule is a one-line
-/// closure.
+/// Step 4. Terms acceptance uses [mustBeTrue] so the switch must be on to proceed.
 class ConfirmStepController extends WizardStepController {
   ConfirmStepController() {
     registerFields([newsletter, acceptTerms]);
@@ -565,7 +564,7 @@ class ConfirmStepController extends WizardStepController {
   final newsletter = AdvancedBooleanFieldController<ValidationError>();
 
   final acceptTerms = AdvancedBooleanFieldController<ValidationError>(
-    validator: (value) => value ? null : ValidationError.mustAccept,
+    validator: mustBeTrue(ValidationError.mustAccept),
   );
 }
 

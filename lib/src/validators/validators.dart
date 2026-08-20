@@ -202,6 +202,15 @@ Validator<T?, E> notNull<T, E extends Object>(E message) => (value) {
       return null;
     };
 
+/// Rejects null and false.
+Validator<bool?, E> mustBeTrue<E extends Object>(E message) => (value) {
+      if (value != true) {
+        return message;
+      }
+
+      return null;
+    };
+
 /// Rejects null and empty lists
 Validator<List<T>?, E> notEmpty<T, E extends Object>(E message) => (value) {
       if (value?.isEmpty ?? true) {

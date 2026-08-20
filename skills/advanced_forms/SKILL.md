@@ -244,13 +244,14 @@ Every string validator is typed `Validator<String?, E>`, even though `AdvancedTe
 | `boundedNonNegativeInteger(max, e)` | `String?` | anything but `0..max` or the literal string `>max` |
 | `notNull(e)` | `T?` (any) | null |
 | `notEmpty(e)` | `List<T>?` | null, empty list |
+| `mustBeTrue(e)` | `bool?` | null, false |
 
 `conditionalValidator(v, () => enabled)` runs `v` only while the getter returns true; `dynamicValidator(() => buildValidator())` rebuilds the validator on each call. Both keep `T`.
 
-**There is no bool validator, and `notEmpty` does not fit a `Set`.** Write a closure:
+**`notEmpty` does not fit a `Set`.** Write a closure:
 
 ```dart
-validator: (value) => value ? null : MyError.mustAccept,        // bool field
+validator: mustBeTrue(MyError.mustAccept),                      // bool field
 validator: (value) => value.isEmpty ? MyError.pickOne : null,   // Set<V> field
 ```
 
